@@ -703,16 +703,17 @@ VIEWS.dashboard = () => {
   </div>`;
 };
 function locationCard(all){
-  const fy = state.af.fy;
-  const rows = LOCATIONS.map(L => { const cl = all.filter(c => locOf(c) === L); const act = cl.filter(c => c.Status !== "Deactivated"); const it = vatItems(cl, 45); const ct = ctItems(cl, 60); const mwo = mwItems(cl, 0).filter(x => x.d < 0).length;
+  const fy = state.af.fy; const cur = curYM(); const yr = cur.slice(0, 4);
+  const rows = LOCATIONS.map(L => { const cl = all.filter(c => locOf(c) === L); const act = cl.filter(c => !isDeact(c));
+    const vat = vatItems(cl, 70).filter(x => x.due.slice(0, 7) === cur).length;
+    const ct = ctItems(cl, 500).filter(x => x.due.slice(0, 4) === yr).length;
+    const mw = mwItems(cl, 70).filter(x => x.due.slice(0, 7) === cur).length;
     const aud = auditClients(cl); const audP = aud.filter(c => !AUDIT_DONE.has((auditRec(c.id, fy) || {}).Status || "Not started")).length;
     const crA = act.filter(c => { const d = crInfo(c).d; return d != null && d <= 30; }).length;
-    return { L, n: act.length, vo: it.filter(x => x.d < 0).length, vd: it.filter(x => x.d >= 0).length, ct: ct.length, cto: ct.filter(x => x.d < 0).length, mwo, audP, aud: aud.length, crA,
-      staff: activeEmployees().filter(e => act.some(c => teamOf(c).includes(lc(e.Email)))).length }; });
-  const cell = (v, bad) => `<td class="num ${bad && v ? "over" : ""}">${v}</td>`;
-  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>By location</h3><div class="right small muted">Click a row to switch to that location</div></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT overdue</th><th class="num">VAT due ≤45d</th><th class="num">CT due ≤60d</th><th class="num">CT overdue</th><th class="num">Monthly work overdue</th><th class="num">Audits pending FY${esc(fy)}</th><th class="num">CR / licence ≤30d</th></tr></thead><tbody>
-  ${rows.map(r => `<tr class="click-row" data-act="setloc" data-v="${r.L}"><td class="cname">${r.L === "UAE" ? "UAE (Dubai)" : "Bahrain"}</td><td class="num">${r.n}</td>${cell(r.vo, 1)}<td class="num">${r.vd}</td><td class="num">${r.ct}</td>${cell(r.cto, 1)}${cell(r.mwo, 1)}<td class="num">${r.audP} <span class="faint">/ ${r.aud}</span></td>${cell(r.crA, 1)}</tr>`).join("")}
+    return { L, n: act.length, vat, ct, mw, audP, aud: aud.length, crA }; });
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>By location</h3><div class="right small muted">Pending items · click a row to switch to that location</div></div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT due · ${ymLabel(cur)}</th><th class="num">CT due · ${yr}</th><th class="num">Accounting & consulting due · ${ymLabel(cur)}</th><th class="num">Audits pending · FY${esc(fy)}</th><th class="num">CR / licence expiring ≤30d</th></tr></thead><tbody>
+  ${rows.map(r => `<tr class="click-row" data-act="setloc" data-v="${r.L}"><td class="cname">${r.L === "UAE" ? "UAE (Dubai)" : "Bahrain"}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.ct}</td><td class="num">${r.mw}</td><td class="num">${r.audP} <span class="faint">/ ${r.aud}</span></td><td class="num">${r.crA}</td></tr>`).join("")}
   </tbody></table></div></div>`;
 }
 function feedItem(a){ return `<li><b>${esc(a.UserName || a.UserEmail)}</b> · ${esc(a.Title)}${a.ClientName ? ` — <span class="cname">${esc(a.ClientName)}</span>` : ""}${a.Details ? `<div class="small muted">${esc(a.Details)}</div>` : ""}<div class="when">${fmtDT(a.At)}</div></li>`; }
