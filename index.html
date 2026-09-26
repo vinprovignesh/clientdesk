@@ -138,6 +138,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .mwrap{position:fixed;inset:0;background:rgba(10,18,30,.45);display:flex;align-items:flex-start;justify-content:center;padding:4vh 16px;overflow:auto;z-index:50}
 .modal{background:var(--panel);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.3);width:100%;max-width:640px;border:1px solid var(--line)}
 .modal.wide{max-width:1040px}
+.modal.ro [data-act=editCred],.modal.ro [data-act=delCred],.modal.ro [data-act=editVat],.modal.ro [data-act=editCt],.modal.ro [data-act=editAudit]{display:none}
 .modal .mh{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
 .modal .mh h2{margin:0;font-size:17px}
 .modal .mh .x{margin-left:auto}
@@ -228,7 +229,7 @@ const SCOPES = ["User.Read", "Sites.ReadWrite.All", "Sites.Manage.All"];
 /* SharePoint list schema. 'text' = single line (255), 'note' = multi-line */
 const SCHEMA = {
   employees: { list: "Employees", fields: { Title:"text", Email:"text", Role:"text", Active:"text", Phone:"text", Location:"text" } },
-  clients:   { list: "Clients", fields: { Title:"text", Location:"text", CTNo:"text", CRNo:"text", CRExpiry:"text", Status:"text", ContactName:"text", ContactNo:"text", ContactEmail:"text",
+  clients:   { list: "Clients", fields: { Title:"text", Location:"text", CTNo:"text", CRNo:"text", CRExpiry:"text", Status:"text", DeactivatedOn:"text", DeactivatedBy:"text", ContactName:"text", ContactCode:"text", ContactNo:"text", ContactEmail:"text",
                 VATNo:"text", VATCycle:"text", VATFrom:"text", FYEnd:"text", AuditRequired:"text", AssignedTo:"note", Reviewer:"text", Services:"note", Notes:"note" } },
   creds:     { list: "Credentials", fields: { Title:"text", ClientId:"text", Username:"text", Pwd:"text", PortalURL:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   vat:       { list: "VATReturns", fields: { Title:"text", ClientId:"text", PeriodEnd:"text", Status:"text", Preparer:"text", Reviewer:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
@@ -243,7 +244,8 @@ const PORTALS = ["NBR", "Sijilat", "LMRA", "SIO", "EmaraTax (FTA)", "MOHRE", "Du
 const PORTAL_URLS = { NBR:"https://www.nbr.gov.bh", Sijilat:"https://www.sijilat.bh", LMRA:"https://www.lmra.gov.bh", SIO:"https://www.sio.gov.bh", "EmaraTax (FTA)":"https://tax.gov.ae", MOHRE:"https://www.mohre.gov.ae", "Dubai Economy (DET)":"https://www.dubaidet.gov.ae", "ICP / GDRFA":"https://icp.gov.ae" };
 const PORTAL_ALIASES = [[/emara|^fta$|federal tax/i, "EmaraTax (FTA)"], [/mohre|ministry of human/i, "MOHRE"], [/^det$|dubai econ|ded/i, "Dubai Economy (DET)"], [/icp|gdrfa/i, "ICP / GDRFA"]];
 const LOCATIONS = ["Bahrain", "UAE"];
-const LOC = { Bahrain: { cur:"BHD", auth:"NBR", ctMonths:15, ctNote:"Bahrain DMTT: 15 months after FY end (18 for first year)" }, UAE: { cur:"AED", auth:"FTA", ctMonths:9, ctNote:"UAE CT: 9 months after end of tax period" } };
+const LOC = { Bahrain: { dial:"+973", cur:"BHD", auth:"NBR", ctMonths:15, ctNote:"Bahrain DMTT: 15 months after FY end (18 for first year)" }, UAE: { dial:"+971", cur:"AED", auth:"FTA", ctMonths:9, ctNote:"UAE CT: 9 months after end of tax period" } };
+const DIAL_CODES = [["+973","Bahrain"],["+971","UAE"],["+966","Saudi Arabia"],["+968","Oman"],["+974","Qatar"],["+965","Kuwait"],["+91","India"],["+92","Pakistan"],["+880","Bangladesh"],["+94","Sri Lanka"],["+977","Nepal"],["+63","Philippines"],["+20","Egypt"],["+962","Jordan"],["+961","Lebanon"],["+90","Turkey"],["+44","United Kingdom"],["+1","USA / Canada"],["+49","Germany"],["+33","France"],["+39","Italy"],["+31","Netherlands"],["+41","Switzerland"],["+7","Russia"],["+86","China"],["+852","Hong Kong"],["+65","Singapore"],["+60","Malaysia"],["+62","Indonesia"],["+81","Japan"],["+82","South Korea"],["+61","Australia"],["+64","New Zealand"],["+27","South Africa"],["+234","Nigeria"],["+254","Kenya"]];
 const DEFAULT_LOC = LOCATIONS.includes(CFG.defaultLocation) ? CFG.defaultLocation : "Bahrain";
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -461,7 +463,11 @@ function activeEmployees(){ return data.employees.filter(e => e.Active !== "No")
 function clientById(id){ return data.clients.find(c => c.id === id); }
 function teamOf(c){ const t = splitEmails(c.AssignedTo); return t; }
 function isMine(c){ const e = lc(me.email); return teamOf(c).includes(e) || lc(c.Reviewer) === e; }
-function canSee(c){ return isMgr() || isMine(c); }
+function isDeact(c){ return !!c && c.Status === "Deactivated"; }
+function canSee(c){ return isMgr() || (isMine(c) && !isDeact(c)); }
+function dialOf(c){ return c.ContactCode || LOC[locOf(c)].dial; }
+function phoneOf(c){ const n = String(c.ContactNo || "").trim(); if(!n) return ""; return n.startsWith("+") ? n : `${dialOf(c)} ${n}`; }
+function normDial(v){ const d = String(v == null ? "" : v).replace(/[^\d]/g, "").replace(/^00/, ""); if(!d) return ""; if(d.length > 4) throw "Country code not recognised: " + v; return "+" + d; }
 function locOf(c){ return LOCATIONS.includes(c.Location) ? c.Location : DEFAULT_LOC; }
 function curOf(c){ return LOC[locOf(c)].cur; }
 function locTag(c){ return `<span class="tag loc-${locOf(c)}">${locOf(c) === "UAE" ? "UAE" : "BH"}</span>`; }
@@ -701,16 +707,17 @@ VIEWS.clients = () => {
   </div>
   <div class="card"><div class="tw"><table class="tbl"><thead><tr>
     ${isMgr() ? `<th style="width:30px"><input type="checkbox" data-act="selAll" ${allSel ? "checked" : ""} aria-label="Select all"></th>` : ""}
-    <th>Client</th><th>Location</th><th>CR / Licence</th><th>Expiry</th><th>Contact</th><th>Services</th><th>VAT cycle</th><th>Team</th><th>Logins</th></tr></thead><tbody>
+    <th>Client</th><th>Location</th><th>CR / Licence</th><th>Expiry</th><th>Contact</th><th>Services</th><th>VAT cycle</th><th>Team</th><th>Logins</th>${isAdmin() ? `<th title="Admin only">Deactivated</th>` : ""}</tr></thead><tbody>
     ${list.map(c => { const cr = crInfo(c); return `<tr class="click" data-act="openClient" data-id="${c.id}">
       ${isMgr() ? `<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${c.id}" ${sel.has(c.id) ? "checked" : ""} aria-label="Select"></td>` : ""}
       <td><span class="cname">${esc(c.Title)}</span>${c.Status && c.Status !== "Active" ? ` ${chip("grey", esc(c.Status))}` : ""}</td>
       <td>${locTag(c)}</td><td class="nowrap">${esc(c.CRNo)}</td><td>${chip(cr.cls, cr.txt)}</td>
-      <td class="small">${esc(c.ContactName)}${c.ContactNo ? `<div class="faint">${esc(c.ContactNo)}</div>` : ""}</td>
+      <td class="small">${esc(c.ContactName)}${c.ContactNo ? `<div class="faint nowrap">${esc(phoneOf(c))}</div>` : ""}</td>
       <td>${serviceTags(c) || `<span class="soon small">Not set</span>`}</td>
       <td class="small nowrap">${c.VATCycle ? esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].short : c.VATCycle) : `<span class="soon">Not set</span>`}</td>
       <td>${teamOf(c).length ? avatars(teamOf(c)) : `<span class="faint small">Unassigned</span>`}</td>
-      <td>${(credsBy[c.id] || []).map(p => `<span class="tag">${esc(p)}</span>`).join("") || `<span class="faint small">—</span>`}</td></tr>`; }).join("")}
+      <td>${(credsBy[c.id] || []).map(p => `<span class="tag">${esc(p)}</span>`).join("") || `<span class="faint small">—</span>`}</td>
+      ${isAdmin() ? `<td data-stop="1" style="text-align:center"><input type="checkbox" data-act="toggleDeact" data-id="${c.id}" ${isDeact(c) ? "checked" : ""} aria-label="Deactivated" title="${isDeact(c) ? "Deactivated — untick to reactivate" : "Tick to deactivate"}"></td>` : ""}</tr>`; }).join("")}
   </tbody></table>${list.length ? "" : `<div class="empty">No clients match these filters.</div>`}</div></div>`;
 };
 
@@ -897,7 +904,7 @@ function empOpts(val, blank){ return `<option value="">${blank || "—"}</option
 MODALS.client = ({ id }) => {
   const c = clientById(id); if(!c) return "";
   const tab = state.clientTab || "overview"; const cr = crInfo(c);
-  const canEdit = isMgr();
+  const canEdit = isDeact(c) ? isAdmin() : isMgr();
   const tabs = [["overview","Overview"],["logins",`Logins (${data.creds.filter(x => x.ClientId === id).length})`],["vat","VAT returns"],["ct","Corporate tax"],["audit","Audit"],["activity","Activity"]];
   let body = "";
   if(tab === "overview") body = `<div class="kv">
@@ -934,7 +941,8 @@ MODALS.client = ({ id }) => {
       <td class="small nowrap">${fmtDate(r && r.DueDate)}</td><td class="small nowrap">${fmtDate(r && r.CompletedDate)}</td><td class="small muted">${esc(r && r.Notes)}</td><td><button class="btn sm" data-act="editAudit" data-c="${id}" data-fy="${fy}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
   if(tab === "activity"){ const acts = data.activity.filter(a => a.ClientId === id).sort((a,b) => b.At.localeCompare(a.At));
     body = acts.length ? `<ul class="feed">${acts.map(feedItem).join("")}</ul>` : `<div class="empty">No activity yet.</div>`; }
-  return `<div class="modal wide">${mHead(locTag(c) + " " + esc(c.Title), `${c.Status && c.Status !== "Active" ? chip("grey", esc(c.Status)) : ""}${canEdit ? `<button class="btn sm" style="margin-left:8px" data-act="editClient" data-id="${id}">${I.edit} Edit client</button>` : ""}`)}
+  return `<div class="modal wide ${isDeact(c) ? "ro" : ""}">${mHead(locTag(c) + " " + esc(c.Title), `${c.Status && c.Status !== "Active" ? chip(isDeact(c) ? "red" : "grey", esc(c.Status)) : ""}${canEdit && !isDeact(c) ? `<button class="btn sm" style="margin-left:8px" data-act="editClient" data-id="${id}">${I.edit} Edit client</button>` : ""}`)}
+    ${isDeact(c) ? `<div class="banner bad" style="margin:12px 20px 0">This client is deactivated${c.DeactivatedOn ? ` since ${fmtDate(c.DeactivatedOn)}` : ""}${c.DeactivatedBy ? ` by ${esc(empName(c.DeactivatedBy))}` : ""}. It is read-only and excluded from all trackers.${isAdmin() ? ` <button class="btn sm" data-act="toggleDeact" data-id="${id}" data-force="on">Reactivate client</button>` : ""}</div>` : ""}
     <div class="tabs">${tabs.map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-act="ctab" data-v="${k}">${l}</button>`).join("")}</div>
     <div class="mb">${body}</div></div>`;
 };
@@ -946,15 +954,16 @@ MODALS.clientForm = ({ id }) => {
   return `<form class="modal" data-form="client" data-id="${id || ""}">${mHead(id ? "Edit client" : "Add client")}
   <div class="mb"><div class="form">
     <label>Client name *<input class="in" name="Title" required value="${esc(c.Title)}"></label>
-    <label>Location *<select class="in" name="Location">${opt(LOCATIONS, locOf(c), { Bahrain:"Bahrain", UAE:"UAE (Dubai)" })}</select></label>
+    <label>Location *<select class="in" name="Location" data-act="locPick">${opt(LOCATIONS, locOf(c), { Bahrain:"Bahrain", UAE:"UAE (Dubai)" })}</select></label>
     <label>CR / Trade licence no<input class="in" name="CRNo" value="${esc(c.CRNo)}"></label>
     <label>CR / licence expiry date<input class="in" type="date" name="CRExpiry" value="${/^\d{4}-\d{2}-\d{2}$/.test(c.CRExpiry || "") ? c.CRExpiry : ""}"></label>
-    <label>Status<select class="in" name="Status">${opt(["Active","Dormant","Deactivated"], c.Status || "Active")}</select></label>
+    <label>Status<select class="in" name="Status">${opt(["Active","Dormant"], isDeact(c) ? "Active" : (c.Status || "Active"))}</select>${isAdmin() ? `<span class="hint" style="display:flex;gap:6px;align-items:center;margin-top:4px;color:var(--bad);font-weight:600"><input type="checkbox" name="Deact" ${isDeact(c) ? "checked" : ""}> Deactivated (admin only)</span>` : ""}</label>
     <label>Financial year end<select class="in" name="FYEnd">${FYENDS.map(v => `<option value="${v}" ${(c.FYEnd || "12-31") === v ? "selected" : ""}>${fyEndLabel(v)}</option>`).join("")}</select></label>
     <div class="full lbl">Services provided <span class="hint">Tick every service Vinpro handles for this client. Ticking <b>Corporate Tax</b> or <b>Audit</b> adds the client to that tracker.</span><div class="svc">${SERVICES.map(sv => `<label><input type="checkbox" name="Svc" value="${esc(sv)}" ${hasService(c, sv) ? "checked" : ""}> ${esc(sv)}</label>`).join("")}</div>
       <input class="in" name="OtherSvc" value="${esc(otherServiceText(c))}" placeholder="If Others: specify (e.g. Company formation, PRO services)" style="margin-top:6px;font-weight:400"></div>
     <label>Contact person<input class="in" name="ContactName" value="${esc(c.ContactName)}"></label>
-    <label>Contact no<input class="in" name="ContactNo" value="${esc(c.ContactNo)}"></label>
+    <div class="lbl">Contact no<div style="display:flex;gap:6px"><input class="in" name="ContactCode" list="dialCodes" value="${esc(c.ContactCode || LOC[locOf(c)].dial)}" style="width:96px;font-weight:400" pattern="\\+?[0-9]{1,4}" title="Country code, e.g. +973" aria-label="Country code"><input class="in" name="ContactNo" value="${esc(c.ContactNo)}" style="flex:1;font-weight:400" inputmode="tel" aria-label="Contact number"></div>
+      <datalist id="dialCodes">${DIAL_CODES.map(([d, n]) => `<option value="${d}">${n}</option>`).join("")}</datalist></div>
     <label class="full">Contact email<input class="in" type="email" name="ContactEmail" value="${esc(c.ContactEmail)}"></label>
     <label>VAT account no / TRN<input class="in" name="VATNo" value="${esc(c.VATNo)}"></label>
     <label>Corporate tax TRN<input class="in" name="CTNo" value="${esc(c.CTNo)}"></label>
@@ -1085,8 +1094,12 @@ function formObj(form){ const fd = new FormData(form); const o = {}; for(const [
 function buildServices(o){ const picked = [].concat(o.Svc || []); const other = String(o.OtherSvc || "").trim(); return picked.map(s => s === "Others" && other ? "Others: " + other : s).join("; "); }
 SUBMIT.client = async (form, o) => {
   const id = form.dataset.id; const team = [].concat(o.AssignedTo || []);
-  const f = { Title: o.Title.trim(), Location: o.Location, CTNo: o.CTNo.trim(), CRNo: o.CRNo.trim(), CRExpiry: o.CRExpiry, Status: o.Status, ContactName: o.ContactName, ContactNo: o.ContactNo, ContactEmail: o.ContactEmail,
+  let code = ""; try { code = normDial(o.ContactCode); } catch(e){ return toast(String(e), true); }
+  const prevC = id ? clientById(id) : null; const wantDeact = isAdmin() ? !!o.Deact : isDeact(prevC);
+  const f = { Title: o.Title.trim(), Location: o.Location, CTNo: o.CTNo.trim(), CRNo: o.CRNo.trim(), CRExpiry: o.CRExpiry, Status: wantDeact ? "Deactivated" : o.Status, ContactName: o.ContactName, ContactCode: code, ContactNo: o.ContactNo.trim(), ContactEmail: o.ContactEmail,
     VATNo: o.VATNo, VATCycle: o.VATCycle, VATFrom: o.VATFrom, FYEnd: o.FYEnd, AssignedTo: team.join("; "), Reviewer: o.Reviewer, Services: buildServices(o), Notes: o.Notes };
+  if(wantDeact && !isDeact(prevC)){ f.DeactivatedOn = todayISO(); f.DeactivatedBy = me.email; }
+  if(!wantDeact && isDeact(prevC)){ f.DeactivatedOn = ""; f.DeactivatedBy = ""; }
   const before = id ? { ...clientById(id) } : null;
   const r = await saveRec("clients", id || null, f);
   const changes = before ? Object.keys(f).filter(k => String(before[k] || "") !== String(f[k] || "")).join(", ") : "";
@@ -1220,14 +1233,14 @@ async function runImport(){
 const BULK_COLS = [
   ["Client ID", "id", 12], ["Client Name *", "Title", 32], ["Location", "Location", 10], ["CR / Licence No", "CRNo", 16], ["CR / Licence Expiry", "CRExpiry", 16],
   ["Status", "Status", 12], ["Financial Year End", "FYEnd", 14], ["Services", "Services", 36], ["Other Service Details", "OtherSvc", 22],
-  ["Contact Person", "ContactName", 18], ["Contact No", "ContactNo", 14], ["Contact Email", "ContactEmail", 24], ["VAT No / TRN", "VATNo", 18], ["Corporate Tax TRN", "CTNo", 18],
+  ["Contact Person", "ContactName", 18], ["Contact Country Code", "ContactCode", 12], ["Contact No", "ContactNo", 14], ["Contact Email", "ContactEmail", 24], ["VAT No / TRN", "VATNo", 18], ["Corporate Tax TRN", "CTNo", 18],
   ["VAT Cycle", "VATCycle", 26], ["Track VAT From", "VATFrom", 14], ["Team (emails)", "AssignedTo", 34], ["Reviewer (email)", "Reviewer", 26], ["Notes", "Notes", 30]
 ];
 const CYCLE_TEXT = { "Q-Mar":"Quarterly Mar/Jun/Sep/Dec", "Q-Jan":"Quarterly Jan/Apr/Jul/Oct", "Q-Feb":"Quarterly Feb/May/Aug/Nov", "Monthly":"Monthly", "Not registered":"Not registered" };
 function bulkRowOf(c){
   const svc = servicesOf(c);
   return { id: c.id, Title: c.Title, Location: locOf(c), CRNo: c.CRNo, CRExpiry: c.CRExpiry, Status: c.Status || "Active", FYEnd: fyEndLabel(c.FYEnd || "12-31"),
-    Services: svc.join("; "), OtherSvc: otherServiceText(c), ContactName: c.ContactName, ContactNo: c.ContactNo, ContactEmail: c.ContactEmail, VATNo: c.VATNo, CTNo: c.CTNo,
+    Services: svc.join("; "), OtherSvc: otherServiceText(c), ContactName: c.ContactName, ContactCode: dialOf(c), ContactNo: c.ContactNo, ContactEmail: c.ContactEmail, VATNo: c.VATNo, CTNo: c.CTNo,
     VATCycle: CYCLE_TEXT[c.VATCycle] || c.VATCycle || "", VATFrom: c.VATFrom, AssignedTo: teamOf(c).join("; "), Reviewer: lc(c.Reviewer), Notes: c.Notes };
 }
 function bulkInstructions(){
@@ -1237,7 +1250,7 @@ function bulkInstructions(){
     ["• A blank cell keeps the existing value. Type a single - (hyphen) to clear a field."], ["• Portal logins and passwords are not uploaded in bulk; add them on the client's Logins tab."], [],
     ["Column", "Allowed values / format"],
     ["Client Name *", "Required for new clients"], ["Location", "Bahrain or UAE (Dubai)"], ["CR / Licence Expiry", "Date, e.g. 2026-11-08 or 08/11/2026"],
-    ["Status", "Active, Dormant or Deactivated"], ["Financial Year End", "e.g. 31 Dec, 31 Mar, 30 Jun"],
+    ["Status", "Active or Dormant. Deactivated can be set (or removed) by Admins only"], ["Contact Country Code", "e.g. +973, +971, +91 — blank uses +973 for Bahrain / +971 for UAE"], ["Financial Year End", "e.g. 31 Dec, 31 Mar, 30 Jun"],
     ["Services", "Separate with ; — " + SERVICES.join("; ")], ["Other Service Details", "Description when Services includes Others"],
     ["VAT Cycle", Object.values(CYCLE_TEXT).join("; ")], ["Track VAT From", "Month the first tracked VAT period ends, e.g. 2026-03"],
     ["Team (emails)", "Microsoft login emails of employees, separated by ; — must already exist under Team"], ["Reviewer (email)", "One employee email"], [],
@@ -1302,21 +1315,24 @@ function bulkParse(buf, fileName){
     const idv = txt("id"); const crv = txt("CRNo");
     let c = (idv && data.clients.find(x => x.id === idv)) || (crv && crv !== "-" && data.clients.find(x => lc(x.CRNo) === lc(crv))) || (row.title && data.clients.find(x => lc(x.Title) === lc(row.title)));
     if(idv && !data.clients.some(x => x.id === idv)) row.errors.push("Client ID " + idv + " not found — leave blank for a new client");
-    if(c && !canSee(c)) { row.errors.push("This client exists but isn't assigned to you"); c = null; }
+    if(c && !canSee(c)) { row.errors.push(isDeact(c) ? "This client is deactivated — only an Admin can change it" : "This client exists but isn't assigned to you"); c = null; }
     if(c && seen.has(c.id)) row.errors.push("Same client appears more than once in the file");
     if(c) seen.add(c.id);
     row.client = c; if(!row.title && c) row.title = c.Title;
     const f = {};
     const put = (key, fn) => { const raw = cell(key); if(raw == null || String(raw).trim() === "") return; if(String(raw).trim() === "-"){ f[key] = ""; return; } try { f[key] = fn ? fn(raw) : txt(key); } catch(e){ row.errors.push(String(e)); } };
     put("Title"); put("Location", bParseLoc); put("CRNo"); put("CRExpiry", bParseDate); put("Status", bParseStatus); put("FYEnd", bParseFYE);
-    put("ContactName"); put("ContactNo"); put("ContactEmail"); put("VATNo"); put("CTNo"); put("VATCycle", bParseCycle); put("VATFrom", bParseYM); put("Notes");
+    put("ContactName"); put("ContactCode", normDial); put("ContactNo"); put("ContactEmail"); put("VATNo"); put("CTNo"); put("VATCycle", bParseCycle); put("VATFrom", bParseYM); put("Notes");
     try { const t = bParseEmails(cell("AssignedTo")); if(t) f.AssignedTo = t.join("; "); else if(txt("AssignedTo") === "-") f.AssignedTo = ""; } catch(e){ row.errors.push(String(e)); }
     try { const rv = bParseEmails(cell("Reviewer"), true); if(rv) f.Reviewer = rv[0]; else if(txt("Reviewer") === "-") f.Reviewer = ""; } catch(e){ row.errors.push(String(e)); }
     try { const sv = txt("Services") === "-" ? [] : bParseServices(cell("Services")); if(sv){ const other = txt("OtherSvc") === "-" ? "" : (txt("OtherSvc") || (c ? otherServiceText(c) : "")); f.Services = buildServices({ Svc: sv, OtherSvc: other }); } } catch(e){ row.errors.push(String(e)); }
-    if(f.Location === "") delete f.Location; if(f.Status === "") delete f.Status; if(f.Title === "") { row.errors.push("Client name can't be cleared"); delete f.Title; }
+    if(f.Location === "") delete f.Location; if(f.Status === "") delete f.Status;
+    if(f.Status && !isAdmin() && ((f.Status === "Deactivated") !== isDeact(c))) { row.errors.push("Only an Admin can deactivate or reactivate a client"); delete f.Status; }
+    if(f.Status === "Deactivated" && !isDeact(c)) { f.DeactivatedOn = todayISO(); f.DeactivatedBy = me.email; }
+    if(f.Status && f.Status !== "Deactivated" && isDeact(c)) { f.DeactivatedOn = ""; f.DeactivatedBy = ""; } if(f.Title === "") { row.errors.push("Client name can't be cleared"); delete f.Title; }
     row.loc = f.Location || (c ? locOf(c) : (state.loc || DEFAULT_LOC));
     if(c){
-      for(const [k2, v] of Object.entries(f)){ const cur = k2 === "Location" ? locOf(c) : String(c[k2] || ""); if(String(v) !== cur) { row.fields[k2] = v; row.changes.push(BULK_COLS.find(x => x[1] === k2)[0].replace(" *", "")); } }
+      for(const [k2, v] of Object.entries(f)){ const cur = k2 === "Location" ? locOf(c) : k2 === "ContactCode" ? dialOf(c) : String(c[k2] || ""); if(String(v) !== cur) { row.fields[k2] = v; const col = BULK_COLS.find(x => x[1] === k2); if(col) row.changes.push(col[0].replace(" *", "")); } }
       if(!isMgr() && ("AssignedTo" in row.fields) && !splitEmails(row.fields.AssignedTo).includes(lc(me.email)) && lc(row.fields.Reviewer || c.Reviewer) !== lc(me.email)) row.errors.push("You can't remove yourself from this client's team");
       row.action = row.errors.length ? "Error" : Object.keys(row.fields).length ? "Update" : "No change";
     } else {
@@ -1347,7 +1363,7 @@ async function exportXlsx(){
   if(!window.XLSX) return toast("Excel library still loading — try again in a moment", true);
   const withPwd = $("#expPwd") && $("#expPwd").checked; const cl = visibleClients(); const name = id => (clientById(id) || {}).Title || "";
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cl.map(c => ({ "Client Name": c.Title, Location: locOf(c), "CR / Licence No": c.CRNo, "CR / Licence Expiry": c.CRExpiry, Status: c.Status, "Contact Name": c.ContactName, "Contact No": c.ContactNo, "Contact Email": c.ContactEmail,
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cl.map(c => ({ "Client Name": c.Title, Location: locOf(c), "CR / Licence No": c.CRNo, "CR / Licence Expiry": c.CRExpiry, Status: c.Status, "Contact Name": c.ContactName, "Contact No": phoneOf(c), "Contact Email": c.ContactEmail, "Deactivated On": c.DeactivatedOn,
     "VAT No / TRN": c.VATNo, "CT TRN": c.CTNo, "VAT Cycle": (CYCLES[c.VATCycle] || {}).label || c.VATCycle, "FY End": fyEndLabel(c.FYEnd), Team: teamOf(c).map(empName).join(", "), Reviewer: empName(c.Reviewer), Services: c.Services, Notes: c.Notes }))), "Clients");
   const ids = new Set(cl.map(c => c.id));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.creds.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), Portal: x.Title, Username: x.Username, Password: withPwd ? x.Pwd : (x.Pwd ? "(hidden)" : ""), URL: x.PortalURL, Notes: x.Notes }))), "Logins");
@@ -1370,11 +1386,15 @@ const ACT = {
   openClient: (d, e) => { if(e.target.closest("[data-stop]")) return; e.preventDefault(); state.clientTab = "overview"; openModal("client", { id: d.id }); },
   ctab: d => { state.clientTab = d.v; renderModals(); },
   close: () => closeModal(),
-  editClient: d => openModal("clientForm", { id: d.id }),
-  editCred: d => openModal("credForm", { cid: d.c, id: d.id }),
-  editVat: d => { const c = clientById(d.c); if(!c || !canSee(c)) return; openModal("vatForm", { cid: d.c, pe: d.pe }); },
-  editAudit: d => openModal("auditForm", { cid: d.c, fy: d.fy }),
-  editCt: d => { const c = clientById(d.c); if(!c || !canSee(c)) return; openModal("ctForm", { cid: d.c, fy: d.fy }); },
+  editClient: d => { const c = clientById(d.id); if(c && isDeact(c) && !isAdmin()) return toast("This client is deactivated", true); openModal("clientForm", { id: d.id }); },
+  editCred: d => { if(isDeact(clientById(d.c))) return toast("This client is deactivated — reactivate it to make changes", true); openModal("credForm", { cid: d.c, id: d.id }); },
+  toggleDeact: (d, e) => { if(!isAdmin()) return; const c = clientById(d.id); if(!c) return; if(e && e.target && e.target.type === "checkbox") e.target.checked = isDeact(c);
+    const on = !isDeact(c);
+    openModal("confirm", { text: on ? `Deactivate <b>${esc(c.Title)}</b>?<br><br>It will be removed from the VAT, corporate tax and audit trackers and dashboards, hidden from staff, and made read-only. Its history and logins are kept. You can reactivate it any time.` : `Reactivate <b>${esc(c.Title)}</b>? It will appear again in the trackers and for its assigned team.`,
+      onYes: async () => { await saveRec("clients", c.id, on ? { Status: "Deactivated", DeactivatedOn: todayISO(), DeactivatedBy: me.email } : { Status: "Active", DeactivatedOn: "", DeactivatedBy: "" }); await logAct(on ? "Client deactivated" : "Client reactivated", c, ""); toast(on ? "Client deactivated" : "Client reactivated"); } }); },
+  editVat: d => { const c = clientById(d.c); if(!c || !canSee(c) || isDeact(c)) return; openModal("vatForm", { cid: d.c, pe: d.pe }); },
+  editAudit: d => { const c = clientById(d.c); if(!c || !canSee(c) || isDeact(c)) return; openModal("auditForm", { cid: d.c, fy: d.fy }); },
+  editCt: d => { const c = clientById(d.c); if(!c || !canSee(c) || isDeact(c)) return; openModal("ctForm", { cid: d.c, fy: d.fy }); },
   setloc: d => { state.loc = d.v || ""; try { localStorage.setItem("vinpro-loc", state.loc); } catch(e){} state.cf.sel.clear(); render(); },
   editEmp: d => openModal("empForm", { id: d.id }),
   bulk: () => openModal("bulk"),
@@ -1420,6 +1440,7 @@ document.addEventListener("change", e => {
   const t = e.target; const b = t.dataset && t.dataset.bind;
   if(b && t.tagName === "SELECT"){ const [o, k] = b.split("."); state[o][k] = t.value; render(); return; }
   if(t.dataset && t.dataset.act === "demouser"){ const emp = data.employees.find(x => lc(x.Email) === lc(t.value)); me = { email: emp.Email, name: emp.Title.replace(/\s*\(sample\)/, ""), role: null }; me.role = roleOf(me.email); state.cf.sel.clear(); state.modals = []; renderModals(); render(); toast(`Now viewing as ${me.name} (${me.role})`); }
+  if(t.dataset && t.dataset.act === "locPick"){ const cc = t.form.querySelector('[name="ContactCode"]'); if(cc && (!cc.value || Object.values(LOC).some(L => L.dial === cc.value))) cc.value = LOC[t.value].dial; }
   if(t.dataset && t.dataset.act === "portalPick"){ const url = t.form.querySelector('[name="PortalURL"]'); if(url && !url.value) url.value = PORTAL_URLS[t.value] || ""; }
 });
 document.addEventListener("submit", async e => {
