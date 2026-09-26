@@ -29,5 +29,7 @@ window.VINPRO_CONFIG = {
   // Monthly Work (Accounting & Consultancy): first month tracked, and the day of the
   // following month by which a month's accounting should be closed
   monthlyTrackingStart: "2026-09",
-  accountingDueDay: 15
+  accountingDueDay: 15,
+  // For clients on an annual accounting engagement: months after financial year end
+  annualAccountingDueMonths: 3
 };

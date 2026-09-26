@@ -231,11 +231,11 @@ const SCOPES = ["User.Read", "Sites.ReadWrite.All", "Sites.Manage.All"];
 const SCHEMA = {
   employees: { list: "Employees", fields: { Title:"text", Email:"text", Role:"text", Active:"text", Phone:"text", Location:"text" } },
   clients:   { list: "Clients", fields: { Title:"text", Location:"text", CTNo:"text", CRNo:"text", CRExpiry:"text", Status:"text", DeactivatedOn:"text", DeactivatedBy:"text", ContactName:"text", ContactCode:"text", ContactNo:"text", ContactEmail:"text",
-                VATNo:"text", VATCycle:"text", VATFrom:"text", FYEnd:"text", AuditRequired:"text", AssignedTo:"note", Reviewer:"text", Services:"note", Notes:"note" } },
+                VATNo:"text", VATCycle:"text", VATFrom:"text", FYEnd:"text", AuditRequired:"text", AssignedTo:"note", Reviewer:"text", Services:"note", AcctFreq:"text", ConsFreq:"text", Notes:"note" } },
   creds:     { list: "Credentials", fields: { Title:"text", ClientId:"text", Username:"text", Pwd:"text", PortalURL:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   vat:       { list: "VATReturns", fields: { Title:"text", ClientId:"text", PeriodEnd:"text", Status:"text", Preparer:"text", Reviewer:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   audits:    { list: "Audits", fields: { Title:"text", ClientId:"text", FY:"text", Auditor:"text", AssignedTo:"text", Status:"text", DueDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  mw:        { list: "MonthlyWork", fields: { Title:"text", ClientId:"text", Service:"text", Month:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", CompletedDate:"text", Hours:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  mw:        { list: "MonthlyWork", fields: { Title:"text", ClientId:"text", Service:"text", Freq:"text", Month:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", CompletedDate:"text", Hours:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   ct:        { list: "CorporateTax", fields: { Title:"text", ClientId:"text", FY:"text", Status:"text", Preparer:"text", Reviewer:"text", DueDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   activity:  { list: "ActivityLog", fields: { Title:"text", ClientId:"text", ClientName:"text", UserEmail:"text", UserName:"text", Details:"note", At:"text" } }
 };
@@ -272,6 +272,9 @@ const MW_COLOR = {"Not started":"grey","Data requested":"amber","Data received":
 const MW_SHORT = {"Not started":"—","Data requested":"Req","Data received":"Rcvd","In progress":"WIP","Under review":"Review","Awaiting client":"Client","Completed":"Done","Not applicable":"N/A"};
 const MW_START = /^\d{4}-\d{2}$/.test(CFG.monthlyTrackingStart || "") ? CFG.monthlyTrackingStart : "2026-09";
 const ACCT_DUE_DAY = +CFG.accountingDueDay || 15;
+const ANNUAL_ACCT_MONTHS = +CFG.annualAccountingDueMonths || 3;
+const FREQS = ["Monthly", "Annually"];
+const FREQ_FIELD = { Accounting: "AcctFreq", Consultancy: "ConsFreq" };
 const CT_STATUSES = ["Not started","Data requested","Data received","Computation in progress","Under review","Filed","Paid / Closed","Not applicable"];
 const CT_DONE = new Set(["Filed","Paid / Closed","Not applicable"]);
 const CT_COLOR = {"Not started":"grey","Data requested":"amber","Data received":"blue","Computation in progress":"blue","Under review":"purple","Filed":"green","Paid / Closed":"green","Not applicable":"grey"};
@@ -394,7 +397,7 @@ class DemoStore {
   persist(){ try { localStorage.setItem("vinpro-demo", JSON.stringify(this.data)); } catch(e){} }
   async loadAll(){
     let saved = null; try { saved = JSON.parse(localStorage.getItem("vinpro-demo") || "null"); } catch(e){}
-    this.data = saved && saved.clients && saved.ct && saved.mw ? saved : demoSeed();
+    this.data = saved && saved.clients && saved.ct && saved.mw && saved.v === 3 ? saved : demoSeed();
     return JSON.parse(JSON.stringify(this.data));
   }
   async create(kind, fields){ const r = Object.assign({ id: uid() }, Object.fromEntries(Object.keys(SCHEMA[kind].fields).map(k => [k, ""])), cleanFields(kind, fields)); this.data[kind].push(r); this.persist(); return { ...r }; }
@@ -436,8 +439,9 @@ function demoSeed(){
         FiledDate: VAT_DONE.has(st) ? dueOf(pe, clients[i]).slice(0,8) + pad(10 + Math.floor(rnd()*15)) : "", RefNo: VAT_DONE.has(st) ? "ACK" + Math.floor(rnd()*1e8) : "",
         Amount: VAT_DONE.has(st) ? (rnd()*4000).toFixed(3) : "", Notes:"", UpdatedBy: staff[i % 2], UpdatedOn: nowISO() });
     }
-    for(const svc of MW_SERVICES) if(hasService(clients[i], svc)) for(let k = 3; k >= 1; k--){ const ym = ymAdd(cur, -k); if(ym < MW_START) continue; const st = k >= 2 ? pick(["Completed","Completed","Under review"]) : pick(MW_STATUSES.slice(0, 6));
-      mw.push({ id: uid(), Title: `${id}|${svc}|${ym}`, ClientId:id, Service:svc, Month:ym, Status:st, AssignedTo: clients[i].AssignedTo.split(";")[0].trim(), Reviewer:"priya@demo.vinpro", DueDate:"", CompletedDate: MW_DONE.has(st) ? mwDefaultDue(svc, ym) : "", Hours: svc === "Consultancy" ? String(2 + Math.floor(rnd()*10)) : "", Notes:"", UpdatedBy:"priya@demo.vinpro", UpdatedOn: nowISO() }); }
+    if(i % 4 === 3) clients[i].AcctFreq = ":Annually"; if(i % 3 === 1) clients[i].ConsFreq = ":Annually";
+    for(const svc of MW_SERVICES) if(hasService(clients[i], svc) && curFreq(clients[i], svc) === "Monthly") for(let k = 3; k >= 1; k--){ const ym = ymAdd(cur, -k); if(ym < MW_START) continue; const st = k >= 2 ? pick(["Completed","Completed","Under review"]) : pick(MW_STATUSES.slice(0, 6));
+      mw.push({ id: uid(), Title: `${id}|${svc}|${ym}`, ClientId:id, Service:svc, Freq:"Monthly", Month:ym, Status:st, AssignedTo: clients[i].AssignedTo.split(";")[0].trim(), Reviewer:"priya@demo.vinpro", DueDate:"", CompletedDate: MW_DONE.has(st) ? mwDefaultDue(svc, ym, "Monthly") : "", Hours: svc === "Consultancy" ? String(2 + Math.floor(rnd()*10)) : "", Notes:"", UpdatedBy:"priya@demo.vinpro", UpdatedOn: nowISO() }); }
     if(uae){ const fy = String(new Date().getFullYear() - 1); ct.push({ id: uid(), Title: id + "|FY" + fy, ClientId:id, FY:fy, Status: pick(CT_STATUSES.slice(0,7)), Preparer:"fatima@demo.vinpro", Reviewer:"priya@demo.vinpro", DueDate:"", FiledDate:"", RefNo:"", Amount:"", Notes:"", UpdatedBy:"fatima@demo.vinpro", UpdatedOn: nowISO() }); }
     if(hasService(clients[i], "Audit")){
       const fy = String(new Date().getFullYear() - 1);
@@ -445,7 +449,7 @@ function demoSeed(){
     }
   });
   const activity = [{ id: uid(), Title:"Demo data created", ClientId:"", ClientName:"", UserEmail:"vignesh@vinproglobal.com", UserName:"Vignesh SG", Details:"Sample clients, logins, VAT and audit records", At: nowISO() }];
-  return { employees, clients, creds, vat, audits, ct, mw, activity };
+  return { v: 3, employees, clients, creds, vat, audits, ct, mw, activity };
 }
 
 /* ============================================================
@@ -508,14 +512,31 @@ function ctDue(c, fy){ const r = ctRec(c.id, fy); return (r && r.DueDate) || ctD
 function ctItems(clients, horizonDays = 60){ const y = new Date().getFullYear(); const out = [];
   for(const c of ctClients(clients)) for(const fy of [y - 1, y].map(String)){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; if(CT_DONE.has(st)) continue; const due = ctDue(c, fy); const d = daysUntil(due); if(d <= horizonDays && due.slice(0,4) >= String(y - 1)) out.push({ c, fy, due, d, st, rec: r }); }
   return out.sort((a,b) => a.d - b.d); }
-function mwDefaultDue(svc, ym){ return svc === "Accounting" ? `${ymAdd(ym, 1)}-${pad(Math.min(ACCT_DUE_DAY, 28))}` : lastDay(ym); }
-function mwRec(cid, svc, ym){ return data.mw.find(x => x.ClientId === cid && x.Service === svc && x.Month === ym); }
-function mwStatus(cid, svc, ym){ const r = mwRec(cid, svc, ym); return (r && r.Status) || "Not started"; }
-function mwDue(c, svc, ym){ const r = mwRec(c.id, svc, ym); return (r && r.DueDate) || mwDefaultDue(svc, ym); }
+/* Frequency history is stored per client as "from:Freq;from:Freq" (from = YYYY-MM, blank = since start) */
+function freqHist(c, svc){ return String((c && c[FREQ_FIELD[svc]]) || "").split(";").map(x => x.trim()).filter(Boolean)
+  .map(x => { const i = x.lastIndexOf(":"); return { from: x.slice(0, i).trim(), freq: FREQS.includes(x.slice(i + 1).trim()) ? x.slice(i + 1).trim() : "Monthly" }; }).sort((a, b) => a.from.localeCompare(b.from)); }
+function freqAt(c, svc, ym){ let f = "Monthly"; for(const e of freqHist(c, svc)) if(!e.from || e.from <= ym) f = e.freq; return f; }
+function curFreq(c, svc){ return freqAt(c, svc, curYM()); }
+function freqWith(c, svc, from, freq){ const h = freqHist(c, svc).filter(e => e.from !== from); h.push({ from, freq }); h.sort((a, b) => a.from.localeCompare(b.from));
+  const out = []; let prev = "Monthly"; for(const e of h){ if(e.freq !== prev || !out.length && e.from === "") out.push(e); prev = e.freq; }
+  return out.map(e => `${e.from}:${e.freq}`).join(";"); }
+function freqText(c, svc){ const h = freqHist(c, svc); if(!h.length) return "Monthly";
+  return h.map((e, i) => `${e.freq}${e.from ? " from " + ymLabel(e.from) : (i ? "" : " (from start)")}`).join(" → "); }
+function fyEndMM(c){ return (c.FYEnd || "12-31").slice(0, 2); }
+function fyLabelOf(c, ym){ return `FY ending ${fyEndLabel(c.FYEnd || "12-31")} ${ym.slice(0, 4)}`; }
+function mwDefaultDue(svc, ym, freq){ if(freq === "Annually") return svc === "Accounting" ? lastDay(ymAdd(ym, ANNUAL_ACCT_MONTHS)) : lastDay(ym);
+  return svc === "Accounting" ? `${ymAdd(ym, 1)}-${pad(Math.min(ACCT_DUE_DAY, 28))}` : lastDay(ym); }
+function mwRec(cid, svc, ym, freq){ freq = freq || "Monthly"; return data.mw.find(x => x.ClientId === cid && x.Service === svc && x.Month === ym && (x.Freq || "Monthly") === freq); }
+function mwStatus(cid, svc, ym, freq){ const r = mwRec(cid, svc, ym, freq); return (r && r.Status) || "Not started"; }
+function mwDue(c, svc, ym, freq){ const r = mwRec(c.id, svc, ym, freq); return (r && r.DueDate) || mwDefaultDue(svc, ym, freq); }
+function mwLabel(c, ym, freq){ return freq === "Annually" ? fyLabelOf(c, ym) : ymLabel(ym); }
 function mwChip(st){ return chip(MW_COLOR[st] || "grey", esc(st), true); }
+function mwPeriods(c, svc, fromYm, toYm){ const out = []; if(fromYm < MW_START) fromYm = MW_START;
+  for(let ym = fromYm; ym <= toYm; ym = ymAdd(ym, 1)){ const f = freqAt(c, svc, ym); if(f === "Monthly") out.push({ ym, freq: "Monthly" }); else if(ym.slice(5, 7) === fyEndMM(c)) out.push({ ym, freq: "Annually" }); }
+  return out; }
 function mwItems(clients, horizonDays = 10){ const cur = curYM(); const out = [];
   for(const c of clients){ if(isDeact(c)) continue; for(const svc of MW_SERVICES){ if(!hasService(c, svc)) continue;
-    for(let ym = ymAdd(cur, -12) < MW_START ? MW_START : ymAdd(cur, -12); ym <= cur; ym = ymAdd(ym, 1)){ const st = mwStatus(c.id, svc, ym); if(MW_DONE.has(st)) continue; const due = mwDue(c, svc, ym); const d = daysUntil(due); if(d <= horizonDays) out.push({ c, svc, ym, due, d, st, rec: mwRec(c.id, svc, ym) }); } } }
+    for(const p of mwPeriods(c, svc, ymAdd(cur, -12), cur)){ const st = mwStatus(c.id, svc, p.ym, p.freq); if(MW_DONE.has(st)) continue; const due = mwDue(c, svc, p.ym, p.freq); const d = daysUntil(due); if(d <= horizonDays) out.push({ c, svc, ym: p.ym, freq: p.freq, due, d, st, rec: mwRec(c.id, svc, p.ym, p.freq) }); } } }
   return out.sort((a, b) => a.d - b.d); }
 function ctChip(st){ return chip(CT_COLOR[st] || "grey", esc(st), true); }
 function vatStart(c){ const a = CFG.vatTrackingStart || "2000-01", b = c.VATFrom || ""; return b > a ? b : a; }
@@ -577,10 +598,10 @@ function toast(msg, err){ const t = $("#toast"); t.innerHTML = `<div class="toas
 function renderBusy(){ let b = document.getElementById("busy"); if(state.busy && !b){ b = document.createElement("div"); b.id = "busy"; b.className = "busy"; document.body.appendChild(b); } if(!state.busy && b) b.remove(); }
 
 const NAV = [
-  ["dashboard", "Dashboard", "dash"], ["clients", "Clients", "clients"], ["vat", "VAT Tracker", "vat"], ["ct", "Corporate Tax", "ct"], ["mw", "Monthly Work", "mw"], ["audit", "Audit Tracker", "audit"],
+  ["dashboard", "Dashboard", "dash"], ["clients", "Clients", "clients"], ["vat", "VAT Tracker", "vat"], ["ct", "Corporate Tax", "ct"], ["mw", "Accounting & Consulting", "mw"], ["audit", "Audit Tracker", "audit"],
   ["team", "Team", "team", () => isMgr()], ["activity", "Activity Log", "log"], ["admin", "Admin & Import", "admin", () => isAdmin()]
 ];
-const TITLES = { dashboard:"Dashboard", clients:"Client Master", vat:"VAT Return Tracker", ct:"Corporate Tax Tracker", mw:"Monthly Work · Accounting & Consultancy", audit:"Audit Tracker", team:"Team & Assignments", activity:"Activity Log", admin:"Admin, Import & Export" };
+const TITLES = { dashboard:"Dashboard", clients:"Client Master", vat:"VAT Return Tracker", ct:"Corporate Tax Tracker", mw:"Accounting & Consultancy", audit:"Audit Tracker", team:"Team & Assignments", activity:"Activity Log", admin:"Admin, Import & Export" };
 
 function render(){
   const app = $("#app");
@@ -588,7 +609,7 @@ function render(){
   const ae = document.activeElement; const fid = ae && ae.id && app.contains(ae) ? ae.id : null; const pos = fid && ae.selectionStart;
   const overdue = vatItems(visibleClients(), 0).filter(x => x.d < 0).length;
   const locName = state.loc || "Bahrain & UAE";
-  const sub = { dashboard: (isMgr() ? "All clients" : "Your assigned clients") + " · " + locName, mw: `Monthly status per client · Accounting due by day ${ACCT_DUE_DAY} of the following month · Consultancy due by month end`, ct: "Corporate tax returns by financial year · UAE (FTA): 9 months after year end · Bahrain (DMTT): 15 months", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
+  const sub = { dashboard: (isMgr() ? "All clients" : "Your assigned clients") + " · " + locName, mw: `Monthly or annual per client · monthly accounting due day ${ACCT_DUE_DAY} of the next month · annual accounting ${ANNUAL_ACCT_MONTHS} months after year end`, ct: "Corporate tax returns by financial year · UAE (FTA): 9 months after year end · Bahrain (DMTT): 15 months", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
     vat: "Due date: Bahrain (NBR) last day of the following month · UAE (FTA) 28th of the following month", audit: "Statutory audit progress by financial year",
     team: "Employees, roles and client assignments", activity: "Every change and every password view is recorded", admin: "Import the client master, export, and SharePoint setup" }[state.view];
   app.innerHTML = `
@@ -667,7 +688,7 @@ VIEWS.dashboard = () => {
     </div>
     <div>
       <div class="card"><div class="card-h"><h3>Accounting & consultancy due</h3><div class="right"><button class="btn sm" data-act="nav" data-v="mw">Open tracker</button></div></div>
-        ${mwi.length ? `<ul class="feed">${mwi.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}">${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b> <span style="float:right">${mwChip(x.st)}</span><div class="when">${esc(x.svc)} · ${ymLabel(x.ym)} · due ${fmtDate(x.due)} · <span class="${x.d < 0 ? "over" : x.d <= 3 ? "soon" : ""}">${relDays(x.d)}</span></div></li>`).join("")}</ul>${mwi.length > 8 ? `<div class="card-b small muted">+ ${mwi.length - 8} more in Monthly Work</div>` : ""}` : `<div class="empty">No accounting or consultancy work due in the next 10 days.</div>`}
+        ${mwi.length ? `<ul class="feed">${mwi.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}">${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b> <span style="float:right">${mwChip(x.st)}</span><div class="when">${esc(x.svc)} · ${esc(mwLabel(x.c, x.ym, x.freq))} · due ${fmtDate(x.due)} · <span class="${x.d < 0 ? "over" : x.d <= 3 ? "soon" : ""}">${relDays(x.d)}</span></div></li>`).join("")}</ul>${mwi.length > 8 ? `<div class="card-b small muted">+ ${mwi.length - 8} more in Monthly Work</div>` : ""}` : `<div class="empty">No accounting or consultancy work due in the next 10 days.</div>`}
       </div>
       <div class="card"><div class="card-h"><h3>Corporate tax returns due</h3><div class="right"><button class="btn sm" data-act="nav" data-v="ct">Open tracker</button></div></div>
         ${cti.length ? `<ul class="feed">${cti.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}">${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b> <span style="float:right">${ctChip(x.st)}</span><div class="when">FY${esc(x.fy)} · due ${fmtDate(x.due)} · <span class="${x.d < 0 ? "over" : x.d <= 30 ? "soon" : ""}">${relDays(x.d)}</span></div></li>`).join("")}</ul>` : `<div class="empty">No corporate tax returns due in the next 60 days.</div>`}
@@ -827,45 +848,63 @@ VIEWS.audit = () => {
 VIEWS.mw = () => {
   const f = state.mf; const q = lc(f.q);
   const base = visibleClients().filter(c => !isDeact(c) && hasService(c, f.svc) && (!q || lc(c.Title).includes(q)) && (!f.who || teamOf(c).includes(f.who)));
+  const y = new Date().getFullYear();
   const head = `<div class="toolbar">
     <div class="seg">${MW_SERVICES.map(sv => `<button class="${f.svc === sv ? "on" : ""}" data-act="mwsvc" data-v="${sv}">${sv}</button>`).join("")}</div>
-    <div class="seg"><button class="${f.mode === "month" ? "on" : ""}" data-act="mwmode" data-v="month">By month</button><button class="${f.mode === "year" ? "on" : ""}" data-act="mwmode" data-v="year">Year overview</button></div>
+    <div class="seg"><button class="${f.mode === "month" ? "on" : ""}" data-act="mwmode" data-v="month">Monthly · by month</button><button class="${f.mode === "year" ? "on" : ""}" data-act="mwmode" data-v="year">Monthly · year grid</button><button class="${f.mode === "annual" ? "on" : ""}" data-act="mwmode" data-v="annual">Annual clients</button></div>
     ${f.mode === "month" ? `<select class="in" data-bind="mf.month">${Array.from({length:16}, (_, i) => ymAdd(curYM(), 1 - i)).filter(m => m >= MW_START).map(m => `<option value="${m}" ${f.month === m ? "selected" : ""}>${ymLabel(m)}${m === curYM() ? " (this month)" : ""}</option>`).join("")}</select>`
-      : `<select class="in" data-bind="mf.year">${[0,1,2].map(i => new Date().getFullYear() - i).map(y => `<option ${+f.year === y ? "selected" : ""}>${y}</option>`).join("")}</select>`}
+      : `<select class="in" data-bind="mf.year">${[1,0,-1,-2].map(i => y + i).map(v => `<option value="${v}" ${+f.year === v ? "selected" : ""}>${f.mode === "annual" ? "Financial year ending " + v : v}</option>`).join("")}</select>`}
     <input id="mf-q" class="in search" placeholder="Search client…" value="${esc(f.q)}" data-bind="mf.q">
     ${isMgr() ? `<select class="in" data-bind="mf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
-    ${f.mode === "month" ? `<select class="in" data-bind="mf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>` : ""}
+    ${f.mode !== "year" ? `<select class="in" data-bind="mf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>` : ""}
   </div>`;
   if(!base.length) return head + `<div class="card"><div class="empty">No active clients with the <b>${esc(f.svc)}</b> service${state.loc ? " in " + esc(state.loc) : ""}. Tick <b>${esc(f.svc)}</b> under Services on the client (or use Bulk update → Add service).</div></div>`;
-  return head + (f.mode === "month" ? mwMonthView(base) : mwYearView(base));
+  return head + (f.mode === "month" ? mwMonthView(base) : f.mode === "year" ? mwYearView(base) : mwAnnualView(base));
 };
-function mwMonthView(base){
-  const f = state.mf; const ym = f.month;
-  if(ym < MW_START) return `<div class="card"><div class="empty">Monthly tracking starts from ${ymLabel(MW_START)}. Pick a later month.</div></div>`;
-  let rows = base.map(c => ({ c, rec: mwRec(c.id, f.svc, ym), st: mwStatus(c.id, f.svc, ym), due: mwDue(c, f.svc, ym) }));
-  const total = rows.length, done = rows.filter(r => MW_DONE.has(r.st)).length;
-  if(f.show === "pending") rows = rows.filter(r => !MW_DONE.has(r.st)); if(f.show === "done") rows = rows.filter(r => MW_DONE.has(r.st));
-  const pct = total ? Math.round(done / total * 100) : 0; const dd = daysUntil(mwDefaultDue(f.svc, ym));
-  return `<div class="card"><div class="card-b"><div class="progress-row"><div><b>${esc(f.svc)} · ${ymLabel(ym)}</b><div class="small muted">Default due ${fmtDate(mwDefaultDue(f.svc, ym))} · <span class="${dd < 0 && done < total ? "over" : dd <= 5 ? "soon" : ""}">${relDays(dd)}</span></div></div>
-    <div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} completed (${pct}%)</span></div></div></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Status</th><th>Assigned</th><th>Reviewer</th><th>Due</th><th>Completed</th>${f.svc === "Consultancy" ? `<th class="num">Hours</th>` : ""}<th>Notes</th><th></th></tr></thead><tbody>
+function mwTable(rows, svc, labelCol){
+  return `<div class="tw"><table class="tbl"><thead><tr><th>Client</th>${labelCol ? "<th>Period</th>" : ""}<th>Status</th><th>Assigned</th><th>Reviewer</th><th>Due</th><th>Completed</th>${svc === "Consultancy" ? `<th class="num">Hours</th>` : ""}<th>Notes</th><th></th></tr></thead><tbody>
   ${rows.map(r => { const d = daysUntil(r.due); return `<tr>
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
+    ${labelCol ? `<td class="small nowrap">${esc(mwLabel(r.c, r.ym, r.freq))}</td>` : ""}
     <td>${mwChip(r.st)}</td><td class="small">${esc(empName((r.rec && r.rec.AssignedTo) || teamOf(r.c)[0] || ""))}</td><td class="small">${esc(empName((r.rec && r.rec.Reviewer) || r.c.Reviewer))}</td>
     <td class="small nowrap">${fmtDate(r.due)}${!MW_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 3 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
-    <td class="small nowrap">${fmtDate(r.rec && r.rec.CompletedDate)}</td>${f.svc === "Consultancy" ? `<td class="num">${esc(r.rec && r.rec.Hours)}</td>` : ""}
+    <td class="small nowrap">${fmtDate(r.rec && r.rec.CompletedDate)}</td>${svc === "Consultancy" ? `<td class="num">${esc(r.rec && r.rec.Hours)}</td>` : ""}
     <td class="small muted" style="max-width:260px">${esc(((r.rec && r.rec.Notes) || "").slice(0, 90))}</td>
-    <td><button class="btn sm" data-act="editMw" data-c="${r.c.id}" data-s="${esc(f.svc)}" data-m="${ym}">Update</button></td></tr>`; }).join("")}
-  </tbody></table>${rows.length ? "" : `<div class="empty">No clients match.</div>`}</div></div>`;
+    <td><button class="btn sm" data-act="editMw" data-c="${r.c.id}" data-s="${esc(svc)}" data-m="${r.ym}" data-f="${r.freq}">Update</button></td></tr>`; }).join("")}
+  </tbody></table>${rows.length ? "" : `<div class="empty">No clients match.</div>`}</div>`;
+}
+function mwFilterShow(rows){ const f = state.mf; if(f.show === "pending") return rows.filter(r => !MW_DONE.has(r.st)); if(f.show === "done") return rows.filter(r => MW_DONE.has(r.st)); return rows; }
+function mwMonthView(base){
+  const f = state.mf; const ym = f.month;
+  if(ym < MW_START) return `<div class="card"><div class="empty">Tracking starts from ${ymLabel(MW_START)}. Pick a later month.</div></div>`;
+  const annualCount = base.filter(c => freqAt(c, f.svc, ym) === "Annually").length;
+  let rows = base.filter(c => freqAt(c, f.svc, ym) === "Monthly").map(c => ({ c, ym, freq: "Monthly", rec: mwRec(c.id, f.svc, ym), st: mwStatus(c.id, f.svc, ym), due: mwDue(c, f.svc, ym) }));
+  const total = rows.length, done = rows.filter(r => MW_DONE.has(r.st)).length; rows = mwFilterShow(rows);
+  const pct = total ? Math.round(done / total * 100) : 0; const dd = daysUntil(mwDefaultDue(f.svc, ym));
+  return `<div class="card"><div class="card-b"><div class="progress-row"><div><b>${esc(f.svc)} · ${ymLabel(ym)} · monthly clients</b><div class="small muted">Default due ${fmtDate(mwDefaultDue(f.svc, ym))} · <span class="${dd < 0 && done < total ? "over" : dd <= 5 ? "soon" : ""}">${relDays(dd)}</span>${annualCount ? ` · ${annualCount} annual client${annualCount > 1 ? "s" : ""} not shown — see <a href="#" data-act="mwmode" data-v="annual">Annual clients</a>` : ""}</div></div>
+    <div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} completed (${pct}%)</span></div></div></div>
+  ${mwTable(rows, f.svc, false)}</div>`;
+}
+function mwAnnualView(base){
+  const f = state.mf; const fy = String(f.year);
+  let rows = base.map(c => { const ym = `${fy}-${fyEndMM(c)}`; return { c, ym }; }).filter(x => x.ym >= MW_START && freqAt(x.c, f.svc, x.ym) === "Annually")
+    .map(x => ({ ...x, freq: "Annually", rec: mwRec(x.c.id, f.svc, x.ym, "Annually"), st: mwStatus(x.c.id, f.svc, x.ym, "Annually"), due: mwDue(x.c, f.svc, x.ym, "Annually") }));
+  const total = rows.length, done = rows.filter(r => MW_DONE.has(r.st)).length; rows = mwFilterShow(rows).sort((a, b) => a.due.localeCompare(b.due));
+  const pct = total ? Math.round(done / total * 100) : 0;
+  return `<div class="card"><div class="card-b"><div class="progress-row"><div><b>${esc(f.svc)} · annual clients · financial years ending in ${esc(fy)}</b><div class="small muted">One engagement per financial year · default due ${f.svc === "Accounting" ? `${ANNUAL_ACCT_MONTHS} months after year end` : "at year end"}</div></div>
+    <div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} completed (${pct}%)</span></div></div></div>
+  ${total ? mwTable(rows, f.svc, true) : `<div class="empty">No clients on an <b>annual</b> ${esc(f.svc)} frequency for financial years ending in ${esc(fy)}${fy + "-12" < MW_START ? ` (tracking starts ${ymLabel(MW_START)})` : ""}.</div>`}</div>`;
 }
 function mwYearView(base){
   const f = state.mf; const y = +f.year; const months = Array.from({length:12}, (_, i) => `${y}-${pad(i+1)}`); const cur = curYM();
-  return `<div class="card"><div class="card-b small muted">${esc(f.svc)} status for each month. Click a cell to update. Red outline = past due and not completed.</div>
+  const rows = base.filter(c => months.some(m => m >= MW_START && m <= cur && freqAt(c, f.svc, m) === "Monthly"));
+  return `<div class="card"><div class="card-b small muted">${esc(f.svc)} status for monthly clients. Click a cell to update. Red outline = past due and not completed. Grey "Annual" = months when the client was on annual frequency.</div>
   <div class="tw"><table class="tbl ygrid"><thead><tr><th>Client</th>${months.map(m => `<th class="m">${MONTHS[+m.slice(5)-1]}</th>`).join("")}</tr></thead><tbody>
-  ${base.map(c => `<tr><td class="cname nowrap">${state.loc ? "" : locTag(c) + " "}${esc(c.Title)}</td>
-    ${months.map(m => { if(m < MW_START || m > cur) return `<td class="cell off"></td>`; const st = mwStatus(c.id, f.svc, m); const d = daysUntil(mwDue(c, f.svc, m)); const over = !MW_DONE.has(st) && d < 0;
-      return `<td class="cell"><span class="yc chip ${MW_COLOR[st]} ${over ? "overdue" : ""}" data-act="editMw" data-c="${c.id}" data-s="${esc(f.svc)}" data-m="${m}" title="${ymLabel(m)} · ${esc(st)} · due ${fmtDate(mwDue(c, f.svc, m))}">${MW_SHORT[st]}</span></td>`; }).join("")}</tr>`).join("")}
-  </tbody></table></div></div>`;
+  ${rows.map(c => `<tr><td class="cname nowrap">${state.loc ? "" : locTag(c) + " "}${esc(c.Title)}</td>
+    ${months.map(m => { if(m < MW_START || m > cur) return `<td class="cell off"></td>`; if(freqAt(c, f.svc, m) !== "Monthly") return `<td class="cell"><span class="faint small">Annual</span></td>`;
+      const st = mwStatus(c.id, f.svc, m); const d = daysUntil(mwDue(c, f.svc, m)); const over = !MW_DONE.has(st) && d < 0;
+      return `<td class="cell"><span class="yc chip ${MW_COLOR[st]} ${over ? "overdue" : ""}" data-act="editMw" data-c="${c.id}" data-s="${esc(f.svc)}" data-m="${m}" data-f="Monthly" title="${ymLabel(m)} · ${esc(st)} · due ${fmtDate(mwDue(c, f.svc, m))}">${MW_SHORT[st]}</span></td>`; }).join("")}</tr>`).join("")}
+  </tbody></table>${rows.length ? "" : `<div class="empty">No monthly clients in ${y}.</div>`}</div></div>`;
 }
 
 VIEWS.ct = () => {
@@ -981,7 +1020,7 @@ MODALS.client = ({ id }) => {
   if(tab === "overview") body = `<div class="kv">
       ${[["Location", locTag(c) + " " + esc(locOf(c) === "UAE" ? "UAE (Dubai)" : "Bahrain")], [locOf(c) === "UAE" ? "Trade licence no" : "CR No", esc(c.CRNo)], ["Expiry", chip(cr.cls, cr.txt)], ["Status", esc(c.Status || "Active")], ["Contact person", esc(c.ContactName)], ["Contact no", esc(c.ContactNo)], ["Contact email", esc(c.ContactEmail)],
         [locOf(c) === "UAE" ? "VAT TRN" : "VAT account no", esc(c.VATNo)], ["Corporate tax TRN", esc(c.CTNo)], ["VAT cycle", esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].label : (c.VATCycle || "Not set"))], ["Financial year end", esc(fyEndLabel(c.FYEnd))], ["Services", serviceTags(c) + (otherServiceText(c) ? ` <span class="small muted">Others: ${esc(otherServiceText(c))}</span>` : "")],
-        ["Reviewer / manager", esc(empName(c.Reviewer))]].map(([k, v]) => `<div><span>${k}</span><b>${v || '<span class="faint">—</span>'}</b></div>`).join("")}
+        ["Reviewer / manager", esc(empName(c.Reviewer))], ...MW_SERVICES.filter(sv => hasService(c, sv)).map(sv => [sv + " frequency", esc(freqText(c, sv))])].map(([k, v]) => `<div><span>${k}</span><b>${v || '<span class="faint">—</span>'}</b></div>`).join("")}
     </div>
     <div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:uppercase;letter-spacing:.3px">Assigned team</div><div style="margin-top:6px">${teamOf(c).length ? avatars(teamOf(c)) : '<span class="faint">Unassigned</span>'}</div></div>
     ${c.Notes ? `<div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:uppercase;letter-spacing:.3px">Notes</div><div style="white-space:pre-wrap;margin-top:4px">${esc(c.Notes)}</div></div>` : ""}`;
@@ -1001,12 +1040,16 @@ MODALS.client = ({ id }) => {
       <td class="nowrap small">${fmtDate(dueOf(pe, c))}${!VAT_DONE.has(st) ? `<div class="${d < 0 ? "over" : d <= 10 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td><td>${vatChip(st)}</td>
       <td class="small">${esc(empName(r && r.Preparer))}</td><td class="small nowrap">${fmtDate(r && r.FiledDate)}</td><td class="small">${esc(r && r.RefNo)}</td><td class="num">${esc(r && r.Amount)}</td><td class="small muted">${esc(r && r.Notes)}</td>
       <td><button class="btn sm" data-act="editVat" data-c="${id}" data-pe="${pe}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
-  if(tab === "mw"){ const svcs = MW_SERVICES.filter(sv => hasService(c, sv)); const cur = curYM(); const months = []; for(let m = cur; m >= MW_START && months.length < 12; m = ymAdd(m, -1)) months.push(m);
-    body = !svcs.length ? `<div class="empty">Neither Accounting nor Consultancy is a service for this client. Tick them under Services in Edit client to track monthly work.</div>` :
-    `<div class="tw"><table class="tbl"><thead><tr><th>Month</th>${svcs.map(sv => `<th>${esc(sv)}</th>`).join("")}</tr></thead><tbody>
-    ${months.map(m => `<tr><td class="nowrap"><b>${ymLabel(m)}</b></td>${svcs.map(sv => { const st = mwStatus(id, sv, m); const r = mwRec(id, sv, m); const du = mwDue(c, sv, m); const d = daysUntil(du);
-      return `<td><span style="cursor:pointer" data-act="editMw" data-c="${id}" data-s="${esc(sv)}" data-m="${m}">${mwChip(st)}</span><div class="small ${!MW_DONE.has(st) && d < 0 ? "over" : "faint"}">${MW_DONE.has(st) ? (r && r.CompletedDate ? "done " + fmtDate(r.CompletedDate) : "") : "due " + fmtDate(du)}${r && r.AssignedTo ? " · " + esc(empName(r.AssignedTo).split(" ")[0]) : ""}</div></td>`; }).join("")}</tr>`).join("")}
-    </tbody></table></div>`; }
+  if(tab === "mw"){ const svcs = MW_SERVICES.filter(sv => hasService(c, sv)); const cur = curYM();
+    body = !svcs.length ? `<div class="empty">Neither Accounting nor Consultancy is a service for this client. Tick them under Services in Edit client to track this work.</div>` :
+    svcs.map(sv => { const per = mwPeriods(c, sv, ymAdd(cur, -12), ymAdd(cur, 12)).filter(p => p.freq === "Annually" || p.ym <= cur).reverse().slice(0, 14);
+      return `<div style="margin-bottom:18px"><div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px"><b>${esc(sv)}</b><span class="small muted">Frequency: ${esc(freqText(c, sv))}</span></div>
+      <div class="tw"><table class="tbl"><thead><tr><th>Period</th><th>Frequency</th><th>Status</th><th>Due</th><th>Assigned</th><th>Completed</th><th></th></tr></thead><tbody>
+      ${per.map(p => { const st = mwStatus(id, sv, p.ym, p.freq); const r = mwRec(id, sv, p.ym, p.freq); const du = mwDue(c, sv, p.ym, p.freq); const d = daysUntil(du);
+        return `<tr><td class="nowrap"><b>${esc(mwLabel(c, p.ym, p.freq))}</b></td><td class="small">${p.freq}</td><td>${mwChip(st)}</td>
+          <td class="small nowrap">${fmtDate(du)}${!MW_DONE.has(st) ? `<div class="${d < 0 ? "over" : "faint"}">${relDays(d)}</div>` : ""}</td><td class="small">${esc(empName(r && r.AssignedTo))}</td><td class="small nowrap">${fmtDate(r && r.CompletedDate)}</td>
+          <td><button class="btn sm" data-act="editMw" data-c="${id}" data-s="${esc(sv)}" data-m="${p.ym}" data-f="${p.freq}">Update</button></td></tr>`; }).join("") || `<tr><td colspan="7" class="empty">No periods yet (tracking starts ${ymLabel(MW_START)}).</td></tr>`}
+      </tbody></table></div></div>`; }).join(""); }
   if(tab === "ct"){ const y = new Date().getFullYear(); body = !hasService(c, "Corporate Tax") ? `<div class="empty">Corporate tax is not a service for this client. Tick <b>Corporate Tax</b> under Services in Edit client to track it.</div>` :
     `<div class="small muted" style="margin-bottom:10px">CT TRN: <b>${esc(c.CTNo) || "not set"}</b> · ${esc(LOC[locOf(c)].ctNote)}</div><div class="tw"><table class="tbl"><thead><tr><th>FY</th><th>Due</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Tax payable (${curOf(c)})</th><th>Notes</th><th></th></tr></thead><tbody>
     ${[0,1,2,3].map(i => String(y - i)).map(fy => { const r = ctRec(id, fy); const st = (r && r.Status) || "Not started"; const du = ctDue(c, fy); const d = daysUntil(du); return `<tr><td><b>FY${fy}</b></td>
@@ -1038,6 +1081,8 @@ MODALS.clientForm = ({ id }) => {
     <label>Financial year end<select class="in" name="FYEnd">${FYENDS.map(v => `<option value="${v}" ${(c.FYEnd || "12-31") === v ? "selected" : ""}>${fyEndLabel(v)}</option>`).join("")}</select></label>
     <div class="full lbl">Services provided <span class="hint">Tick every service Vinpro handles for this client. Ticking <b>Corporate Tax</b> or <b>Audit</b> adds the client to that tracker.</span><div class="svc">${SERVICES.map(sv => `<label><input type="checkbox" name="Svc" value="${esc(sv)}" ${hasService(c, sv) ? "checked" : ""}> ${esc(sv)}</label>`).join("")}</div>
       <input class="in" name="OtherSvc" value="${esc(otherServiceText(c))}" placeholder="If Others: specify (e.g. Company formation, PRO services)" style="margin-top:6px;font-weight:400"></div>
+    ${MW_SERVICES.map(sv => `<label>${sv} frequency<select class="in" name="Freq_${sv}">${opt(FREQS, id ? curFreq(c, sv) : "Monthly")}</select>${id && freqHist(c, sv).length ? `<span class="hint">History: ${esc(freqText(c, sv))}</span>` : `<span class="hint">Applies when ${sv} is ticked above</span>`}</label>`).join("")}
+    ${id ? `<label class="full">Frequency change effective from<input class="in" type="month" name="FreqFrom" value="${curYM()}" style="max-width:220px"><span class="hint">Used only if you change a frequency above. Earlier periods keep their old frequency.</span></label>` : ""}
     <label>Contact person<input class="in" name="ContactName" value="${esc(c.ContactName)}"></label>
     <div class="lbl">Contact no<div style="display:flex;gap:6px"><input class="in" name="ContactCode" list="dialCodes" value="${esc(c.ContactCode || LOC[locOf(c)].dial)}" style="width:96px;font-weight:400" pattern="\\+?[0-9]{1,4}" title="Country code, e.g. +973" aria-label="Country code"><input class="in" name="ContactNo" value="${esc(c.ContactNo)}" style="flex:1;font-weight:400" inputmode="tel" aria-label="Contact number"></div>
       <datalist id="dialCodes">${DIAL_CODES.map(([d, n]) => `<option value="${d}">${n}</option>`).join("")}</datalist></div>
@@ -1082,14 +1127,14 @@ MODALS.vatForm = ({ cid, pe }) => {
   <div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
 
-MODALS.mwForm = ({ cid, svc, ym }) => {
-  const c = clientById(cid); const r = mwRec(cid, svc, ym) || {};
-  return `<form class="modal" data-form="mw" data-c="${cid}" data-s="${esc(svc)}" data-m="${ym}">${mHead(`${esc(svc)} · ${ymLabel(ym)} — ${esc(c.Title)}`)}
-  <div class="mb"><div class="form">
+MODALS.mwForm = ({ cid, svc, ym, freq }) => {
+  freq = freq || "Monthly"; const c = clientById(cid); const r = mwRec(cid, svc, ym, freq) || {};
+  return `<form class="modal" data-form="mw" data-c="${cid}" data-s="${esc(svc)}" data-m="${ym}" data-f="${freq}">${mHead(`${esc(svc)} · ${esc(mwLabel(c, ym, freq))} — ${esc(c.Title)}`)}
+  <div class="mb"><div class="banner info" style="margin-bottom:14px">${locTag(c)} ${freq} engagement · frequency history: ${esc(freqText(c, svc))}</div><div class="form">
     <label class="full">Status<select class="in" name="Status">${opt(MW_STATUSES, r.Status || "Not started")}</select></label>
     <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || (teamOf(c).includes(lc(me.email)) ? me.email : teamOf(c)[0]))}</select></label>
     <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || c.Reviewer)}</select></label>
-    <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate || mwDefaultDue(svc, ym))}"><span class="hint">Default: ${svc === "Accounting" ? `day ${ACCT_DUE_DAY} of the following month` : "last day of the month"}</span></label>
+    <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate || mwDefaultDue(svc, ym, freq))}"><span class="hint">Default: ${freq === "Annually" ? (svc === "Accounting" ? `${ANNUAL_ACCT_MONTHS} months after year end` : "year end") : (svc === "Accounting" ? `day ${ACCT_DUE_DAY} of the following month` : "last day of the month")}</span></label>
     <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
     ${svc === "Consultancy" ? `<label>Hours spent<input class="in" name="Hours" value="${esc(r.Hours)}" inputmode="decimal" placeholder="e.g. 6.5"></label>` : ""}
     <label class="full">Notes / work log<textarea class="in" name="Notes" rows="4" placeholder="${svc === "Accounting" ? "e.g. Bank rec done, awaiting sales invoices; MIS sent" : "e.g. Meeting held, report drafted, pending client sign-off"}">${esc(r.Notes)}</textarea></label>
@@ -1192,8 +1237,13 @@ SUBMIT.client = async (form, o) => {
     VATNo: o.VATNo, VATCycle: o.VATCycle, VATFrom: o.VATFrom, FYEnd: o.FYEnd, AssignedTo: team.join("; "), Reviewer: o.Reviewer, Services: buildServices(o), Notes: o.Notes };
   if(wantDeact && !isDeact(prevC)){ f.DeactivatedOn = todayISO(); f.DeactivatedBy = me.email; }
   if(!wantDeact && isDeact(prevC)){ f.DeactivatedOn = ""; f.DeactivatedBy = ""; }
+  const freqLog = [];
+  for(const sv of MW_SERVICES){ const want = o["Freq_" + sv] || "Monthly"; const fld = FREQ_FIELD[sv];
+    if(!prevC){ if(want === "Annually") f[fld] = ":Annually"; }
+    else if(want !== curFreq(prevC, sv)){ const from = /^\d{4}-\d{2}$/.test(o.FreqFrom || "") ? o.FreqFrom : curYM(); f[fld] = freqWith(prevC, sv, from, want); freqLog.push(`${sv}: ${curFreq(prevC, sv)} → ${want} from ${ymLabel(from)}`); } }
   const before = id ? { ...clientById(id) } : null;
   const r = await saveRec("clients", id || null, f);
+  for(const line of freqLog) await logAct("Frequency changed", clientById(id), line);
   const changes = before ? Object.keys(f).filter(k => String(before[k] || "") !== String(f[k] || "")).join(", ") : "";
   await logAct(id ? "Client updated" : "Client added", id ? clientById(id) : r, changes ? "Changed: " + changes : "");
   closeModal(); if(!id){ state.clientTab = "overview"; openModal("client", { id: r.id }); } toast("Client saved");
@@ -1216,13 +1266,13 @@ SUBMIT.vat = async (form, o) => {
   closeModal(); render(); toast("VAT return updated");
 };
 SUBMIT.mw = async (form, o) => {
-  const cid = form.dataset.c, svc = form.dataset.s, ym = form.dataset.m; const c = clientById(cid); const r = mwRec(cid, svc, ym);
+  const cid = form.dataset.c, svc = form.dataset.s, ym = form.dataset.m, freq = form.dataset.f || "Monthly"; const c = clientById(cid); const r = mwRec(cid, svc, ym, freq);
   if(o.Status === "Completed" && !o.CompletedDate) o.CompletedDate = todayISO();
-  const f = { Title: `${cid}|${svc}|${ym}`, ClientId: cid, Service: svc, Month: ym, Status: o.Status, AssignedTo: o.AssignedTo, Reviewer: o.Reviewer, DueDate: o.DueDate === mwDefaultDue(svc, ym) ? "" : o.DueDate, CompletedDate: o.CompletedDate, Hours: o.Hours || "", Notes: o.Notes, UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const f = { Title: `${cid}|${svc}|${freq === "Annually" ? "FY" : ""}${ym}`, ClientId: cid, Service: svc, Freq: freq, Month: ym, Status: o.Status, AssignedTo: o.AssignedTo, Reviewer: o.Reviewer, DueDate: o.DueDate === mwDefaultDue(svc, ym, freq) ? "" : o.DueDate, CompletedDate: o.CompletedDate, Hours: o.Hours || "", Notes: o.Notes, UpdatedBy: me.email, UpdatedOn: nowISO() };
   const prev = (r && r.Status) || "Not started";
   await saveRec("mw", r ? r.id : null, f);
-  await logAct(`${svc} status updated`, c, `${ymLabel(ym)}: ${prev} → ${o.Status}`);
-  closeModal(); render(); toast(`${svc} · ${ymLabel(ym)} updated`);
+  await logAct(`${svc} status updated`, c, `${mwLabel(c, ym, freq)}: ${prev} → ${o.Status}`);
+  closeModal(); render(); toast(`${svc} · ${mwLabel(c, ym, freq)} updated`);
 };
 SUBMIT.ct = async (form, o) => {
   const cid = form.dataset.c, fy = form.dataset.fy; const c = clientById(cid); const r = ctRec(cid, fy);
@@ -1333,7 +1383,7 @@ async function runImport(){
 /* ---------- Bulk upload / export of the client master ---------- */
 const BULK_COLS = [
   ["Client ID", "id", 12], ["Client Name *", "Title", 32], ["Location", "Location", 10], ["CR / Licence No", "CRNo", 16], ["CR / Licence Expiry", "CRExpiry", 16],
-  ["Status", "Status", 12], ["Financial Year End", "FYEnd", 14], ["Services", "Services", 36], ["Other Service Details", "OtherSvc", 22],
+  ["Status", "Status", 12], ["Financial Year End", "FYEnd", 14], ["Services", "Services", 36], ["Other Service Details", "OtherSvc", 22], ["Accounting Frequency", "AcctFreqX", 14], ["Consultancy Frequency", "ConsFreqX", 14],
   ["Contact Person", "ContactName", 18], ["Contact Country Code", "ContactCode", 12], ["Contact No", "ContactNo", 14], ["Contact Email", "ContactEmail", 24], ["VAT No / TRN", "VATNo", 18], ["Corporate Tax TRN", "CTNo", 18],
   ["VAT Cycle", "VATCycle", 26], ["Track VAT From", "VATFrom", 14], ["Team (emails)", "AssignedTo", 34], ["Reviewer (email)", "Reviewer", 26], ["Notes", "Notes", 30]
 ];
@@ -1341,7 +1391,7 @@ const CYCLE_TEXT = { "Q-Mar":"Quarterly Mar/Jun/Sep/Dec", "Q-Jan":"Quarterly Jan
 function bulkRowOf(c){
   const svc = servicesOf(c);
   return { id: c.id, Title: c.Title, Location: locOf(c), CRNo: c.CRNo, CRExpiry: c.CRExpiry, Status: c.Status || "Active", FYEnd: fyEndLabel(c.FYEnd || "12-31"),
-    Services: svc.join("; "), OtherSvc: otherServiceText(c), ContactName: c.ContactName, ContactCode: dialOf(c), ContactNo: c.ContactNo, ContactEmail: c.ContactEmail, VATNo: c.VATNo, CTNo: c.CTNo,
+    Services: svc.join("; "), OtherSvc: otherServiceText(c), AcctFreqX: curFreq(c, "Accounting"), ConsFreqX: curFreq(c, "Consultancy"), ContactName: c.ContactName, ContactCode: dialOf(c), ContactNo: c.ContactNo, ContactEmail: c.ContactEmail, VATNo: c.VATNo, CTNo: c.CTNo,
     VATCycle: CYCLE_TEXT[c.VATCycle] || c.VATCycle || "", VATFrom: c.VATFrom, AssignedTo: teamOf(c).join("; "), Reviewer: lc(c.Reviewer), Notes: c.Notes };
 }
 function bulkInstructions(){
@@ -1352,7 +1402,7 @@ function bulkInstructions(){
     ["Column", "Allowed values / format"],
     ["Client Name *", "Required for new clients"], ["Location", "Bahrain or UAE (Dubai)"], ["CR / Licence Expiry", "Date, e.g. 2026-11-08 or 08/11/2026"],
     ["Status", "Active or Dormant. Deactivated can be set (or removed) by Admins only"], ["Contact Country Code", "e.g. +973, +971, +91 — blank uses +973 for Bahrain / +971 for UAE"], ["Financial Year End", "e.g. 31 Dec, 31 Mar, 30 Jun"],
-    ["Services", "Separate with ; — " + SERVICES.join("; ")], ["Other Service Details", "Description when Services includes Others"],
+    ["Services", "Separate with ; — " + SERVICES.join("; ")], ["Other Service Details", "Description when Services includes Others"], ["Accounting / Consultancy Frequency", "Monthly or Annually. A change on an existing client takes effect from the current month and is kept in the history"],
     ["VAT Cycle", Object.values(CYCLE_TEXT).join("; ")], ["Track VAT From", "Month the first tracked VAT period ends, e.g. 2026-03"],
     ["Team (emails)", "Microsoft login emails of employees, separated by ; — must already exist under Team"], ["Reviewer (email)", "One employee email"], [],
     ["Current employees"], ...activeEmployees().map(e => [e.Email, `${e.Title} (${e.Role}${e.Location ? ", " + e.Location : ""})`])];
@@ -1426,6 +1476,9 @@ function bulkParse(buf, fileName){
     put("ContactName"); put("ContactCode", normDial); put("ContactNo"); put("ContactEmail"); put("VATNo"); put("CTNo"); put("VATCycle", bParseCycle); put("VATFrom", bParseYM); put("Notes");
     try { const t = bParseEmails(cell("AssignedTo")); if(t) f.AssignedTo = t.join("; "); else if(txt("AssignedTo") === "-") f.AssignedTo = ""; } catch(e){ row.errors.push(String(e)); }
     try { const rv = bParseEmails(cell("Reviewer"), true); if(rv) f.Reviewer = rv[0]; else if(txt("Reviewer") === "-") f.Reviewer = ""; } catch(e){ row.errors.push(String(e)); }
+    for(const [sv, key] of [["Accounting", "AcctFreqX"], ["Consultancy", "ConsFreqX"]]){ const raw = txt(key); if(!raw) continue; const fr = /^ann|^year|^yearly/i.test(raw) ? "Annually" : /^month/i.test(raw) ? "Monthly" : null;
+      if(!fr){ row.errors.push(`${sv} frequency must be Monthly or Annually`); continue; }
+      if(c){ if(fr !== curFreq(c, sv)) { f[FREQ_FIELD[sv]] = freqWith(c, sv, curYM(), fr); } } else if(fr === "Annually") f[FREQ_FIELD[sv]] = ":Annually"; }
     try { const sv = txt("Services") === "-" ? [] : bParseServices(cell("Services")); if(sv){ const other = txt("OtherSvc") === "-" ? "" : (txt("OtherSvc") || (c ? otherServiceText(c) : "")); f.Services = buildServices({ Svc: sv, OtherSvc: other }); } } catch(e){ row.errors.push(String(e)); }
     if(f.Location === "") delete f.Location; if(f.Status === "") delete f.Status;
     if(f.Status && !isAdmin() && ((f.Status === "Deactivated") !== isDeact(c))) { row.errors.push("Only an Admin can deactivate or reactivate a client"); delete f.Status; }
@@ -1433,7 +1486,7 @@ function bulkParse(buf, fileName){
     if(f.Status && f.Status !== "Deactivated" && isDeact(c)) { f.DeactivatedOn = ""; f.DeactivatedBy = ""; } if(f.Title === "") { row.errors.push("Client name can't be cleared"); delete f.Title; }
     row.loc = f.Location || (c ? locOf(c) : (state.loc || DEFAULT_LOC));
     if(c){
-      for(const [k2, v] of Object.entries(f)){ const cur = k2 === "Location" ? locOf(c) : k2 === "ContactCode" ? dialOf(c) : String(c[k2] || ""); if(String(v) !== cur) { row.fields[k2] = v; const col = BULK_COLS.find(x => x[1] === k2); if(col) row.changes.push(col[0].replace(" *", "")); } }
+      for(const [k2, v] of Object.entries(f)){ const cur = k2 === "Location" ? locOf(c) : k2 === "ContactCode" ? dialOf(c) : String(c[k2] || ""); if(String(v) !== cur) { row.fields[k2] = v; const col = BULK_COLS.find(x => x[1] === k2 || (k2 === "AcctFreq" && x[1] === "AcctFreqX") || (k2 === "ConsFreq" && x[1] === "ConsFreqX")); if(col) row.changes.push(col[0].replace(" *", "")); } }
       if(!isMgr() && ("AssignedTo" in row.fields) && !splitEmails(row.fields.AssignedTo).includes(lc(me.email)) && lc(row.fields.Reviewer || c.Reviewer) !== lc(me.email)) row.errors.push("You can't remove yourself from this client's team");
       row.action = row.errors.length ? "Error" : Object.keys(row.fields).length ? "Update" : "No change";
     } else {
@@ -1465,12 +1518,12 @@ async function exportXlsx(){
   const withPwd = $("#expPwd") && $("#expPwd").checked; const cl = visibleClients(); const name = id => (clientById(id) || {}).Title || "";
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cl.map(c => ({ "Client Name": c.Title, Location: locOf(c), "CR / Licence No": c.CRNo, "CR / Licence Expiry": c.CRExpiry, Status: c.Status, "Contact Name": c.ContactName, "Contact No": phoneOf(c), "Contact Email": c.ContactEmail, "Deactivated On": c.DeactivatedOn,
-    "VAT No / TRN": c.VATNo, "CT TRN": c.CTNo, "VAT Cycle": (CYCLES[c.VATCycle] || {}).label || c.VATCycle, "FY End": fyEndLabel(c.FYEnd), Team: teamOf(c).map(empName).join(", "), Reviewer: empName(c.Reviewer), Services: c.Services, Notes: c.Notes }))), "Clients");
+    "VAT No / TRN": c.VATNo, "CT TRN": c.CTNo, "Accounting Frequency": freqText(c, "Accounting"), "Consultancy Frequency": freqText(c, "Consultancy"), "VAT Cycle": (CYCLES[c.VATCycle] || {}).label || c.VATCycle, "FY End": fyEndLabel(c.FYEnd), Team: teamOf(c).map(empName).join(", "), Reviewer: empName(c.Reviewer), Services: c.Services, Notes: c.Notes }))), "Clients");
   const ids = new Set(cl.map(c => c.id));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.creds.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), Portal: x.Title, Username: x.Username, Password: withPwd ? x.Pwd : (x.Pwd ? "(hidden)" : ""), URL: x.PortalURL, Notes: x.Notes }))), "Logins");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.vat.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Period: periodLabel(c.VATCycle, x.PeriodEnd), Location: locOf(c), "Due Date": dueOf(x.PeriodEnd, c), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Net VAT": x.Amount, Currency: curOf(c), Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "VAT Returns");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.ct.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Location: locOf(c), "CT TRN": c.CTNo, FY: x.FY, "Due Date": ctDue(c, x.FY), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Tax Payable": x.Amount, Currency: curOf(c), Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "Corporate Tax");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mw.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Location: locOf(c), Service: x.Service, Month: ymLabel(x.Month), "Due Date": mwDue(c, x.Service, x.Month), Status: x.Status, "Assigned To": empName(x.AssignedTo), Reviewer: empName(x.Reviewer), "Completed On": x.CompletedDate, Hours: x.Hours, Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "Monthly Work");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mw.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Location: locOf(c), Service: x.Service, Frequency: x.Freq || "Monthly", Period: mwLabel(c, x.Month, x.Freq || "Monthly"), "Due Date": mwDue(c, x.Service, x.Month, x.Freq || "Monthly"), Status: x.Status, "Assigned To": empName(x.AssignedTo), Reviewer: empName(x.Reviewer), "Completed On": x.CompletedDate, Hours: x.Hours, Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "Accounting & Consultancy");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.audits.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), FY: x.FY, Status: x.Status, Auditor: x.Auditor, "Assigned To": empName(x.AssignedTo), "Due Date": x.DueDate, "Completed On": x.CompletedDate, Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }))), "Audits");
   XLSX.writeFile(wb, `Vinpro-ClientDesk-Export-${todayISO()}.xlsx`);
   await logAct(withPwd ? "Export with passwords" : "Export", null, `${cl.length} clients`);
@@ -1496,9 +1549,9 @@ const ACT = {
       onYes: async () => { await saveRec("clients", c.id, on ? { Status: "Deactivated", DeactivatedOn: todayISO(), DeactivatedBy: me.email } : { Status: "Active", DeactivatedOn: "", DeactivatedBy: "" }); await logAct(on ? "Client deactivated" : "Client reactivated", c, ""); toast(on ? "Client deactivated" : "Client reactivated"); } }); },
   editVat: d => { const c = clientById(d.c); if(!c || !canSee(c) || isDeact(c)) return; openModal("vatForm", { cid: d.c, pe: d.pe }); },
   editAudit: d => { const c = clientById(d.c); if(!c || !canSee(c) || isDeact(c)) return; openModal("auditForm", { cid: d.c, fy: d.fy }); },
-  editMw: d => { const c = clientById(d.c); if(!c || !canSee(c) || isDeact(c)) return; openModal("mwForm", { cid: d.c, svc: d.s, ym: d.m }); },
+  editMw: d => { const c = clientById(d.c); if(!c || !canSee(c) || isDeact(c)) return; openModal("mwForm", { cid: d.c, svc: d.s, ym: d.m, freq: d.f || "Monthly" }); },
   mwsvc: d => { state.mf.svc = d.v; render(); },
-  mwmode: d => { state.mf.mode = d.v; render(); },
+  mwmode: d => { state.mf.mode = d.v; if(d.v === "annual" && !state.mf.yearSet){ state.mf.year = new Date().getFullYear(); } render(); },
   editCt: d => { const c = clientById(d.c); if(!c || !canSee(c) || isDeact(c)) return; openModal("ctForm", { cid: d.c, fy: d.fy }); },
   setloc: d => { state.loc = d.v || ""; try { localStorage.setItem("vinpro-loc", state.loc); } catch(e){} state.cf.sel.clear(); render(); },
   editEmp: d => openModal("empForm", { id: d.id }),
