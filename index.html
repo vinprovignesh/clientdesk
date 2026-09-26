@@ -1,0 +1,1182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vinpro Client Desk</title>
+<meta name="description" content="Client master, portal logins, VAT and audit tracker for Vinpro Global Services WLL, Bahrain">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f4c81'/%3E%3Cpath d='M16 18l16 30 16-30' stroke='white' stroke-width='7' fill='none' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f3f5f9; --panel:#ffffff; --panel-2:#f8fafc; --ink:#152033; --muted:#5b6880; --faint:#8c97ab; --line:#e1e6ee; --line-2:#eef1f6;
+  --brand:#0f4c81; --brand-ink:#ffffff; --brand-soft:#e6eef7; --accent:#1f7a8c;
+  --ok:#17804a; --ok-bg:#e5f5ec; --warn:#a15c00; --warn-bg:#fdf1de; --bad:#b83227; --bad-bg:#fbe7e5;
+  --info:#2359a8; --info-bg:#e6effb; --pur:#6a3fb5; --pur-bg:#efe8fa; --grey:#56637a; --grey-bg:#edf0f5;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 4px 16px rgba(16,24,40,.06);
+  --radius:10px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f141c; --panel:#171e29; --panel-2:#1c2431; --ink:#e7ecf3; --muted:#a3aec0; --faint:#77839a; --line:#2a3444; --line-2:#222b39;
+    --brand:#4f93d6; --brand-ink:#0b1320; --brand-soft:#1d2d42; --accent:#4fb3c4;
+    --ok:#5cc98f; --ok-bg:#15301f; --warn:#e6a64a; --warn-bg:#35270f; --bad:#f07a6e; --bad-bg:#3a1a17;
+    --info:#7fb0f0; --info-bg:#172a45; --pur:#b69af0; --pur-bg:#2a2042; --grey:#aab4c5; --grey-bg:#252e3c;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f141c; --panel:#171e29; --panel-2:#1c2431; --ink:#e7ecf3; --muted:#a3aec0; --faint:#77839a; --line:#2a3444; --line-2:#222b39;
+  --brand:#4f93d6; --brand-ink:#0b1320; --brand-soft:#1d2d42; --accent:#4fb3c4;
+  --ok:#5cc98f; --ok-bg:#15301f; --warn:#e6a64a; --warn-bg:#35270f; --bad:#f07a6e; --bad-bg:#3a1a17;
+  --info:#7fb0f0; --info-bg:#172a45; --pur:#b69af0; --pur-bg:#2a2042; --grey:#aab4c5; --grey-bg:#252e3c;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--brand)}
+.shell{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+.side{background:var(--panel);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
+.logo{width:34px;height:34px;border-radius:9px;background:var(--brand);display:grid;place-items:center;flex:none}
+.logo svg{width:20px;height:20px}
+.brand b{display:block;font-size:14px;letter-spacing:.2px}
+.brand small{color:var(--muted);font-size:11.5px}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--muted);cursor:pointer;border:0;background:none;text-align:left;width:100%;font-weight:500}
+.nav:hover{background:var(--panel-2);color:var(--ink)}
+.nav.on{background:var(--brand-soft);color:var(--brand)}
+.nav svg{width:18px;height:18px;flex:none}
+.nav .count{margin-left:auto;background:var(--bad);color:#fff;border-radius:10px;font-size:11px;padding:0 7px;line-height:18px}
+.side .spacer{flex:1}
+.side .me{border-top:1px solid var(--line);padding:12px 8px 0;font-size:12.5px}
+.side .me b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.main{min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:12px;padding:14px 28px;border-bottom:1px solid var(--line);background:var(--panel)}
+.top h1{font-size:18px;margin:0;font-weight:650}
+.top .sub{color:var(--muted);font-size:12.5px}
+.top .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.content{padding:22px 28px 60px;max-width:1500px;width:100%}
+.demo-bar{background:var(--warn-bg);color:var(--warn);padding:7px 28px;font-size:12.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.demo-bar select{padding:2px 6px;border-radius:6px;border:1px solid var(--line);background:var(--panel)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);padding:7px 12px;border-radius:8px;cursor:pointer;font-weight:550;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:var(--faint)}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.pri:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:4px 9px;font-size:12px;border-radius:7px}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--panel-2)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn svg{width:15px;height:15px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:20px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;text-align:left}
+.kpi .l{color:var(--muted);font-size:12.5px;font-weight:550}
+.kpi .v{font-size:28px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--faint)}
+.kpi.bad .v{color:var(--bad)} .kpi.warn .v{color:var(--warn)} .kpi.ok .v{color:var(--ok)}
+.grid2{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18px}
+.tbl td.cname{min-width:150px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);min-width:0}
+.card+.card{margin-top:18px}
+.card-h{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line-2)}
+.card-h h3{margin:0;font-size:14.5px;font-weight:650}
+.card-h .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.card-b{padding:14px 16px}
+.empty{color:var(--faint);padding:24px 16px;text-align:center}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.toolbar .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.in, select.in, textarea.in{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 10px;min-width:0}
+.in:focus{outline:2px solid var(--brand-soft);border-color:var(--brand)}
+.search{min-width:240px}
+.tw{overflow:auto;border-radius:var(--radius)}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{position:sticky;top:0;background:var(--panel-2);text-align:left;font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.3px;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+.tbl tr.click{cursor:pointer}
+.tbl tr.click:hover td{background:var(--panel-2)}
+.tbl .num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl .nowrap{white-space:nowrap}
+.cname{font-weight:600}
+.muted{color:var(--muted)} .faint{color:var(--faint)} .small{font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;line-height:18px}
+.chip.green{background:var(--ok-bg);color:var(--ok)}
+.chip.amber{background:var(--warn-bg);color:var(--warn)}
+.chip.red{background:var(--bad-bg);color:var(--bad)}
+.chip.blue{background:var(--info-bg);color:var(--info)}
+.chip.purple{background:var(--pur-bg);color:var(--pur)}
+.chip.grey{background:var(--grey-bg);color:var(--grey)}
+.chip.outline{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:550}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.tag{display:inline-block;font-size:11px;font-weight:650;padding:1px 6px;border-radius:5px;background:var(--brand-soft);color:var(--brand);margin:1px 2px 1px 0}
+.avs{display:flex;flex-wrap:wrap;gap:4px}
+.av{display:inline-flex;align-items:center;gap:5px;font-size:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:1px 8px 1px 2px;white-space:nowrap}
+.av i{width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-style:normal;font-size:9.5px;font-weight:700;display:grid;place-items:center}
+.over{color:var(--bad);font-weight:600}
+.soon{color:var(--warn);font-weight:600}
+.bar{height:6px;background:var(--line-2);border-radius:4px;overflow:hidden;min-width:80px}
+.bar i{display:block;height:100%;background:var(--ok);border-radius:4px}
+.progress-row{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.progress-row .bar{flex:1;min-width:160px;height:8px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:none;padding:6px 12px;cursor:pointer;font-weight:550;color:var(--muted)}
+.seg button.on{background:var(--brand);color:var(--brand-ink)}
+.banner{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--warn-bg);color:var(--ink);padding:10px 14px;border-radius:8px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner.info{border-left-color:var(--info);background:var(--info-bg)}
+.banner.bad{border-left-color:var(--bad);background:var(--bad-bg)}
+.ygrid td.cell{text-align:center;padding:5px 4px;min-width:58px}
+.ygrid .yc{display:inline-block;min-width:50px;padding:3px 6px;border-radius:6px;font-size:11.5px;font-weight:650;cursor:pointer;border:1px solid transparent}
+.ygrid .yc.overdue{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.ygrid .yc.future{opacity:.55}
+.ygrid th.m{text-align:center}
+.ygrid td.off{background:repeating-linear-gradient(135deg,transparent 0 6px,var(--line-2) 6px 7px)}
+.feed{list-style:none;margin:0;padding:0}
+.feed li{padding:9px 16px;border-bottom:1px solid var(--line-2);font-size:13px}
+.feed li:last-child{border-bottom:0}
+.feed .when{color:var(--faint);font-size:11.5px}
+/* modal */
+.mwrap{position:fixed;inset:0;background:rgba(10,18,30,.45);display:flex;align-items:flex-start;justify-content:center;padding:4vh 16px;overflow:auto;z-index:50}
+.modal{background:var(--panel);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.3);width:100%;max-width:640px;border:1px solid var(--line)}
+.modal.wide{max-width:1040px}
+.modal .mh{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.modal .mh h2{margin:0;font-size:17px}
+.modal .mh .x{margin-left:auto}
+.modal .mb{padding:18px 20px}
+.modal .mf{display:flex;gap:8px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line);background:var(--panel-2);border-radius:0 0 14px 14px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.form .full{grid-column:1/-1}
+.form label,.form .lbl{display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.form label .in{font-weight:400;color:var(--ink);width:100%}
+.form .hint{font-weight:400;font-size:11.5px;color:var(--faint)}
+.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 12px;max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.checks label{flex-direction:row;align-items:center;gap:7px;font-weight:500;color:var(--ink)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);padding:0 20px;overflow-x:auto}
+.tabs button{border:0;background:none;padding:11px 14px;cursor:pointer;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px 18px}
+.kv div span{display:block;font-size:11.5px;color:var(--faint);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.kv div b{font-weight:550;word-break:break-word}
+.secret{font-family:ui-monospace,Consolas,monospace;letter-spacing:.3px}
+.icon-btn{border:0;background:none;cursor:pointer;color:var(--muted);padding:3px;border-radius:5px;display:inline-grid;place-items:center}
+.icon-btn:hover{background:var(--panel-2);color:var(--ink)}
+.icon-btn svg{width:15px;height:15px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:9px;box-shadow:var(--shadow);z-index:99;font-weight:550;max-width:90vw}
+.toast.err{background:var(--bad);color:#fff}
+.center-screen{min-height:100vh;display:grid;place-items:center;padding:16px}
+.login{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:34px;max-width:420px;width:100%;text-align:center}
+.login .logo{width:52px;height:52px;margin:0 auto 14px;border-radius:13px}
+.login .logo svg{width:30px;height:30px}
+.login h1{font-size:21px;margin:0 0 4px}
+.login p{color:var(--muted);margin:0 0 22px}
+.ms-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer;font-weight:600;font-size:14.5px}
+.ms-btn:hover{border-color:var(--faint)}
+.spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:sp 0.8s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.busy{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--brand),var(--accent));z-index:100;animation:bz 1s ease-in-out infinite alternate}
+@keyframes bz{from{opacity:.4}to{opacity:1}}
+.steps{display:flex;gap:3px}
+.steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.steps i.on{background:var(--ok)}
+@media (max-width:1100px){.grid2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .tbl td.cname{min-width:120px}
+  .side{position:static;height:auto;flex-direction:row;overflow-x:auto;padding:8px;border-right:0;border-bottom:1px solid var(--line);gap:2px}
+  .brand,.side .spacer,.side .me{display:none}
+  .nav{width:auto;white-space:nowrap;padding:8px 10px}
+  .top{padding:12px 16px}
+  .content{padding:16px 16px 50px}
+  .demo-bar{padding:7px 16px}
+  .form{grid-template-columns:1fr}
+  .search{min-width:0;flex:1}
+  .kpi .v{font-size:24px}
+}
+</style>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+</head>
+<body>
+<div id="app"><div class="center-screen"><div><div class="spin"></div><div class="muted">Loading Client Desk…</div></div></div></div>
+<div id="modals"></div>
+<div id="toast"></div>
+<script>
+"use strict";
+/* ============================================================
+   CONFIG & CONSTANTS
+   ============================================================ */
+const CFG = Object.assign({
+  companyName: "Vinpro Global Services WLL", appName: "Client Desk",
+  tenantId: "", clientId: "", sharePointHost: "", sitePath: "",
+  adminEmails: [], listPrefix: "VGS_", vatTrackingStart: "2026-01"
+}, window.VINPRO_CONFIG || {});
+const QS = new URLSearchParams(location.search);
+const DEMO = QS.has("demo") || !CFG.clientId || /^YOUR/i.test(CFG.clientId) || typeof msal === "undefined";
+const SCOPES = ["User.Read", "Sites.ReadWrite.All", "Sites.Manage.All"];
+
+/* SharePoint list schema. 'text' = single line (255), 'note' = multi-line */
+const SCHEMA = {
+  employees: { list: "Employees", fields: { Title:"text", Email:"text", Role:"text", Active:"text", Phone:"text" } },
+  clients:   { list: "Clients", fields: { Title:"text", CRNo:"text", CRExpiry:"text", Status:"text", ContactName:"text", ContactNo:"text", ContactEmail:"text",
+                VATNo:"text", VATCycle:"text", VATFrom:"text", FYEnd:"text", AuditRequired:"text", AssignedTo:"note", Reviewer:"text", Services:"note", Notes:"note" } },
+  creds:     { list: "Credentials", fields: { Title:"text", ClientId:"text", Username:"text", Pwd:"text", PortalURL:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  vat:       { list: "VATReturns", fields: { Title:"text", ClientId:"text", PeriodEnd:"text", Status:"text", Preparer:"text", Reviewer:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  audits:    { list: "Audits", fields: { Title:"text", ClientId:"text", FY:"text", Auditor:"text", AssignedTo:"text", Status:"text", DueDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  activity:  { list: "ActivityLog", fields: { Title:"text", ClientId:"text", ClientName:"text", UserEmail:"text", UserName:"text", Details:"note", At:"text" } }
+};
+
+const ROLES = ["Admin", "Manager", "Staff"];
+const PORTALS = ["NBR", "Sijilat", "LMRA", "SIO", "Tally", "Odoo", "Zoho Books", "QuickBooks", "Bank (online banking)", "eGovernment / eKey", "Other"];
+const PORTAL_URLS = { NBR:"https://www.nbr.gov.bh", Sijilat:"https://www.sijilat.bh", LMRA:"https://www.lmra.gov.bh", SIO:"https://www.sio.gov.bh" };
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+const CYCLES = {
+  "Q-Mar":  { label:"Quarterly (Jan–Mar, Apr–Jun, Jul–Sep, Oct–Dec)", short:"Qtr · Mar/Jun/Sep/Dec", n:3, r:0 },
+  "Q-Jan":  { label:"Quarterly (Nov–Jan, Feb–Apr, May–Jul, Aug–Oct)", short:"Qtr · Jan/Apr/Jul/Oct", n:3, r:1 },
+  "Q-Feb":  { label:"Quarterly (Dec–Feb, Mar–May, Jun–Aug, Sep–Nov)", short:"Qtr · Feb/May/Aug/Nov", n:3, r:2 },
+  "Monthly":{ label:"Monthly", short:"Monthly", n:1 },
+  "Not registered": { label:"Not VAT registered", short:"Not registered", n:0 }
+};
+const VAT_STATUSES = ["Not started","Data requested","Data received","In preparation","Under review","Filed","Paid / Closed","Nil return filed","Not applicable"];
+const VAT_DONE = new Set(["Filed","Paid / Closed","Nil return filed","Not applicable"]);
+const VAT_COLOR = {"Not started":"grey","Data requested":"amber","Data received":"blue","In preparation":"blue","Under review":"purple","Filed":"green","Paid / Closed":"green","Nil return filed":"green","Not applicable":"grey"};
+const VAT_SHORT = {"Not started":"—","Data requested":"Req","Data received":"Rcvd","In preparation":"Prep","Under review":"Review","Filed":"Filed","Paid / Closed":"Paid","Nil return filed":"Nil","Not applicable":"N/A"};
+
+const AUDIT_STATUSES = ["Not started","Engagement / Planning","Fieldwork","Draft FS issued","Management review","Signed","Filed with MOIC (Sijilat)","Not applicable"];
+const AUDIT_DONE = new Set(["Filed with MOIC (Sijilat)","Not applicable"]);
+const AUDIT_COLOR = {"Not started":"grey","Engagement / Planning":"amber","Fieldwork":"blue","Draft FS issued":"blue","Management review":"purple","Signed":"green","Filed with MOIC (Sijilat)":"green","Not applicable":"grey"};
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2, "0");
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const curYM = () => todayISO().slice(0, 7);
+const nowISO = () => new Date().toISOString();
+const lc = s => String(s || "").trim().toLowerCase();
+function fmtDate(s){ if(!s) return ""; const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); return m ? `${m[3]} ${MONTHS[+m[2]-1]} ${m[1]}` : esc(s); }
+function fmtDT(s){ if(!s) return ""; const d = new Date(s); if(isNaN(d)) return esc(s); return `${pad(d.getDate())} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function ymAdd(ym, n){ let [y, m] = ym.split("-").map(Number); m += n; y += Math.floor((m-1)/12); m = ((m-1)%12+12)%12+1; return `${y}-${pad(m)}`; }
+function ymLabel(ym){ const [y, m] = ym.split("-").map(Number); return `${MONTHS[m-1]} ${y}`; }
+function lastDay(ym){ const [y, m] = ym.split("-").map(Number); return `${ym}-${pad(new Date(y, m, 0).getDate())}`; }
+function daysUntil(iso){ if(!/^\d{4}-\d{2}-\d{2}/.test(iso||"")) return null; const a = new Date(todayISO()+"T00:00:00"), b = new Date(iso.slice(0,10)+"T00:00:00"); return Math.round((b-a)/86400000); }
+function initials(n){ return String(n||"?").split(/[\s.@_]+/).filter(Boolean).slice(0,2).map(x=>x[0].toUpperCase()).join(""); }
+function uid(){ return Math.random().toString(36).slice(2, 10); }
+function relDays(d){ if(d == null) return ""; if(d === 0) return "due today"; if(d < 0) return `${-d} day${d===-1?"":"s"} overdue`; return `in ${d} day${d===1?"":"s"}`; }
+function splitEmails(s){ return String(s||"").split(/[;,]/).map(lc).filter(Boolean); }
+
+const I = { // icons
+  dash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
+  clients:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6M8 10h.01M12 10h.01M16 10h.01"/></svg>',
+  vat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h4"/></svg>',
+  audit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l2 2 4-4"/><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>',
+  team:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.8c1.8.7 3 2.4 3.5 5.2"/></svg>',
+  log:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  admin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>',
+  eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeoff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l18 18M10.6 5.1A9.9 9.9 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4.1M6.6 6.6C3.9 8.3 2 12 2 12s3.6 7 10 7a9.6 9.6 0 004.2-.9"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/></svg>',
+  copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  ext:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+  refresh:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7"/></svg>',
+  logout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4M10 17l-5-5 5-5M5 12h11"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  logo:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6l7 13 7-13"/></svg>',
+  ms:'<svg width="18" height="18" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>'
+};
+
+/* ============================================================
+   DATA STORES
+   ============================================================ */
+function cleanFields(kind, f){
+  const out = {}; for(const k of Object.keys(SCHEMA[kind].fields)) if(k in f) out[k] = f[k] == null ? "" : String(f[k]);
+  return out;
+}
+
+class GraphStore {
+  constructor(app, account){ this.app = app; this.account = account; this.listIds = {}; this.missing = []; }
+  async token(){
+    const req = { scopes: SCOPES, account: this.account };
+    try { return (await this.app.acquireTokenSilent(req)).accessToken; }
+    catch(e){ if(e instanceof msal.InteractionRequiredAuthError){ await this.app.acquireTokenRedirect(req); } throw e; }
+  }
+  async g(method, path, body){
+    const t = await this.token();
+    const url = path.startsWith("http") ? path : "https://graph.microsoft.com/v1.0" + path;
+    for(let attempt = 0; attempt < 4; attempt++){
+      const r = await fetch(url, { method, headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+      if(r.status === 429 || r.status === 503){ const wait = (+r.headers.get("Retry-After") || 2) * 1000; await new Promise(res => setTimeout(res, wait)); continue; }
+      if(r.status === 204) return null;
+      const j = await r.json().catch(() => ({}));
+      if(!r.ok) throw new Error((j.error && j.error.message) || `${r.status} ${r.statusText}`);
+      return j;
+    }
+    throw new Error("Microsoft Graph is busy (throttled). Please retry in a minute.");
+  }
+  async init(){
+    const site = await this.g("GET", `/sites/${CFG.sharePointHost}:${CFG.sitePath}`);
+    this.siteId = site.id; this.siteUrl = site.webUrl;
+    const lists = await this.g("GET", `/sites/${this.siteId}/lists?$select=id,displayName&$top=500`);
+    for(const k in SCHEMA){ const l = lists.value.find(x => x.displayName === CFG.listPrefix + SCHEMA[k].list); if(l) this.listIds[k] = l.id; }
+    this.missing = Object.keys(SCHEMA).filter(k => !this.listIds[k]);
+  }
+  async provision(onStep){
+    for(const k of [...this.missing]){
+      const columns = Object.entries(SCHEMA[k].fields).filter(([n]) => n !== "Title")
+        .map(([name, t]) => ({ name, text: t === "note" ? { allowMultipleLines: true, linesForEditing: 6 } : {} }));
+      onStep && onStep(CFG.listPrefix + SCHEMA[k].list);
+      const l = await this.g("POST", `/sites/${this.siteId}/lists`, { displayName: CFG.listPrefix + SCHEMA[k].list, columns, list: { template: "genericList" } });
+      this.listIds[k] = l.id;
+    }
+    this.missing = [];
+  }
+  norm(kind, it){ const r = { id: String(it.id) }; const f = it.fields || {}; for(const k of Object.keys(SCHEMA[kind].fields)) r[k] = f[k] == null ? "" : String(f[k]); return r; }
+  async loadAll(){
+    const out = {};
+    await Promise.all(Object.keys(SCHEMA).map(async kind => {
+      let url = `/sites/${this.siteId}/lists/${this.listIds[kind]}/items?$expand=fields&$top=999`; const rows = []; let guard = 0;
+      while(url && guard++ < 60){ const j = await this.g("GET", url); for(const it of j.value) rows.push(this.norm(kind, it)); url = j["@odata.nextLink"] || null; }
+      out[kind] = rows;
+    }));
+    return out;
+  }
+  async create(kind, fields){ const f = cleanFields(kind, fields); const it = await this.g("POST", `/sites/${this.siteId}/lists/${this.listIds[kind]}/items`, { fields: f }); return Object.assign({}, this.norm(kind, { id: it.id, fields: {} }), f); }
+  async update(kind, id, fields){ await this.g("PATCH", `/sites/${this.siteId}/lists/${this.listIds[kind]}/items/${id}/fields`, cleanFields(kind, fields)); }
+  async remove(kind, id){ await this.g("DELETE", `/sites/${this.siteId}/lists/${this.listIds[kind]}/items/${id}`); }
+}
+
+class DemoStore {
+  constructor(){ this.missing = []; this.siteUrl = "(demo — data lives only in this browser tab)"; }
+  async init(){}
+  persist(){ try { localStorage.setItem("vinpro-demo", JSON.stringify(this.data)); } catch(e){} }
+  async loadAll(){
+    let saved = null; try { saved = JSON.parse(localStorage.getItem("vinpro-demo") || "null"); } catch(e){}
+    this.data = saved && saved.clients ? saved : demoSeed();
+    return JSON.parse(JSON.stringify(this.data));
+  }
+  async create(kind, fields){ const r = Object.assign({ id: uid() }, Object.fromEntries(Object.keys(SCHEMA[kind].fields).map(k => [k, ""])), cleanFields(kind, fields)); this.data[kind].push(r); this.persist(); return { ...r }; }
+  async update(kind, id, fields){ const r = this.data[kind].find(x => x.id === id); if(r) Object.assign(r, cleanFields(kind, fields)); this.persist(); }
+  async remove(kind, id){ this.data[kind] = this.data[kind].filter(x => x.id !== id); this.persist(); }
+  reset(){ try { localStorage.removeItem("vinpro-demo"); } catch(e){} }
+}
+
+function demoSeed(){
+  let s = 7; const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280; const pick = a => a[Math.floor(rnd() * a.length)];
+  const employees = [
+    { id:"e1", Title:"Vignesh SG", Email:"vignesh@vinproglobal.com", Role:"Admin", Active:"Yes", Phone:"" },
+    { id:"e2", Title:"Priya Nair", Email:"priya@demo.vinpro", Role:"Manager", Active:"Yes", Phone:"" },
+    { id:"e3", Title:"Rahul Menon", Email:"rahul@demo.vinpro", Role:"Staff", Active:"Yes", Phone:"" },
+    { id:"e4", Title:"Fatima Ali", Email:"fatima@demo.vinpro", Role:"Staff", Active:"Yes", Phone:"" }
+  ];
+  const names = ["Al Noor Trading WLL","Gulf Horizon Contracting","Pearl Coast Restaurants","Seef Digital Solutions","Manama Medical Supplies","Oasis Interiors WLL","Riffa Auto Parts","Bahrain Bay Logistics","Delmon Foods Co.","Sitra Engineering Works","Juffair Fitness Studio","Tubli Printing Press","Amwaj Marine Services","Hidd Steel Fabrication"];
+  const cycles = ["Q-Mar","Q-Mar","Q-Jan","Q-Feb","Monthly","Q-Mar","Q-Jan","Not registered"];
+  const staff = ["rahul@demo.vinpro","fatima@demo.vinpro"];
+  const clients = [], creds = [], vat = [], audits = [];
+  const cur = curYM();
+  names.forEach((n, i) => {
+    const id = "c" + (i+1);
+    const exp = ymAdd(cur, Math.floor(rnd() * 16) - 3) + "-" + pad(1 + Math.floor(rnd() * 27));
+    clients.push({ id, Title:n, CRNo: (10000 + Math.floor(rnd()*150000)) + "-1", CRExpiry: exp, Status: i === 13 ? "Deactivated" : "Active",
+      ContactName: pick(["Ahmed","Sara","Mohammed","Anil","Joseph","Layla","Hassan"]), ContactNo: "3" + Math.floor(1000000 + rnd()*8999999),
+      ContactEmail:"", VATNo: cycles[i % cycles.length] === "Not registered" ? "" : "2000" + Math.floor(100000 + rnd()*899999),
+      VATCycle: cycles[i % cycles.length], VATFrom:"", FYEnd:"12-31", AuditRequired: i % 5 === 4 ? "No" : "Yes",
+      AssignedTo: staff[i % 2] + (i % 4 === 0 ? "; priya@demo.vinpro" : ""), Reviewer:"priya@demo.vinpro", Services:"VAT, Bookkeeping, Audit support", Notes:"" });
+    const portals = ["NBR", "Sijilat"].concat(i % 3 === 0 ? ["LMRA","SIO"] : []).concat(i % 4 === 1 ? ["Odoo"] : i % 4 === 2 ? ["Tally"] : []);
+    portals.forEach(p => creds.push({ id: uid(), Title:p, ClientId:id, Username:"demo_" + n.split(" ")[0].toLowerCase() + "_" + p.toLowerCase().replace(/\W/g,""), Pwd:"Demo@" + Math.floor(1000 + rnd()*8999), PortalURL: PORTAL_URLS[p] || "", Notes:"Sample login (demo only)", UpdatedBy:"Vignesh SG", UpdatedOn: nowISO() }));
+    const cyc = clients[i].VATCycle;
+    for(let k = 12; k >= 1; k--){
+      const pe = ymAdd(cur, -k); if(!isPeriodEnd(cyc, pe) || pe < CFG.vatTrackingStart) continue;
+      const d = daysUntil(dueOf(pe)); let st;
+      if(d < -20) st = rnd() < .92 ? pick(["Filed","Paid / Closed","Paid / Closed"]) : "In preparation";
+      else st = pick(["Data requested","Data received","In preparation","Under review","Filed","Not started"]);
+      vat.push({ id: uid(), Title: id + "|" + pe, ClientId:id, PeriodEnd:pe, Status:st, Preparer: staff[i % 2], Reviewer:"priya@demo.vinpro",
+        FiledDate: VAT_DONE.has(st) ? dueOf(pe).slice(0,8) + pad(10 + Math.floor(rnd()*15)) : "", RefNo: VAT_DONE.has(st) ? "ACK" + Math.floor(rnd()*1e8) : "",
+        Amount: VAT_DONE.has(st) ? (rnd()*4000).toFixed(3) : "", Notes:"", UpdatedBy: staff[i % 2], UpdatedOn: nowISO() });
+    }
+    if(clients[i].AuditRequired === "Yes"){
+      const fy = String(new Date().getFullYear() - 1);
+      audits.push({ id: uid(), Title: id + "|FY" + fy, ClientId:id, FY:fy, Auditor: pick(["Grant Thornton","BDO","Crowe","Baker Tilly"]), AssignedTo: staff[i % 2], Status: pick(AUDIT_STATUSES.slice(0,7)), DueDate: (+fy + 1) + pick(["-06-30","-09-30","-12-31","-12-31"]), CompletedDate:"", Notes:"", UpdatedBy: staff[i % 2], UpdatedOn: nowISO() });
+    }
+  });
+  const activity = [{ id: uid(), Title:"Demo data created", ClientId:"", ClientName:"", UserEmail:"vignesh@vinproglobal.com", UserName:"Vignesh SG", Details:"Sample clients, logins, VAT and audit records", At: nowISO() }];
+  return { employees, clients, creds, vat, audits, activity };
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let store, msalApp, account;
+let data = { employees:[], clients:[], creds:[], vat:[], audits:[], activity:[] };
+let me = { email:"", name:"", role:null };
+const state = {
+  view: "dashboard",
+  cf: { q:"", status:"Active", who:"", cycle:"", sel: new Set() },
+  vf: { mode:"month", month: curYM(), year: new Date().getFullYear(), q:"", who:"", show:"all" },
+  af: { fy: String(new Date().getFullYear() - 1), q:"", who:"", show:"all" },
+  lf: { q:"", who:"" },
+  revealed: {}, modals: [], busy: 0, importPreview: null
+};
+
+/* ============================================================
+   DOMAIN LOGIC
+   ============================================================ */
+const isMgr = () => me.role === "Admin" || me.role === "Manager";
+const isAdmin = () => me.role === "Admin";
+function empName(email){ if(!email) return ""; const e = data.employees.find(x => lc(x.Email) === lc(email)); return e ? e.Title : email; }
+function activeEmployees(){ return data.employees.filter(e => e.Active !== "No").sort((a,b) => a.Title.localeCompare(b.Title)); }
+function clientById(id){ return data.clients.find(c => c.id === id); }
+function teamOf(c){ const t = splitEmails(c.AssignedTo); return t; }
+function isMine(c){ const e = lc(me.email); return teamOf(c).includes(e) || lc(c.Reviewer) === e; }
+function canSee(c){ return isMgr() || isMine(c); }
+function visibleClients(){ return data.clients.filter(canSee).sort((a,b) => a.Title.localeCompare(b.Title)); }
+function roleOf(email){
+  const e = lc(email);
+  if((CFG.adminEmails || []).map(lc).includes(e)) return "Admin";
+  const emp = data.employees.find(x => lc(x.Email) === e);
+  if(emp) return emp.Active === "No" ? null : (emp.Role || "Staff");
+  if(!data.employees.length && !(CFG.adminEmails || []).length) return "Admin"; // bootstrap: first user
+  return null;
+}
+function isPeriodEnd(cycle, ym){ const c = CYCLES[cycle]; if(!c || !c.n) return false; if(c.n === 1) return true; return (+ym.slice(5)) % 3 === c.r; }
+function periodLabel(cycle, pe){
+  const n = (CYCLES[cycle] && CYCLES[cycle].n) || 3; if(n === 1) return ymLabel(pe);
+  const st = ymAdd(pe, -(n-1)); const [sy, sm] = st.split("-"), [ey, em] = pe.split("-");
+  return sy === ey ? `${MONTHS[sm-1]}–${MONTHS[em-1]} ${ey}` : `${MONTHS[sm-1]} ${sy} – ${MONTHS[em-1]} ${ey}`;
+}
+function dueOf(pe){ return lastDay(ymAdd(pe, 1)); }
+function vatStart(c){ const a = CFG.vatTrackingStart || "2000-01", b = c.VATFrom || ""; return b > a ? b : a; }
+function vatRec(cid, pe){ return data.vat.find(v => v.ClientId === cid && v.PeriodEnd === pe); }
+function vatStatus(cid, pe){ const r = vatRec(cid, pe); return (r && r.Status) || "Not started"; }
+function periodsFor(c, fromYm, toYm){ const out = []; if(!CYCLES[c.VATCycle] || !CYCLES[c.VATCycle].n) return out; const st = vatStart(c);
+  for(let ym = fromYm; ym <= toYm; ym = ymAdd(ym, 1)) if(isPeriodEnd(c.VATCycle, ym) && ym >= st) out.push(ym); return out; }
+function vatItems(clients, horizonDays = 45){
+  const items = []; const cur = curYM();
+  for(const c of clients){ if(c.Status === "Deactivated") continue;
+    for(const pe of periodsFor(c, ymAdd(cur, -24), cur)){
+      const st = vatStatus(c.id, pe); if(VAT_DONE.has(st)) continue; const due = dueOf(pe); const d = daysUntil(due);
+      if(d <= horizonDays) items.push({ c, pe, due, d, st, rec: vatRec(c.id, pe) });
+    } }
+  return items.sort((a,b) => a.d - b.d);
+}
+function auditRec(cid, fy){ return data.audits.find(a => a.ClientId === cid && a.FY === String(fy)); }
+function auditClients(list){ return list.filter(c => c.Status !== "Deactivated" && c.AuditRequired !== "No"); }
+function crInfo(c){
+  if(c.Status === "Deactivated") return { cls:"grey", txt:"Deactivated", d:null };
+  const d = daysUntil(c.CRExpiry);
+  if(d == null) return { cls:"outline", txt: c.CRExpiry ? esc(c.CRExpiry) : "Not set", d:null };
+  if(d < 0) return { cls:"red", txt:`Expired ${fmtDate(c.CRExpiry)}`, d };
+  if(d <= 30) return { cls:"amber", txt:`${fmtDate(c.CRExpiry)} · ${d}d`, d };
+  return { cls:"outline", txt: fmtDate(c.CRExpiry), d };
+}
+function updCell(r){ if(!r || !r.UpdatedOn) return ""; return `<span title="${esc(empName(r.UpdatedBy))} · ${fmtDT(r.UpdatedOn)}">${esc(empName(r.UpdatedBy).split(" ")[0])} · ${fmtDate(r.UpdatedOn.slice(0,10)).slice(0,6)}</span>`; }
+function chip(color, text, dot){ return `<span class="chip ${color}">${dot ? '<span class="dot"></span>' : ""}${text}</span>`; }
+function vatChip(st){ return chip(VAT_COLOR[st] || "grey", esc(st), true); }
+function auditChip(st){ return chip(AUDIT_COLOR[st] || "grey", esc(st), true); }
+function avatars(emails){ return `<div class="avs">${emails.map(e => `<span class="av" title="${esc(e)}"><i>${esc(initials(empName(e)))}</i>${esc(empName(e).split(" ")[0])}</span>`).join("")}</div>`; }
+
+/* ============================================================
+   PERSISTENCE WRAPPERS
+   ============================================================ */
+async function withBusy(fn){ state.busy++; renderBusy(); try { return await fn(); } catch(e){ console.error(e); toast(e.message || String(e), true); throw e; } finally { state.busy--; renderBusy(); } }
+async function saveRec(kind, id, fields){
+  return withBusy(async () => {
+    if(id){ await store.update(kind, id, fields); const r = data[kind].find(x => x.id === id); if(r) Object.assign(r, cleanFields(kind, fields)); return r; }
+    const r = await store.create(kind, fields); data[kind].push(r); return r;
+  });
+}
+async function removeRec(kind, id){ return withBusy(async () => { await store.remove(kind, id); data[kind] = data[kind].filter(x => x.id !== id); }); }
+async function logAct(action, client, details){
+  const rec = { Title: action, ClientId: client ? client.id : "", ClientName: client ? client.Title : "", UserEmail: me.email, UserName: me.name, Details: details || "", At: nowISO() };
+  try { const r = await store.create("activity", rec); data.activity.push(r); } catch(e){ console.warn("log failed", e); }
+}
+async function reload(){ await withBusy(async () => { data = await store.loadAll(); me.role = roleOf(me.email); }); render(); renderModals(); toast("Data refreshed"); }
+
+/* ============================================================
+   RENDER — SHELL
+   ============================================================ */
+let toastTimer;
+function toast(msg, err){ const t = $("#toast"); t.innerHTML = `<div class="toast ${err ? "err" : ""}">${esc(msg)}</div>`; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.innerHTML = "", err ? 6000 : 2400); }
+function renderBusy(){ let b = document.getElementById("busy"); if(state.busy && !b){ b = document.createElement("div"); b.id = "busy"; b.className = "busy"; document.body.appendChild(b); } if(!state.busy && b) b.remove(); }
+
+const NAV = [
+  ["dashboard", "Dashboard", "dash"], ["clients", "Clients", "clients"], ["vat", "VAT Tracker", "vat"], ["audit", "Audit Tracker", "audit"],
+  ["team", "Team", "team", () => isMgr()], ["activity", "Activity Log", "log"], ["admin", "Admin & Import", "admin", () => isAdmin()]
+];
+const TITLES = { dashboard:"Dashboard", clients:"Client Master", vat:"VAT Return Tracker", audit:"Audit Tracker", team:"Team & Assignments", activity:"Activity Log", admin:"Admin, Import & Export" };
+
+function render(){
+  const app = $("#app");
+  if(!me.role){ app.innerHTML = noAccessScreen(); return; }
+  const ae = document.activeElement; const fid = ae && ae.id && app.contains(ae) ? ae.id : null; const pos = fid && ae.selectionStart;
+  const overdue = vatItems(visibleClients(), 0).filter(x => x.d < 0).length;
+  const sub = { dashboard: isMgr() ? "All clients" : "Your assigned clients", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
+    vat: "Quarterly / monthly VAT returns · NBR due date = last day of the month after the period", audit: "Statutory audit progress by financial year",
+    team: "Employees, roles and client assignments", activity: "Every change and every password view is recorded", admin: "Import the client master, export, and SharePoint setup" }[state.view];
+  app.innerHTML = `
+  <div class="shell">
+    <aside class="side">
+      <div class="brand"><div class="logo">${I.logo}</div><div><b>${esc(CFG.appName)}</b><small>${esc(CFG.companyName)}</small></div></div>
+      ${NAV.filter(n => !n[3] || n[3]()).map(([k, label, icon]) => `<button class="nav ${state.view === k ? "on" : ""}" data-act="nav" data-v="${k}">${I[icon]}<span>${label}</span>${k === "vat" && overdue ? `<span class="count" title="Overdue returns">${overdue}</span>` : ""}</button>`).join("")}
+      <div class="spacer"></div>
+      <div class="me"><b>${esc(me.name)}</b><span class="muted">${esc(me.role)}</span> · <span class="faint small">${esc(me.email)}</span></div>
+    </aside>
+    <main class="main">
+      ${DEMO ? demoBar() : ""}
+      <div class="top">
+        <div><h1>${TITLES[state.view]}</h1><div class="sub">${sub || ""}</div></div>
+        <div class="right">
+          <button class="btn ghost" data-act="reload" title="Reload latest data">${I.refresh}<span>Refresh</span></button>
+          ${DEMO ? "" : `<button class="btn ghost" data-act="signout" title="Sign out">${I.logout}</button>`}
+        </div>
+      </div>
+      <div class="content">${VIEWS[state.view]()}</div>
+    </main>
+  </div>`;
+  if(fid){ const el = document.getElementById(fid); if(el){ el.focus(); try { if(pos != null) el.setSelectionRange(pos, pos); } catch(e){} } }
+}
+function demoBar(){
+  return `<div class="demo-bar"><b>Demo mode</b> — sample data, nothing is saved to SharePoint. View as:
+    <select data-act="demouser">${data.employees.filter(e => e.Active !== "No").map(e => `<option value="${esc(e.Email)}" ${lc(e.Email) === lc(me.email) ? "selected" : ""}>${esc(e.Title)} — ${esc(e.Role)}</option>`).join("")}</select>
+    <button class="btn sm" data-act="demoreset">Reset demo data</button></div>`;
+}
+function noAccessScreen(){
+  return `<div class="center-screen"><div class="login"><div class="logo">${I.logo}</div><h1>Access pending</h1>
+    <p>You're signed in as <b>${esc(me.email)}</b>, but you haven't been added to ${esc(CFG.appName)} yet.<br><br>Ask an Admin to add you under <b>Team</b>.</p>
+    ${DEMO ? "" : `<button class="btn" data-act="signout">${I.logout} Sign out</button>`}</div></div>`;
+}
+
+/* ============================================================
+   VIEWS
+   ============================================================ */
+const VIEWS = {};
+
+VIEWS.dashboard = () => {
+  const cl = visibleClients(); const active = cl.filter(c => c.Status !== "Deactivated");
+  const items = vatItems(cl, 45); const overdue = items.filter(x => x.d < 0); const dueSoon = items.filter(x => x.d >= 0);
+  const fy = state.af.fy; const aud = auditClients(cl); const audPending = aud.filter(c => !AUDIT_DONE.has((auditRec(c.id, fy) || {}).Status || "Not started"));
+  const cr = active.map(c => ({ c, i: crInfo(c) })).filter(x => x.i.d != null && x.i.d <= 30).sort((a,b) => a.i.d - b.i.d);
+  const unsetCycle = active.filter(c => !c.VATCycle).length;
+  const hour = new Date().getHours(); const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const acts = data.activity.filter(a => isMgr() || !a.ClientId || cl.some(c => c.id === a.ClientId)).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 8);
+  return `
+  <div style="margin-bottom:16px"><b style="font-size:16px">${greet}, ${esc(me.name.split(" ")[0])}.</b> <span class="muted">${fmtDate(todayISO())}</span></div>
+  ${unsetCycle ? `<div class="banner">${unsetCycle} active client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
+  <div class="kpis">
+    <button class="kpi" data-act="nav" data-v="clients"><div class="l">${isMgr() ? "Active clients" : "My active clients"}</div><div class="v">${active.length}</div><div class="s">${cl.length - active.length} deactivated</div></button>
+    <button class="kpi ${overdue.length ? "bad" : "ok"}" data-act="nav" data-v="vat"><div class="l">VAT returns overdue</div><div class="v">${overdue.length}</div><div class="s">past NBR due date, not filed</div></button>
+    <button class="kpi ${dueSoon.length ? "warn" : ""}" data-act="nav" data-v="vat"><div class="l">VAT due in next 45 days</div><div class="v">${dueSoon.length}</div><div class="s">not yet filed</div></button>
+    <button class="kpi" data-act="nav" data-v="audit"><div class="l">Audits pending · FY${esc(fy)}</div><div class="v">${audPending.length}</div><div class="s">of ${aud.length} requiring audit</div></button>
+    <button class="kpi ${cr.some(x => x.i.d < 0) ? "bad" : cr.length ? "warn" : ""}" data-act="nav" data-v="clients"><div class="l">CR expired / expiring ≤30d</div><div class="v">${cr.length}</div><div class="s">${cr.filter(x => x.i.d < 0).length} already expired</div></button>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="card"><div class="card-h"><h3>VAT returns needing action</h3><div class="right"><button class="btn sm" data-act="nav" data-v="vat">Open tracker</button></div></div>
+      ${items.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Due</th><th>Status</th><th>Preparer</th><th></th></tr></thead><tbody>
+        ${items.slice(0, 14).map(x => `<tr><td class="cname">${esc(x.c.Title)}</td><td class="nowrap">${periodLabel(x.c.VATCycle, x.pe)}</td>
+          <td class="nowrap">${fmtDate(x.due)}<div class="small ${x.d < 0 ? "over" : x.d <= 10 ? "soon" : "faint"}">${relDays(x.d)}</div></td>
+          <td>${vatChip(x.st)}</td><td class="small">${esc(empName((x.rec && x.rec.Preparer) || teamOf(x.c)[0] || ""))}</td>
+          <td><button class="btn sm" data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}">Update</button></td></tr>`).join("")}
+      </tbody></table></div>${items.length > 14 ? `<div class="card-b small muted">+ ${items.length - 14} more in the VAT tracker</div>` : ""}` : `<div class="empty">Nothing pending — all returns due in the next 45 days are filed. 🎉</div>`}
+      </div>
+      ${isMgr() ? teamWorkloadCard(cl) : ""}
+    </div>
+    <div>
+      <div class="card"><div class="card-h"><h3>CR expiry alerts</h3></div>
+        ${cr.length ? `<ul class="feed">${cr.map(x => `<li style="cursor:pointer" data-act="openClient" data-id="${x.c.id}"><b>${esc(x.c.Title)}</b> <span style="float:right">${chip(x.i.cls, x.i.d < 0 ? "Expired" : x.i.d + " days")}</span><div class="when">CR ${esc(x.c.CRNo)} · expiry ${fmtDate(x.c.CRExpiry)}</div></li>`).join("")}</ul>` : `<div class="empty">No CRs expiring in the next 30 days.</div>`}
+      </div>
+      <div class="card"><div class="card-h"><h3>Recent activity</h3><div class="right"><button class="btn sm" data-act="nav" data-v="activity">All</button></div></div>
+        ${acts.length ? `<ul class="feed">${acts.map(feedItem).join("")}</ul>` : `<div class="empty">No activity yet.</div>`}
+      </div>
+    </div>
+  </div>`;
+};
+function feedItem(a){ return `<li><b>${esc(a.UserName || a.UserEmail)}</b> · ${esc(a.Title)}${a.ClientName ? ` — <span class="cname">${esc(a.ClientName)}</span>` : ""}${a.Details ? `<div class="small muted">${esc(a.Details)}</div>` : ""}<div class="when">${fmtDT(a.At)}</div></li>`; }
+function teamWorkloadCard(cl){
+  const rows = activeEmployees().map(e => {
+    const mine = cl.filter(c => c.Status !== "Deactivated" && teamOf(c).includes(lc(e.Email)));
+    const items = vatItems(mine, 45);
+    return { e, n: mine.length, pend: items.filter(x => x.d >= 0).length, over: items.filter(x => x.d < 0).length };
+  });
+  return `<div class="card"><div class="card-h"><h3>Team workload</h3><div class="right"><button class="btn sm" data-act="nav" data-v="team">Manage</button></div></div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Employee</th><th>Role</th><th class="num">Clients</th><th class="num">VAT due ≤45d</th><th class="num">VAT overdue</th></tr></thead><tbody>
+  ${rows.map(r => `<tr><td class="cname">${esc(r.e.Title)}</td><td class="muted">${esc(r.e.Role)}</td><td class="num">${r.n}</td><td class="num">${r.pend}</td><td class="num ${r.over ? "over" : ""}">${r.over}</td></tr>`).join("")}
+  </tbody></table></div></div>`;
+}
+
+VIEWS.clients = () => {
+  const f = state.cf; const q = lc(f.q);
+  let list = visibleClients().filter(c =>
+    (!f.status || (f.status === "Active" ? c.Status !== "Deactivated" : c.Status === f.status)) &&
+    (!f.who || (f.who === "__none" ? !teamOf(c).length : teamOf(c).includes(f.who))) &&
+    (!f.cycle || (f.cycle === "__unset" ? !c.VATCycle : c.VATCycle === f.cycle)) &&
+    (!q || [c.Title, c.CRNo, c.ContactName, c.ContactNo, c.VATNo].some(v => lc(v).includes(q))));
+  const credsBy = {}; data.creds.forEach(x => (credsBy[x.ClientId] = credsBy[x.ClientId] || []).push(x.Title));
+  const sel = f.sel; const allSel = list.length && list.every(c => sel.has(c.id));
+  return `
+  <div class="toolbar">
+    <input id="cf-q" class="in search" placeholder="Search name, CR no, contact, VAT no…" value="${esc(f.q)}" data-bind="cf.q">
+    <select class="in" data-bind="cf.status"><option value="">All statuses</option>${["Active","Dormant","Deactivated"].map(s => `<option ${f.status === s ? "selected" : ""}>${s}</option>`).join("")}</select>
+    ${isMgr() ? `<select class="in" data-bind="cf.who"><option value="">All employees</option><option value="__none" ${f.who === "__none" ? "selected" : ""}>— Unassigned —</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
+    <select class="in" data-bind="cf.cycle"><option value="">Any VAT cycle</option><option value="__unset" ${f.cycle === "__unset" ? "selected" : ""}>— Not set —</option>${Object.keys(CYCLES).map(k => `<option value="${k}" ${f.cycle === k ? "selected" : ""}>${CYCLES[k].short}</option>`).join("")}</select>
+    <div class="right">
+      ${isMgr() && sel.size ? `<button class="btn" data-act="bulk">Bulk update (${sel.size})</button>` : ""}
+      ${isMgr() ? `<button class="btn pri" data-act="editClient">${I.plus} Add client</button>` : ""}
+    </div>
+  </div>
+  <div class="card"><div class="tw"><table class="tbl"><thead><tr>
+    ${isMgr() ? `<th style="width:30px"><input type="checkbox" data-act="selAll" ${allSel ? "checked" : ""} aria-label="Select all"></th>` : ""}
+    <th>Client</th><th>CR No</th><th>CR expiry</th><th>Contact</th><th>VAT cycle</th><th>Team</th><th>Logins</th></tr></thead><tbody>
+    ${list.map(c => { const cr = crInfo(c); return `<tr class="click" data-act="openClient" data-id="${c.id}">
+      ${isMgr() ? `<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${c.id}" ${sel.has(c.id) ? "checked" : ""} aria-label="Select"></td>` : ""}
+      <td><span class="cname">${esc(c.Title)}</span>${c.Status && c.Status !== "Active" ? ` ${chip("grey", esc(c.Status))}` : ""}</td>
+      <td class="nowrap">${esc(c.CRNo)}</td><td>${chip(cr.cls, cr.txt)}</td>
+      <td class="small">${esc(c.ContactName)}${c.ContactNo ? `<div class="faint">${esc(c.ContactNo)}</div>` : ""}</td>
+      <td class="small nowrap">${c.VATCycle ? esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].short : c.VATCycle) : `<span class="soon">Not set</span>`}</td>
+      <td>${teamOf(c).length ? avatars(teamOf(c)) : `<span class="faint small">Unassigned</span>`}</td>
+      <td>${(credsBy[c.id] || []).map(p => `<span class="tag">${esc(p)}</span>`).join("") || `<span class="faint small">—</span>`}</td></tr>`; }).join("")}
+  </tbody></table>${list.length ? "" : `<div class="empty">No clients match these filters.</div>`}</div></div>`;
+};
+
+VIEWS.vat = () => {
+  const f = state.vf; const q = lc(f.q);
+  const base = visibleClients().filter(c => c.Status !== "Deactivated" && (!q || lc(c.Title).includes(q)) && (!f.who || teamOf(c).includes(f.who)));
+  const unset = base.filter(c => !c.VATCycle).length;
+  const head = `<div class="toolbar">
+    <div class="seg"><button class="${f.mode === "month" ? "on" : ""}" data-act="vmode" data-v="month">By filing month</button><button class="${f.mode === "year" ? "on" : ""}" data-act="vmode" data-v="year">Year overview</button></div>
+    ${f.mode === "month" ? `<select class="in" data-bind="vf.month">${Array.from({length:19}, (_, i) => ymAdd(curYM(), i - 14)).reverse().map(m => `<option value="${m}" ${f.month === m ? "selected" : ""}>Due in ${ymLabel(m)}${m === curYM() ? " (this month)" : ""}</option>`).join("")}</select>`
+      : `<select class="in" data-bind="vf.year">${[0,1,2,3].map(i => new Date().getFullYear() + 1 - i).map(y => `<option ${+f.year === y ? "selected" : ""}>${y}</option>`).join("")}</select>`}
+    <input id="vf-q" class="in search" placeholder="Search client…" value="${esc(f.q)}" data-bind="vf.q">
+    ${isMgr() ? `<select class="in" data-bind="vf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
+    ${f.mode === "month" ? `<select class="in" data-bind="vf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>` : ""}
+  </div>
+  ${unset ? `<div class="banner">${unset} client${unset>1?"s have":" has"} no VAT cycle set and ${unset>1?"are":"is"} not shown. <button class="btn sm" data-act="gotoUnset">Set VAT cycles</button></div>` : ""}`;
+  return head + (f.mode === "month" ? vatMonthView(base) : vatYearView(base));
+};
+function vatMonthView(base){
+  const f = state.vf; const pe = ymAdd(f.month, -1); const due = lastDay(f.month); const d = daysUntil(due);
+  let rows = base.filter(c => periodsFor(c, pe, pe).length).map(c => ({ c, st: vatStatus(c.id, pe), rec: vatRec(c.id, pe) }));
+  const total = rows.length, done = rows.filter(r => VAT_DONE.has(r.st)).length;
+  if(f.show === "pending") rows = rows.filter(r => !VAT_DONE.has(r.st)); if(f.show === "done") rows = rows.filter(r => VAT_DONE.has(r.st));
+  const pct = total ? Math.round(done / total * 100) : 0;
+  return `<div class="card"><div class="card-b">
+    <div class="progress-row"><div><b>Returns for periods ending ${ymLabel(pe)}</b><div class="small muted">NBR due date ${fmtDate(due)} · <span class="${d < 0 && done < total ? "over" : d <= 10 ? "soon" : ""}">${relDays(d)}</span></div></div>
+    <div class="bar" title="${pct}% complete"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} filed (${pct}%)</span></div></div></div>
+    <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Net VAT (BHD)</th><th>Last update</th><th></th></tr></thead><tbody>
+    ${rows.map(r => { const late = !VAT_DONE.has(r.st) && d < 0; return `<tr>
+      <td class="cname"><a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
+      <td class="nowrap small">${periodLabel(r.c.VATCycle, pe)}</td>
+      <td>${vatChip(r.st)}${late ? ` ${chip("red", "Overdue")}` : ""}</td>
+      <td class="small">${esc(empName((r.rec && r.rec.Preparer) || ""))}</td>
+      <td class="small nowrap">${fmtDate(r.rec && r.rec.FiledDate)}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td><td class="num">${esc(r.rec && r.rec.Amount)}</td>
+      <td class="small faint nowrap">${updCell(r.rec)}</td>
+      <td><button class="btn sm" data-act="editVat" data-c="${r.c.id}" data-pe="${pe}">Update</button></td></tr>`; }).join("")}
+    </tbody></table>${rows.length ? "" : `<div class="empty">No VAT returns fall due in ${ymLabel(f.month)} for these clients.</div>`}</div></div>`;
+}
+function vatYearView(base){
+  const y = +state.vf.year; const months = Array.from({length:12}, (_, i) => `${y}-${pad(i+1)}`);
+  const rows = base.filter(c => CYCLES[c.VATCycle] && CYCLES[c.VATCycle].n);
+  return `<div class="card"><div class="card-b small muted">Each cell is the VAT period <b>ending</b> in that month (filing due the following month). Click a cell to update. Red outline = past due and not filed.</div>
+  <div class="tw"><table class="tbl ygrid"><thead><tr><th>Client</th><th>Cycle</th>${months.map(m => `<th class="m">${MONTHS[+m.slice(5)-1]}</th>`).join("")}</tr></thead><tbody>
+  ${rows.map(c => `<tr><td class="cname nowrap">${esc(c.Title)}</td><td class="small faint nowrap">${esc(CYCLES[c.VATCycle].short)}</td>
+    ${months.map(m => { if(!isPeriodEnd(c.VATCycle, m)) return `<td class="cell off"></td>`; if(m < vatStart(c)) return `<td class="cell"><span class="faint small">–</span></td>`;
+      const st = vatStatus(c.id, m); const dd = daysUntil(dueOf(m)); const over = !VAT_DONE.has(st) && dd < 0; const fut = st === "Not started" && dd > 45;
+      return `<td class="cell"><span class="yc chip ${VAT_COLOR[st]} ${over ? "overdue" : ""} ${fut ? "future" : ""}" data-act="editVat" data-c="${c.id}" data-pe="${m}" title="${esc(periodLabel(c.VATCycle, m))} · ${esc(st)} · due ${fmtDate(dueOf(m))}">${VAT_SHORT[st]}</span></td>`; }).join("")}</tr>`).join("")}
+  </tbody></table>${rows.length ? "" : `<div class="empty">No clients with a VAT cycle.</div>`}</div></div>`;
+}
+
+VIEWS.audit = () => {
+  const f = state.af; const q = lc(f.q); const y = new Date().getFullYear();
+  let rows = auditClients(visibleClients()).filter(c => (!q || lc(c.Title).includes(q)) && (!f.who || teamOf(c).includes(f.who) || lc((auditRec(c.id, f.fy) || {}).AssignedTo) === f.who))
+    .map(c => ({ c, rec: auditRec(c.id, f.fy), st: (auditRec(c.id, f.fy) || {}).Status || "Not started" }));
+  const total = rows.length, done = rows.filter(r => AUDIT_DONE.has(r.st)).length;
+  if(f.show === "pending") rows = rows.filter(r => !AUDIT_DONE.has(r.st)); if(f.show === "done") rows = rows.filter(r => AUDIT_DONE.has(r.st));
+  const pct = total ? Math.round(done / total * 100) : 0;
+  return `<div class="toolbar">
+    <select class="in" data-bind="af.fy">${[0,1,2,3,4].map(i => String(y - i)).map(v => `<option value="${v}" ${f.fy === v ? "selected" : ""}>Financial year ${v}</option>`).join("")}</select>
+    <input id="af-q" class="in search" placeholder="Search client…" value="${esc(f.q)}" data-bind="af.q">
+    ${isMgr() ? `<select class="in" data-bind="af.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
+    <select class="in" data-bind="af.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>
+  </div>
+  <div class="card"><div class="card-b"><div class="progress-row"><div><b>FY${esc(f.fy)} audits</b><div class="small muted">Clients marked "Audit required = No" are excluded</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>FY end</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Progress</th><th>Due</th><th>Completed</th><th>Last update</th><th></th></tr></thead><tbody>
+  ${rows.map(r => { const idx = AUDIT_STATUSES.indexOf(r.st); const steps = 7; const d = daysUntil(r.rec && r.rec.DueDate); return `<tr>
+    <td class="cname"><a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
+    <td class="small nowrap">${fmtDate(f.fy + "-" + (r.c.FYEnd || "12-31"))}</td><td class="small">${esc(r.rec && r.rec.Auditor)}</td>
+    <td class="small">${esc(empName((r.rec && r.rec.AssignedTo) || teamOf(r.c)[0] || ""))}</td><td>${auditChip(r.st)}</td>
+    <td style="min-width:80px"><div class="steps" title="${esc(r.st)}">${Array.from({length:steps - 1}, (_, i) => `<i class="${r.st === "Not applicable" || i < idx ? "on" : ""}"></i>`).join("")}</div></td>
+    <td class="small nowrap">${fmtDate(r.rec && r.rec.DueDate)}${d != null && !AUDIT_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
+    <td class="small nowrap">${fmtDate(r.rec && r.rec.CompletedDate)}</td>
+    <td class="small faint nowrap">${updCell(r.rec)}</td>
+    <td><button class="btn sm" data-act="editAudit" data-c="${r.c.id}" data-fy="${esc(f.fy)}">Update</button></td></tr>`; }).join("")}
+  </tbody></table>${rows.length ? "" : `<div class="empty">No clients to show.</div>`}</div></div>`;
+};
+
+VIEWS.team = () => {
+  const cl = data.clients.filter(c => c.Status !== "Deactivated");
+  const emps = [...data.employees].sort((a,b) => (a.Active === "No") - (b.Active === "No") || a.Title.localeCompare(b.Title));
+  const unassigned = cl.filter(c => !teamOf(c).length).length;
+  return `<div class="toolbar"><div class="muted">${activeEmployees().length} active employees · ${unassigned} unassigned client${unassigned===1?"":"s"}</div>
+    <div class="right">${isAdmin() ? `<button class="btn pri" data-act="editEmp">${I.plus} Add employee</button>` : ""}</div></div>
+  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Name</th><th>Microsoft login (email)</th><th>Role</th><th>Status</th><th class="num">Clients</th><th class="num">VAT due ≤45d</th><th class="num">VAT overdue</th><th></th></tr></thead><tbody>
+  ${emps.map(e => { const mine = cl.filter(c => teamOf(c).includes(lc(e.Email))); const it = vatItems(mine, 45); return `<tr>
+    <td class="cname">${esc(e.Title)}</td><td class="small">${esc(e.Email)}</td><td>${chip(e.Role === "Admin" ? "purple" : e.Role === "Manager" ? "blue" : "grey", esc(e.Role || "Staff"))}</td>
+    <td>${e.Active === "No" ? chip("red", "Disabled") : chip("green", "Active")}</td><td class="num">${mine.length}</td><td class="num">${it.filter(x => x.d >= 0).length}</td><td class="num ${it.some(x => x.d < 0) ? "over" : ""}">${it.filter(x => x.d < 0).length}</td>
+    <td>${isAdmin() ? `<button class="btn sm" data-act="editEmp" data-id="${e.id}">Edit & assign</button>` : ""}</td></tr>`; }).join("")}
+  </tbody></table>${emps.length ? "" : `<div class="empty">No employees yet — add your team so you can assign clients.</div>`}</div></div>
+  <div class="card"><div class="card-b small muted"><b>How access works:</b> employees sign in with their Vinpro Microsoft account. The email here must match their Microsoft login exactly. <b>Staff</b> see only clients they are assigned to (as team member or reviewer) and can update VAT, audit and login details for them. <b>Managers</b> see and edit all clients. <b>Admins</b> additionally manage employees, import and export. Set an employee to <i>Disabled</i> when they leave — they lose access immediately.</div></div>`;
+};
+
+VIEWS.activity = () => {
+  const f = state.lf; const q = lc(f.q); const cl = visibleClients(); const ids = new Set(cl.map(c => c.id));
+  const rows = data.activity.filter(a => (isMgr() || !a.ClientId || ids.has(a.ClientId)) && (!f.who || lc(a.UserEmail) === f.who) &&
+    (!q || [a.Title, a.ClientName, a.Details, a.UserName].some(v => lc(v).includes(q)))).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 500);
+  return `<div class="toolbar"><input id="lf-q" class="in search" placeholder="Search action, client, details…" value="${esc(f.q)}" data-bind="lf.q">
+    ${isMgr() ? `<select class="in" data-bind="lf.who"><option value="">All users</option>${data.employees.map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}</div>
+  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>When</th><th>User</th><th>Action</th><th>Client</th><th>Details</th></tr></thead><tbody>
+  ${rows.map(a => `<tr><td class="small nowrap">${fmtDT(a.At)}</td><td class="small">${esc(a.UserName || a.UserEmail)}</td><td>${/password/i.test(a.Title) ? chip("amber", esc(a.Title)) : esc(a.Title)}</td><td class="cname small">${esc(a.ClientName)}</td><td class="small muted">${esc(a.Details)}</td></tr>`).join("")}
+  </tbody></table>${rows.length ? "" : `<div class="empty">No activity recorded.</div>`}</div></div>`;
+};
+
+VIEWS.admin = () => {
+  const p = state.importPreview;
+  return `
+  <div class="card"><div class="card-h"><h3>1 · Import client master from Excel</h3></div><div class="card-b">
+    <p class="muted" style="margin-top:0">Upload your <b>Client – Master Data.xlsx</b>. The importer finds the header row ("Client Name"), reads CR No, CR expiry, contact details, and every <i>&lt;Portal&gt; Login</i> / <i>&lt;Portal&gt; Pwd</i> column pair (NBR, LMRA, SIO, Sijilat, Tally, Odoo, …). Rows with CR expiry "Deactivated" are imported as deactivated clients. Existing clients are matched by CR No, then by name.</p>
+    <div class="toolbar"><input type="file" id="xlsx" accept=".xlsx,.xls,.csv" class="in"><button class="btn" data-act="parseXlsx">Read file</button></div>
+    ${p ? importPreviewHtml(p) : ""}
+  </div></div>
+  <div class="card"><div class="card-h"><h3>2 · Export</h3></div><div class="card-b">
+    <p class="muted" style="margin-top:0">Download clients, logins, VAT and audit status as an Excel workbook (for backup or review).</p>
+    <div class="toolbar"><label class="small"><input type="checkbox" id="expPwd"> Include passwords (logged)</label><button class="btn" data-act="export">Export to Excel</button></div>
+  </div></div>
+  <div class="card"><div class="card-h"><h3>3 · Go-live: close off VAT returns filed before the Client Desk</h3></div><div class="card-b">
+    <p class="muted" style="margin-top:0">When you first start, returns you already filed show as overdue because they were never recorded here. Pick the last filing month that is fully done, and every earlier period without a status is marked <b>Filed</b> with the note "Marked as filed at go-live". Anything already updated is left alone.</p>
+    <div class="toolbar"><select class="in" id="closeUpto">${Array.from({length:12}, (_, i) => ymAdd(curYM(), -i)).map(m => `<option value="${m}">Returns due up to ${ymLabel(m)}</option>`).join("")}</select><button class="btn" data-act="closeOff">Mark as filed…</button></div>
+  </div></div>
+  <div class="card"><div class="card-h"><h3>4 · Connection</h3></div><div class="card-b">
+    <div class="kv">
+      <div><span>Mode</span><b>${DEMO ? "Demo (browser only)" : "Live — SharePoint"}</b></div>
+      <div><span>SharePoint site</span><b>${esc(store.siteUrl || (CFG.sharePointHost + CFG.sitePath))}</b></div>
+      <div><span>Lists</span><b>${Object.values(SCHEMA).map(s => CFG.listPrefix + s.list).join(", ")}</b></div>
+      <div><span>VAT tracked from</span><b>${ymLabel(CFG.vatTrackingStart)}</b></div>
+      <div><span>Always-admin accounts</span><b>${esc((CFG.adminEmails || []).join(", ") || "—")}</b></div>
+    </div>
+    ${DEMO ? `<p class="small muted">Demo data is stored only in this browser. Fill in <code>config.js</code> (see SETUP-GUIDE) to go live with Microsoft sign-in.</p>` : ""}
+  </div></div>`;
+};
+function importPreviewHtml(p){
+  return `<div class="banner info"><div><b>${p.rows.length} clients found</b> · ${p.rows.filter(r => r.match).length} already exist · ${p.rows.reduce((n, r) => n + r.creds.length, 0)} logins across portals: ${[...new Set(p.rows.flatMap(r => r.creds.map(c => c.Title)))].map(x => `<span class="tag">${esc(x)}</span>`).join("")}</div></div>
+  <div class="toolbar"><label class="small">Existing clients: <select class="in" id="impMode"><option value="skip">Skip (keep what's in the app)</option><option value="update">Update master details & logins from file</option></select></label>
+    <button class="btn pri" data-act="runImport">Import ${p.rows.length} clients</button><button class="btn ghost" data-act="cancelImport">Cancel</button><span id="impProg" class="small muted"></span></div>
+  <div class="tw" style="max-height:360px"><table class="tbl"><thead><tr><th>Client</th><th>CR No</th><th>CR expiry</th><th>Contact</th><th>Logins</th><th>In app?</th></tr></thead><tbody>
+  ${p.rows.map(r => `<tr><td class="cname">${esc(r.f.Title)}</td><td>${esc(r.f.CRNo)}</td><td class="small">${r.f.Status === "Deactivated" ? chip("grey", "Deactivated") : fmtDate(r.f.CRExpiry)}</td><td class="small">${esc(r.f.ContactName)} ${esc(r.f.ContactNo)}</td>
+    <td>${r.creds.map(c => `<span class="tag">${esc(c.Title)}</span>`).join("")}</td><td>${r.match ? chip("amber", "Exists") : chip("green", "New")}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+function openModal(type, props){ state.modals.push({ type, props: props || {} }); renderModals(); }
+function closeModal(){ state.modals.pop(); renderModals(); }
+function renderModals(){
+  $("#modals").innerHTML = state.modals.map((m, i) => `<div class="mwrap" data-mi="${i}" style="z-index:${50 + i}">${MODALS[m.type](m.props)}</div>`).join("");
+  document.body.style.overflow = state.modals.length ? "hidden" : "";
+}
+const MODALS = {};
+function mHead(title, extra){ return `<div class="mh"><h2>${title}</h2>${extra || ""}<button type="button" class="icon-btn x" data-act="close" aria-label="Close">${I.x}</button></div>`; }
+function opt(list, val, labels){ return list.map(v => `<option value="${esc(v)}" ${String(val) === String(v) ? "selected" : ""}>${esc(labels ? labels[v] : v)}</option>`).join(""); }
+function empOpts(val, blank){ return `<option value="">${blank || "—"}</option>` + activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${lc(val) === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join(""); }
+
+MODALS.client = ({ id }) => {
+  const c = clientById(id); if(!c) return "";
+  const tab = state.clientTab || "overview"; const cr = crInfo(c);
+  const canEdit = isMgr();
+  const tabs = [["overview","Overview"],["logins",`Logins (${data.creds.filter(x => x.ClientId === id).length})`],["vat","VAT returns"],["audit","Audit"],["activity","Activity"]];
+  let body = "";
+  if(tab === "overview") body = `<div class="kv">
+      ${[["CR No", esc(c.CRNo)], ["CR expiry", chip(cr.cls, cr.txt)], ["Status", esc(c.Status || "Active")], ["Contact person", esc(c.ContactName)], ["Contact no", esc(c.ContactNo)], ["Contact email", esc(c.ContactEmail)],
+        ["VAT account no", esc(c.VATNo)], ["VAT cycle", esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].label : (c.VATCycle || "Not set"))], ["Financial year end", esc(fyEndLabel(c.FYEnd))], ["Audit required", esc(c.AuditRequired || "Yes")],
+        ["Reviewer / manager", esc(empName(c.Reviewer))], ["Services", esc(c.Services)]].map(([k, v]) => `<div><span>${k}</span><b>${v || '<span class="faint">—</span>'}</b></div>`).join("")}
+    </div>
+    <div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:uppercase;letter-spacing:.3px">Assigned team</div><div style="margin-top:6px">${teamOf(c).length ? avatars(teamOf(c)) : '<span class="faint">Unassigned</span>'}</div></div>
+    ${c.Notes ? `<div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:uppercase;letter-spacing:.3px">Notes</div><div style="white-space:pre-wrap;margin-top:4px">${esc(c.Notes)}</div></div>` : ""}`;
+  if(tab === "logins"){ const cs = data.creds.filter(x => x.ClientId === id).sort((a,b) => PORTALS.indexOf(a.Title) - PORTALS.indexOf(b.Title));
+    body = `<div class="toolbar"><span class="small muted">Viewing or copying a password is recorded in the activity log.</span><div class="right"><button class="btn sm pri" data-act="editCred" data-c="${id}">${I.plus} Add login</button></div></div>
+    <div class="tw"><table class="tbl"><thead><tr><th>Portal</th><th>Username / ID</th><th>Password</th><th>Notes</th><th>Updated</th><th></th></tr></thead><tbody>
+    ${cs.map(x => `<tr><td><b>${esc(x.Title)}</b>${x.PortalURL ? ` <a class="icon-btn" href="${esc(x.PortalURL)}" target="_blank" rel="noopener" title="Open portal">${I.ext}</a>` : ""}</td>
+      <td><span class="secret">${esc(x.Username)}</span> ${x.Username ? `<button class="icon-btn" data-act="copyUser" data-id="${x.id}" title="Copy username">${I.copy}</button>` : ""}</td>
+      <td class="nowrap">${x.Pwd ? `<span class="secret">${state.revealed[x.id] ? esc(x.Pwd) : "••••••••"}</span> <button class="icon-btn" data-act="reveal" data-id="${x.id}" title="${state.revealed[x.id] ? "Hide" : "Show"}">${state.revealed[x.id] ? I.eyeoff : I.eye}</button><button class="icon-btn" data-act="copyPwd" data-id="${x.id}" title="Copy password">${I.copy}</button>` : '<span class="faint">—</span>'}</td>
+      <td class="small muted">${esc(x.Notes)}</td><td class="small faint">${esc(empName(x.UpdatedBy))}${x.UpdatedOn ? "<br>" + fmtDT(x.UpdatedOn) : ""}</td>
+      <td class="nowrap"><button class="icon-btn" data-act="editCred" data-c="${id}" data-id="${x.id}" title="Edit">${I.edit}</button>${isMgr() ? `<button class="icon-btn" data-act="delCred" data-id="${x.id}" title="Delete">${I.trash}</button>` : ""}</td></tr>`).join("")}
+    </tbody></table>${cs.length ? "" : `<div class="empty">No logins saved yet.</div>`}</div>`; }
+  if(tab === "vat"){ const cur = curYM(); const pes = periodsFor(c, ymAdd(cur, -24), ymAdd(cur, 3)).reverse();
+    body = !CYCLES[c.VATCycle] ? `<div class="banner">Set this client's VAT cycle (Edit client) to start tracking returns.</div>` : !CYCLES[c.VATCycle].n ? `<div class="empty">Client is marked as not VAT registered.</div>` :
+    `<div class="tw"><table class="tbl"><thead><tr><th>Period</th><th>Due</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Net VAT (BHD)</th><th>Notes</th><th></th></tr></thead><tbody>
+    ${pes.map(pe => { const r = vatRec(id, pe); const st = (r && r.Status) || "Not started"; const d = daysUntil(dueOf(pe)); return `<tr><td class="nowrap">${periodLabel(c.VATCycle, pe)}</td>
+      <td class="nowrap small">${fmtDate(dueOf(pe))}${!VAT_DONE.has(st) ? `<div class="${d < 0 ? "over" : d <= 10 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td><td>${vatChip(st)}</td>
+      <td class="small">${esc(empName(r && r.Preparer))}</td><td class="small nowrap">${fmtDate(r && r.FiledDate)}</td><td class="small">${esc(r && r.RefNo)}</td><td class="num">${esc(r && r.Amount)}</td><td class="small muted">${esc(r && r.Notes)}</td>
+      <td><button class="btn sm" data-act="editVat" data-c="${id}" data-pe="${pe}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
+  if(tab === "audit"){ const y = new Date().getFullYear(); body = c.AuditRequired === "No" ? `<div class="empty">Audit not required for this client (change in Edit client).</div>` :
+    `<div class="tw"><table class="tbl"><thead><tr><th>FY</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Due</th><th>Completed</th><th>Notes</th><th></th></tr></thead><tbody>
+    ${[0,1,2,3].map(i => String(y - i)).map(fy => { const r = auditRec(id, fy); return `<tr><td><b>FY${fy}</b></td><td class="small">${esc(r && r.Auditor)}</td><td class="small">${esc(empName(r && r.AssignedTo))}</td><td>${auditChip((r && r.Status) || "Not started")}</td>
+      <td class="small nowrap">${fmtDate(r && r.DueDate)}</td><td class="small nowrap">${fmtDate(r && r.CompletedDate)}</td><td class="small muted">${esc(r && r.Notes)}</td><td><button class="btn sm" data-act="editAudit" data-c="${id}" data-fy="${fy}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
+  if(tab === "activity"){ const acts = data.activity.filter(a => a.ClientId === id).sort((a,b) => b.At.localeCompare(a.At));
+    body = acts.length ? `<ul class="feed">${acts.map(feedItem).join("")}</ul>` : `<div class="empty">No activity yet.</div>`; }
+  return `<div class="modal wide">${mHead(esc(c.Title), `${c.Status && c.Status !== "Active" ? chip("grey", esc(c.Status)) : ""}${canEdit ? `<button class="btn sm" style="margin-left:8px" data-act="editClient" data-id="${id}">${I.edit} Edit client</button>` : ""}`)}
+    <div class="tabs">${tabs.map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-act="ctab" data-v="${k}">${l}</button>`).join("")}</div>
+    <div class="mb">${body}</div></div>`;
+};
+function fyEndLabel(v){ if(!v) return "31 Dec"; const [m, d] = v.split("-"); return `${+d} ${MONTHS[+m-1] || ""}`; }
+const FYENDS = ["12-31","03-31","06-30","09-30","01-31","02-28","04-30","05-31","07-31","08-31","10-31","11-30"];
+
+MODALS.clientForm = ({ id }) => {
+  const c = id ? clientById(id) : { Status:"Active", AuditRequired:"Yes", FYEnd:"12-31" }; const team = teamOf(c);
+  return `<form class="modal" data-form="client" data-id="${id || ""}">${mHead(id ? "Edit client" : "Add client")}
+  <div class="mb"><div class="form">
+    <label class="full">Client name *<input class="in" name="Title" required value="${esc(c.Title)}"></label>
+    <label>CR No<input class="in" name="CRNo" value="${esc(c.CRNo)}"></label>
+    <label>CR expiry date<input class="in" type="date" name="CRExpiry" value="${/^\d{4}-\d{2}-\d{2}$/.test(c.CRExpiry || "") ? c.CRExpiry : ""}"></label>
+    <label>Status<select class="in" name="Status">${opt(["Active","Dormant","Deactivated"], c.Status || "Active")}</select></label>
+    <label>Audit required<select class="in" name="AuditRequired">${opt(["Yes","No"], c.AuditRequired || "Yes")}</select></label>
+    <label>Contact person<input class="in" name="ContactName" value="${esc(c.ContactName)}"></label>
+    <label>Contact no<input class="in" name="ContactNo" value="${esc(c.ContactNo)}"></label>
+    <label class="full">Contact email<input class="in" type="email" name="ContactEmail" value="${esc(c.ContactEmail)}"></label>
+    <label>VAT account no<input class="in" name="VATNo" value="${esc(c.VATNo)}"></label>
+    <label>VAT filing cycle<select class="in" name="VATCycle"><option value="">— Not set —</option>${Object.keys(CYCLES).map(k => `<option value="${k}" ${c.VATCycle === k ? "selected" : ""}>${CYCLES[k].label}</option>`).join("")}</select></label>
+    <label>Track VAT from<input class="in" type="month" name="VATFrom" value="${esc(c.VATFrom)}"><span class="hint">First period-end month to track (blank = ${ymLabel(CFG.vatTrackingStart)})</span></label>
+    <label>Financial year end<select class="in" name="FYEnd">${FYENDS.map(v => `<option value="${v}" ${(c.FYEnd || "12-31") === v ? "selected" : ""}>${fyEndLabel(v)}</option>`).join("")}</select></label>
+    <div class="full lbl">Assigned team (can view & update this client)<div class="checks">${activeEmployees().map(e => `<label><input type="checkbox" name="AssignedTo" value="${esc(lc(e.Email))}" ${team.includes(lc(e.Email)) ? "checked" : ""}> ${esc(e.Title)} <span class="faint small">${esc(e.Role)}</span></label>`).join("") || '<span class="faint">Add employees under Team first</span>'}</div></div>
+    <label>Reviewer / manager<select class="in" name="Reviewer">${empOpts(c.Reviewer)}</select></label>
+    <label>Services<input class="in" name="Services" value="${esc(c.Services)}" placeholder="VAT, Bookkeeping, Audit, Payroll…"></label>
+    <label class="full">Notes<textarea class="in" name="Notes" rows="3">${esc(c.Notes)}</textarea></label>
+  </div></div>
+  <div class="mf">${id && isAdmin() ? `<button type="button" class="btn danger" data-act="delClient" data-id="${id}" style="margin-right:auto">Delete</button>` : ""}<button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
+};
+
+MODALS.credForm = ({ cid, id }) => {
+  const x = id ? data.creds.find(v => v.id === id) : { Title:"NBR" }; const known = PORTALS.includes(x.Title);
+  return `<form class="modal" data-form="cred" data-c="${cid}" data-id="${id || ""}">${mHead((id ? "Edit login" : "Add login") + " — " + esc(clientById(cid).Title))}
+  <div class="mb"><div class="form">
+    <label>Portal / system<select class="in" name="Portal" data-act="portalPick">${opt(PORTALS, known ? x.Title : "Other")}</select></label>
+    <label>Name (if Other)<input class="in" name="PortalOther" value="${known ? "" : esc(x.Title)}" placeholder="e.g. Bank ABC, Zoho"></label>
+    <label>Username / ID<input class="in" name="Username" value="${esc(x.Username)}" autocomplete="off"></label>
+    <label>Password<input class="in secret" name="Pwd" value="${esc(x.Pwd)}" autocomplete="new-password"></label>
+    <label class="full">Portal URL<input class="in" name="PortalURL" value="${esc(x.PortalURL || PORTAL_URLS[x.Title] || "")}" placeholder="https://"></label>
+    <label class="full">Notes<textarea class="in" name="Notes" rows="2" placeholder="e.g. OTP goes to client mobile; security question hint">${esc(x.Notes)}</textarea></label>
+  </div></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save login</button></div></form>`;
+};
+
+MODALS.vatForm = ({ cid, pe }) => {
+  const c = clientById(cid); const r = vatRec(cid, pe) || {};
+  return `<form class="modal" data-form="vat" data-c="${cid}" data-pe="${pe}">${mHead("VAT return — " + esc(c.Title))}
+  <div class="mb"><div class="banner info" style="margin-bottom:14px">Period <b>${periodLabel(c.VATCycle, pe)}</b> · NBR due date <b>${fmtDate(dueOf(pe))}</b> (${relDays(daysUntil(dueOf(pe)))})</div>
+  <div class="form">
+    <label class="full">Status<select class="in" name="Status">${opt(VAT_STATUSES, r.Status || "Not started")}</select></label>
+    <label>Preparer<select class="in" name="Preparer">${empOpts(r.Preparer || (teamOf(c).includes(lc(me.email)) ? me.email : teamOf(c)[0]))}</select></label>
+    <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || c.Reviewer)}</select></label>
+    <label>Filed on<input class="in" type="date" name="FiledDate" value="${esc(r.FiledDate)}"></label>
+    <label>NBR acknowledgement / ref no<input class="in" name="RefNo" value="${esc(r.RefNo)}"></label>
+    <label>Net VAT payable / (refundable), BHD<input class="in" name="Amount" value="${esc(r.Amount)}" inputmode="decimal" placeholder="e.g. 1250.500 or -300"></label>
+    <label class="full">Notes / work log<textarea class="in" name="Notes" rows="4" placeholder="What's done, what's pending from client…">${esc(r.Notes)}</textarea></label>
+  </div>${r.UpdatedOn ? `<p class="small faint">Last updated by ${esc(empName(r.UpdatedBy))} on ${fmtDT(r.UpdatedOn)}</p>` : ""}</div>
+  <div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
+};
+
+MODALS.auditForm = ({ cid, fy }) => {
+  const c = clientById(cid); const r = auditRec(cid, fy) || {};
+  return `<form class="modal" data-form="audit" data-c="${cid}" data-fy="${esc(fy)}">${mHead(`Audit FY${esc(fy)} — ${esc(c.Title)}`)}
+  <div class="mb"><div class="form">
+    <label class="full">Status<select class="in" name="Status">${opt(AUDIT_STATUSES, r.Status || "Not started")}</select></label>
+    <label>Auditor (firm)<input class="in" name="Auditor" value="${esc(r.Auditor)}"></label>
+    <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || teamOf(c)[0])}</select></label>
+    <label>Target / due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate)}"></label>
+    <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
+    <label class="full">Notes / work log<textarea class="in" name="Notes" rows="4">${esc(r.Notes)}</textarea></label>
+  </div>${r.UpdatedOn ? `<p class="small faint">Last updated by ${esc(empName(r.UpdatedBy))} on ${fmtDT(r.UpdatedOn)}</p>` : ""}</div>
+  <div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
+};
+
+MODALS.empForm = ({ id }) => {
+  const e = id ? data.employees.find(x => x.id === id) : { Role:"Staff", Active:"Yes" }; const em = lc(e.Email);
+  const cl = data.clients.filter(c => c.Status !== "Deactivated").sort((a,b) => a.Title.localeCompare(b.Title));
+  return `<form class="modal" data-form="emp" data-id="${id || ""}">${mHead(id ? "Edit employee" : "Add employee")}
+  <div class="mb"><div class="form">
+    <label>Full name *<input class="in" name="Title" required value="${esc(e.Title)}"></label>
+    <label>Microsoft login email *<input class="in" type="email" name="Email" required value="${esc(e.Email)}" placeholder="name@vinproglobal.com"></label>
+    <label>Role<select class="in" name="Role">${opt(ROLES, e.Role || "Staff")}</select></label>
+    <label>Access<select class="in" name="Active">${opt(["Yes","No"], e.Active || "Yes", { Yes:"Active", No:"Disabled (no access)" })}</select></label>
+    <div class="full lbl">Assigned clients <span class="hint">Tick the clients this employee works on</span><div class="checks">${cl.map(c => `<label><input type="checkbox" name="clients" value="${c.id}" ${em && teamOf(c).includes(em) ? "checked" : ""}> ${esc(c.Title)}</label>`).join("") || '<span class="faint">No clients yet</span>'}</div></div>
+  </div></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
+};
+
+MODALS.bulk = () => `<form class="modal" data-form="bulk">${mHead(`Bulk update ${state.cf.sel.size} clients`)}
+  <div class="mb"><div class="form">
+    <label>Add team member<select class="in" name="add">${empOpts("", "— no change —")}</select></label>
+    <label>Remove team member<select class="in" name="remove">${empOpts("", "— no change —")}</select></label>
+    <label>Reviewer<select class="in" name="Reviewer">${empOpts("", "— no change —")}</select></label>
+    <label>VAT cycle<select class="in" name="VATCycle"><option value="">— no change —</option>${Object.keys(CYCLES).map(k => `<option value="${k}">${CYCLES[k].label}</option>`).join("")}</select></label>
+    <label>Audit required<select class="in" name="AuditRequired"><option value="">— no change —</option><option>Yes</option><option>No</option></select></label>
+    <label>Financial year end<select class="in" name="FYEnd"><option value="">— no change —</option>${FYENDS.map(v => `<option value="${v}">${fyEndLabel(v)}</option>`).join("")}</select></label>
+  </div><p class="small muted" id="bulkProg"></p></div>
+  <div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Apply</button></div></form>`;
+
+MODALS.confirm = ({ text, onYes }) => `<div class="modal" style="max-width:440px">${mHead("Please confirm")}<div class="mb">${text}</div>
+  <div class="mf"><button class="btn" data-act="close">Cancel</button><button class="btn pri" data-act="confirmYes">Yes, continue</button></div></div>`;
+
+/* ============================================================
+   FORM SUBMITS
+   ============================================================ */
+const SUBMIT = {};
+function formObj(form){ const fd = new FormData(form); const o = {}; for(const [k, v] of fd.entries()){ if(k in o){ o[k] = [].concat(o[k], v); } else o[k] = v; } return o; }
+
+SUBMIT.client = async (form, o) => {
+  const id = form.dataset.id; const team = [].concat(o.AssignedTo || []);
+  const f = { Title: o.Title.trim(), CRNo: o.CRNo.trim(), CRExpiry: o.CRExpiry, Status: o.Status, AuditRequired: o.AuditRequired, ContactName: o.ContactName, ContactNo: o.ContactNo, ContactEmail: o.ContactEmail,
+    VATNo: o.VATNo, VATCycle: o.VATCycle, VATFrom: o.VATFrom, FYEnd: o.FYEnd, AssignedTo: team.join("; "), Reviewer: o.Reviewer, Services: o.Services, Notes: o.Notes };
+  const before = id ? { ...clientById(id) } : null;
+  const r = await saveRec("clients", id || null, f);
+  const changes = before ? Object.keys(f).filter(k => String(before[k] || "") !== String(f[k] || "")).join(", ") : "";
+  await logAct(id ? "Client updated" : "Client added", id ? clientById(id) : r, changes ? "Changed: " + changes : "");
+  closeModal(); if(!id){ state.clientTab = "overview"; openModal("client", { id: r.id }); } toast("Client saved");
+};
+SUBMIT.cred = async (form, o) => {
+  const cid = form.dataset.c, id = form.dataset.id; const portal = o.Portal === "Other" ? (o.PortalOther.trim() || "Other") : o.Portal;
+  const f = { Title: portal, ClientId: cid, Username: o.Username.trim(), Pwd: o.Pwd, PortalURL: o.PortalURL.trim(), Notes: o.Notes, UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const old = id ? data.creds.find(x => x.id === id) : null;
+  await saveRec("creds", id || null, f);
+  await logAct(id ? "Login updated" : "Login added", clientById(cid), `${portal}${old && old.Pwd !== f.Pwd ? " (password changed)" : ""}`);
+  closeModal(); toast("Login saved");
+};
+SUBMIT.vat = async (form, o) => {
+  const cid = form.dataset.c, pe = form.dataset.pe; const c = clientById(cid); const r = vatRec(cid, pe);
+  if(VAT_DONE.has(o.Status) && o.Status !== "Not applicable" && !o.FiledDate) o.FiledDate = todayISO();
+  const f = { Title: cid + "|" + pe, ClientId: cid, PeriodEnd: pe, Status: o.Status, Preparer: o.Preparer, Reviewer: o.Reviewer, FiledDate: o.FiledDate, RefNo: o.RefNo, Amount: o.Amount, Notes: o.Notes, UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const prev = (r && r.Status) || "Not started";
+  await saveRec("vat", r ? r.id : null, f);
+  await logAct("VAT status updated", c, `${periodLabel(c.VATCycle, pe)}: ${prev} → ${o.Status}${o.RefNo ? " · Ref " + o.RefNo : ""}`);
+  closeModal(); render(); toast("VAT return updated");
+};
+SUBMIT.audit = async (form, o) => {
+  const cid = form.dataset.c, fy = form.dataset.fy; const c = clientById(cid); const r = auditRec(cid, fy);
+  if(AUDIT_DONE.has(o.Status) && o.Status !== "Not applicable" && !o.CompletedDate) o.CompletedDate = todayISO();
+  const f = { Title: cid + "|FY" + fy, ClientId: cid, FY: fy, Status: o.Status, Auditor: o.Auditor, AssignedTo: o.AssignedTo, DueDate: o.DueDate, CompletedDate: o.CompletedDate, Notes: o.Notes, UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const prev = (r && r.Status) || "Not started";
+  await saveRec("audits", r ? r.id : null, f);
+  await logAct("Audit status updated", c, `FY${fy}: ${prev} → ${o.Status}`);
+  closeModal(); render(); toast("Audit updated");
+};
+SUBMIT.emp = async (form, o) => {
+  const id = form.dataset.id; const email = lc(o.Email);
+  if(data.employees.some(e => lc(e.Email) === email && e.id !== id)) return toast("An employee with this email already exists", true);
+  const old = id ? lc(data.employees.find(e => e.id === id).Email) : null;
+  await saveRec("employees", id || null, { Title: o.Title.trim(), Email: email, Role: o.Role, Active: o.Active });
+  const want = new Set([].concat(o.clients || []));
+  const changed = [];
+  for(const c of data.clients.filter(c => c.Status !== "Deactivated")){
+    let t = teamOf(c).map(x => x === old ? email : x); const has = t.includes(email);
+    if(want.has(c.id) && !has) t.push(email); if(!want.has(c.id) && has) t = t.filter(x => x !== email);
+    const nv = [...new Set(t)].join("; "); if(nv !== teamOf(c).join("; ")){ await saveRec("clients", c.id, { AssignedTo: nv }); changed.push(c.Title); }
+  }
+  await logAct(id ? "Employee updated" : "Employee added", null, `${o.Title} (${email}, ${o.Role}${o.Active === "No" ? ", disabled" : ""})${changed.length ? " · assignments changed: " + changed.length + " client(s)" : ""}`);
+  if(email === lc(me.email)) me.role = roleOf(me.email);
+  closeModal(); render(); toast("Employee saved");
+};
+SUBMIT.bulk = async (form, o) => {
+  const ids = [...state.cf.sel]; const prog = $("#bulkProg"); let n = 0;
+  for(const id of ids){ const c = clientById(id); if(!c) continue; const f = {};
+    let t = teamOf(c); if(o.add && !t.includes(o.add)) t.push(o.add); if(o.remove) t = t.filter(x => x !== o.remove);
+    if(t.join("; ") !== teamOf(c).join("; ")) f.AssignedTo = t.join("; ");
+    ["Reviewer","VATCycle","AuditRequired","FYEnd"].forEach(k => { if(o[k]) f[k] = o[k]; });
+    if(Object.keys(f).length) await saveRec("clients", id, f); n++; if(prog) prog.textContent = `Updated ${n} of ${ids.length}…`; }
+  await logAct("Bulk update", null, `${ids.length} clients: ` + Object.entries(o).filter(([, v]) => v).map(([k, v]) => `${k}=${empName(v)}`).join(", "));
+  state.cf.sel.clear(); closeModal(); render(); toast(`Updated ${ids.length} clients`);
+};
+
+/* ============================================================
+   EXCEL IMPORT / EXPORT
+   ============================================================ */
+function normH(h){ return String(h || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+const MASTER_MAP = { "client name":"Title","client":"Title","company name":"Title","cr no":"CRNo","cr number":"CRNo","cr":"CRNo","cr expiry date":"CRExpiry","cr expiry":"CRExpiry","cr expiry dt":"CRExpiry",
+  "client contact name":"ContactName","contact name":"ContactName","contact person":"ContactName","contact no":"ContactNo","contact number":"ContactNo","mobile":"ContactNo","phone":"ContactNo",
+  "email":"ContactEmail","contact email":"ContactEmail","vat no":"VATNo","vat number":"VATNo","vat account no":"VATNo","trn":"VATNo","vat trn":"VATNo","notes":"Notes","remarks":"Notes" };
+function cellStr(v){ if(v == null) return ""; if(v instanceof Date) return `${v.getFullYear()}-${pad(v.getMonth()+1)}-${pad(v.getDate())}`; if(typeof v === "number") return Number.isInteger(v) ? String(v) : String(v); return String(v).trim(); }
+function parseWorkbook(buf){
+  const wb = XLSX.read(buf, { type:"array" }); const out = [];
+  for(const name of wb.SheetNames){
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header:1, raw:true, defval:null });
+    const hi = rows.findIndex(r => r && r.some(v => /client\s*name/i.test(String(v || "")))); if(hi < 0) continue;
+    const H = rows[hi].map(normH); const map = {}; const portals = [];
+    H.forEach((h, i) => { if(MASTER_MAP[h] && !(MASTER_MAP[h] in map)) map[MASTER_MAP[h]] = i; });
+    H.forEach((h, i) => { const m = /^(.+?)\s+(login|user name|username|user id|userid|id)$/.exec(h); if(!m || MASTER_MAP[h]) return; const p = m[1].trim();
+      const pj = H.findIndex(x => x === p + " pwd" || x === p + " password" || x === p + " pass"); portals.push({ name: rows[hi][i].toString().replace(/\s*(login|user\s*name|username|user\s*id|id)\s*$/i, "").trim(), ui: i, pi: pj }); });
+    for(const r of rows.slice(hi + 1)){
+      if(!r) continue; const title = cellStr(r[map.Title]); if(!title) continue;
+      const f = { Status:"Active" }; for(const [k, i] of Object.entries(map)) f[k] = k === "CRExpiry" ? dateCell(r[i]) : cellStr(r[i]);
+      if(/deactiv|cancel|struck/i.test(f.CRExpiry || "")){ f.Status = "Deactivated"; f.CRExpiry = ""; }
+      const creds = portals.map(p => ({ Title: canonPortal(p.name), Username: cellStr(r[p.ui]), Pwd: p.pi >= 0 ? cellStr(r[p.pi]) : "" })).filter(x => x.Username || x.Pwd)
+        .map(x => ({ ...x, PortalURL: PORTAL_URLS[x.Title] || "" }));
+      out.push({ f, creds });
+    }
+  }
+  return out;
+}
+function dateCell(v){ if(typeof v === "number" && v > 20000 && v < 80000){ const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; }
+  const s = cellStr(v); const m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(s); return m ? `${m[3]}-${pad(m[2])}-${pad(m[1])}` : s; }
+function canonPortal(n){ const k = PORTALS.find(p => lc(p) === lc(n)); return k || n.replace(/\b\w/g, ch => ch.toUpperCase()); }
+function matchClient(f){ return data.clients.find(c => (f.CRNo && lc(c.CRNo) === lc(f.CRNo)) || lc(c.Title) === lc(f.Title)); }
+
+async function runImport(){
+  const p = state.importPreview; if(!p) return; const mode = ($("#impMode") || {}).value || "skip"; const prog = () => $("#impProg");
+  let added = 0, updated = 0, skipped = 0, logins = 0, i = 0;
+  await withBusy(async () => {
+    for(const row of p.rows){
+      i++; if(prog()) prog().textContent = `Importing ${i} of ${p.rows.length}: ${row.f.Title}…`;
+      let c = matchClient(row.f);
+      if(c && mode === "skip"){ skipped++; continue; }
+      if(c){ const upd = {}; for(const [k, v] of Object.entries(row.f)) if(v && k !== "Title") upd[k] = v; if(Object.keys(upd).length){ await store.update("clients", c.id, upd); Object.assign(c, upd); } updated++; }
+      else { c = await store.create("clients", { ...row.f, AuditRequired:"Yes", FYEnd:"12-31" }); data.clients.push(c); added++; }
+      for(const cr of row.creds){
+        const ex = data.creds.find(x => x.ClientId === c.id && lc(x.Title) === lc(cr.Title));
+        const f = { ...cr, ClientId: c.id, UpdatedBy: me.email, UpdatedOn: nowISO() };
+        if(ex){ if(mode === "update"){ await store.update("creds", ex.id, f); Object.assign(ex, f); logins++; } }
+        else { const r = await store.create("creds", f); data.creds.push(r); logins++; }
+      }
+    }
+  });
+  await logAct("Excel import", null, `${added} added, ${updated} updated, ${skipped} skipped, ${logins} logins saved`);
+  state.importPreview = null; render(); toast(`Import done: ${added} added, ${updated} updated, ${skipped} skipped, ${logins} logins`);
+}
+
+async function exportXlsx(){
+  if(!window.XLSX) return toast("Excel library still loading — try again in a moment", true);
+  const withPwd = $("#expPwd") && $("#expPwd").checked; const cl = visibleClients(); const name = id => (clientById(id) || {}).Title || "";
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cl.map(c => ({ "Client Name": c.Title, "CR No": c.CRNo, "CR Expiry": c.CRExpiry, Status: c.Status, "Contact Name": c.ContactName, "Contact No": c.ContactNo, "Contact Email": c.ContactEmail,
+    "VAT No": c.VATNo, "VAT Cycle": (CYCLES[c.VATCycle] || {}).label || c.VATCycle, "FY End": fyEndLabel(c.FYEnd), "Audit Required": c.AuditRequired, Team: teamOf(c).map(empName).join(", "), Reviewer: empName(c.Reviewer), Services: c.Services, Notes: c.Notes }))), "Clients");
+  const ids = new Set(cl.map(c => c.id));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.creds.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), Portal: x.Title, Username: x.Username, Password: withPwd ? x.Pwd : (x.Pwd ? "(hidden)" : ""), URL: x.PortalURL, Notes: x.Notes }))), "Logins");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.vat.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Period: periodLabel(c.VATCycle, x.PeriodEnd), "Due Date": dueOf(x.PeriodEnd), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Net VAT (BHD)": x.Amount, Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "VAT Returns");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.audits.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), FY: x.FY, Status: x.Status, Auditor: x.Auditor, "Assigned To": empName(x.AssignedTo), "Due Date": x.DueDate, "Completed On": x.CompletedDate, Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }))), "Audits");
+  XLSX.writeFile(wb, `Vinpro-ClientDesk-Export-${todayISO()}.xlsx`);
+  await logAct(withPwd ? "Export with passwords" : "Export", null, `${cl.length} clients`);
+}
+
+/* ============================================================
+   EVENTS
+   ============================================================ */
+async function copyText(t){ try { await navigator.clipboard.writeText(t); } catch(e){ const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); } }
+const ACT = {
+  nav: d => { state.view = d.v; render(); window.scrollTo(0, 0); },
+  reload: () => reload(),
+  signout: () => msalApp.logoutRedirect({ account }),
+  gotoUnset: () => { state.view = "clients"; Object.assign(state.cf, { cycle:"__unset", status:"Active", q:"", who:"" }); render(); },
+  openClient: (d, e) => { if(e.target.closest("[data-stop]")) return; e.preventDefault(); state.clientTab = "overview"; openModal("client", { id: d.id }); },
+  ctab: d => { state.clientTab = d.v; renderModals(); },
+  close: () => closeModal(),
+  editClient: d => openModal("clientForm", { id: d.id }),
+  editCred: d => openModal("credForm", { cid: d.c, id: d.id }),
+  editVat: d => { const c = clientById(d.c); if(!c || !canSee(c)) return; openModal("vatForm", { cid: d.c, pe: d.pe }); },
+  editAudit: d => openModal("auditForm", { cid: d.c, fy: d.fy }),
+  editEmp: d => openModal("empForm", { id: d.id }),
+  bulk: () => openModal("bulk"),
+  sel: (d, e) => { e.stopPropagation(); const s = state.cf.sel; s.has(d.id) ? s.delete(d.id) : s.add(d.id); render(); },
+  selAll: (d, e) => { const on = e.target.checked; const rows = [...document.querySelectorAll('[data-act="sel"]')].map(x => x.dataset.id); rows.forEach(id => on ? state.cf.sel.add(id) : state.cf.sel.delete(id)); render(); },
+  vmode: d => { state.vf.mode = d.v; render(); },
+  reveal: async d => { const x = data.creds.find(v => v.id === d.id); if(state.revealed[d.id]){ delete state.revealed[d.id]; } else { state.revealed[d.id] = true; await logAct("Viewed password", clientById(x.ClientId), x.Title); } renderModals(); },
+  copyPwd: async d => { const x = data.creds.find(v => v.id === d.id); await copyText(x.Pwd); toast(`${x.Title} password copied`); await logAct("Copied password", clientById(x.ClientId), x.Title); },
+  copyUser: async d => { const x = data.creds.find(v => v.id === d.id); await copyText(x.Username); toast("Username copied"); },
+  delCred: d => { const x = data.creds.find(v => v.id === d.id); openModal("confirm", { text: `Delete the <b>${esc(x.Title)}</b> login for ${esc(clientById(x.ClientId).Title)}?`, onYes: async () => { await removeRec("creds", x.id); await logAct("Login deleted", clientById(x.ClientId), x.Title); } }); },
+  delClient: d => { const c = clientById(d.id); openModal("confirm", { text: `Permanently delete <b>${esc(c.Title)}</b> and its saved logins? VAT/audit history stays in SharePoint. Consider setting status to <i>Deactivated</i> instead.`,
+    onYes: async () => { for(const x of data.creds.filter(v => v.ClientId === c.id)) await removeRec("creds", x.id); await removeRec("clients", c.id); await logAct("Client deleted", c, ""); state.modals = []; } }); },
+  confirmYes: async () => { const m = state.modals[state.modals.length - 1]; const fn = m.props.onYes; closeModal(); try { await fn(); } catch(e){} render(); renderModals(); },
+  parseXlsx: async () => { const f = $("#xlsx").files[0]; if(!f) return toast("Choose the Excel file first", true); if(!window.XLSX) return toast("Excel library still loading — try again", true);
+    try { const rows = parseWorkbook(await f.arrayBuffer()); if(!rows.length) return toast('No "Client Name" header row found in this file', true);
+      state.importPreview = { rows: rows.map(r => ({ ...r, match: matchClient(r.f) })) }; render(); } catch(e){ console.error(e); toast("Could not read file: " + e.message, true); } },
+  cancelImport: () => { state.importPreview = null; render(); },
+  runImport: () => runImport(),
+  export: () => exportXlsx(),
+  closeOff: () => { const upto = $("#closeUpto").value; const items = [];
+    for(const c of data.clients.filter(c => c.Status !== "Deactivated")) for(const pe of periodsFor(c, ymAdd(curYM(), -36), curYM())) if(dueOf(pe).slice(0, 7) <= upto && !VAT_DONE.has(vatStatus(c.id, pe))) items.push([c, pe]);
+    if(!items.length) return toast("Nothing to close off — all periods up to that month already have a completed status");
+    openModal("confirm", { text: `Mark <b>${items.length}</b> VAT return${items.length > 1 ? "s" : ""} (due up to ${ymLabel(upto)}) across ${new Set(items.map(x => x[0].id)).size} clients as <b>Filed</b>?`, onYes: async () => {
+      for(const [c, pe] of items){ const r = vatRec(c.id, pe); await saveRec("vat", r ? r.id : null, { Title: c.id + "|" + pe, ClientId: c.id, PeriodEnd: pe, Status: "Filed", Notes: ((r && r.Notes) ? r.Notes + "\n" : "") + "Marked as filed at go-live", UpdatedBy: me.email, UpdatedOn: nowISO() }); }
+      await logAct("VAT go-live close-off", null, `${items.length} returns due up to ${ymLabel(upto)} marked Filed`); toast(`${items.length} returns marked as filed`); } }); },
+  demoreset: () => { store.reset(); location.reload(); }
+};
+document.addEventListener("click", e => {
+  const wrap = e.target.classList && e.target.classList.contains("mwrap"); if(wrap){ closeModal(); return; }
+  const a = e.target.closest("[data-act]"); if(!a || a.tagName === "SELECT") return;
+  if(a.dataset.act === "sel" || a.dataset.act === "selAll"){ ACT[a.dataset.act](a.dataset, e); return; }
+  if(a.tagName === "A") e.preventDefault();
+  const fn = ACT[a.dataset.act]; if(fn) fn(a.dataset, e);
+});
+document.addEventListener("input", e => { const b = e.target.dataset && e.target.dataset.bind; if(b && e.target.tagName === "INPUT"){ const [o, k] = b.split("."); state[o][k] = e.target.value; render(); } });
+document.addEventListener("change", e => {
+  const t = e.target; const b = t.dataset && t.dataset.bind;
+  if(b && t.tagName === "SELECT"){ const [o, k] = b.split("."); state[o][k] = t.value; render(); return; }
+  if(t.dataset && t.dataset.act === "demouser"){ const emp = data.employees.find(x => lc(x.Email) === lc(t.value)); me = { email: emp.Email, name: emp.Title.replace(/\s*\(sample\)/, ""), role: null }; me.role = roleOf(me.email); state.cf.sel.clear(); state.modals = []; renderModals(); render(); toast(`Now viewing as ${me.name} (${me.role})`); }
+  if(t.dataset && t.dataset.act === "portalPick"){ const url = t.form.querySelector('[name="PortalURL"]'); if(url && !url.value) url.value = PORTAL_URLS[t.value] || ""; }
+});
+document.addEventListener("submit", async e => {
+  const form = e.target; const type = form.dataset.form; if(!type) return; e.preventDefault();
+  const btns = form.querySelectorAll("button"); btns.forEach(b => b.disabled = true);
+  try { await SUBMIT[type](form, formObj(form)); render(); renderModals(); } catch(err){ console.error(err); } finally { btns.forEach(b => b.disabled = false); }
+});
+document.addEventListener("keydown", e => { if(e.key === "Escape" && state.modals.length) closeModal(); });
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+function loginScreen(msg){
+  $("#app").innerHTML = `<div class="center-screen"><div class="login"><div class="logo">${I.logo}</div>
+    <h1>${esc(CFG.appName)}</h1><p>${esc(CFG.companyName)}<br><span class="small">Client master · Portal logins · VAT & audit tracker</span></p>
+    <button class="ms-btn" id="msLogin">${I.ms} Sign in with Microsoft</button>
+    ${msg ? `<div class="banner bad" style="margin-top:16px;text-align:left">${esc(msg)}</div>` : ""}
+    <p class="small faint" style="margin:18px 0 0">Use your Vinpro Microsoft 365 work account.</p></div></div>`;
+  $("#msLogin").onclick = () => msalApp.loginRedirect({ scopes: SCOPES, prompt: "select_account" });
+}
+function errorScreen(title, msg){
+  $("#app").innerHTML = `<div class="center-screen"><div class="login" style="max-width:560px;text-align:left"><h1>${esc(title)}</h1><div class="banner bad" style="margin-top:12px">${esc(msg)}</div>
+  <p class="small muted">Common causes: the SharePoint site path in config.js is wrong, admin consent was not granted for the app's Graph permissions, or your account isn't a member of the SharePoint site. See SETUP-GUIDE.md → Troubleshooting.</p>
+  <button class="btn" onclick="location.reload()">Try again</button> ${msalApp ? `<button class="btn ghost" id="so">Sign out</button>` : ""}</div></div>`;
+  const so = $("#so"); if(so) so.onclick = () => msalApp.logoutRedirect({ account });
+}
+async function start(){
+  if(DEMO){
+    store = new DemoStore(); await store.init(); data = await store.loadAll();
+    const want = QS.get("as"); const emp = data.employees.find(e => lc(e.Email) === lc(want)) || data.employees[0];
+    me = { email: emp.Email, name: emp.Title.replace(/\s*\(sample\)/, ""), role: null }; me.role = roleOf(me.email); render(); return;
+  }
+  msalApp = new msal.PublicClientApplication({ auth: { clientId: CFG.clientId, authority: `https://login.microsoftonline.com/${CFG.tenantId}`, redirectUri: location.origin + location.pathname, navigateToLoginRequestUrl: false }, cache: { cacheLocation: "localStorage" } });
+  await msalApp.initialize();
+  let res = null; try { res = await msalApp.handleRedirectPromise(); } catch(e){ return loginScreen(e.message); }
+  account = (res && res.account) || msalApp.getAllAccounts()[0];
+  if(!account) return loginScreen();
+  msalApp.setActiveAccount(account);
+  if(CFG.tenantId && account.tenantId && lc(account.tenantId) !== lc(CFG.tenantId)) return loginScreen("This account is not part of the Vinpro Microsoft 365 organisation.");
+  me = { email: lc(account.username), name: account.name || account.username, role: null };
+  $("#app").innerHTML = `<div class="center-screen"><div><div class="spin"></div><div class="muted">Connecting to SharePoint…</div></div></div>`;
+  try {
+    store = new GraphStore(msalApp, account); await store.init();
+    if(store.missing.length){
+      if(!(CFG.adminEmails || []).map(lc).includes(me.email)) return errorScreen("Not set up yet", "The Client Desk lists haven't been created on SharePoint yet. Ask the administrator to sign in once to complete setup.");
+      $("#app").innerHTML = `<div class="center-screen"><div class="login"><div class="logo">${I.logo}</div><h1>First-time setup</h1><p>Create the ${store.missing.length} SharePoint lists the Client Desk needs on<br><b>${esc(store.siteUrl)}</b>?</p><button class="btn pri" id="prov">Create lists</button><p class="small muted" id="provMsg"></p></div></div>`;
+      await new Promise(resolve => { $("#prov").onclick = async () => { $("#prov").disabled = true; try { await store.provision(n => $("#provMsg").textContent = "Creating " + n + "…"); resolve(); } catch(e){ errorScreen("Setup failed", e.message); } }; });
+    }
+    data = await store.loadAll();
+    me.role = roleOf(me.email);
+    if(me.role === "Admin" && !data.employees.some(e => lc(e.Email) === me.email)){
+      const r = await store.create("employees", { Title: me.name, Email: me.email, Role: "Admin", Active: "Yes" }); data.employees.push(r);
+    }
+    render();
+  } catch(e){ console.error(e); errorScreen("Couldn't load data", e.message); }
+}
+start().catch(e => { console.error(e); errorScreen("Something went wrong", e.message || String(e)); });
+</script>
+</body>
+</html>
