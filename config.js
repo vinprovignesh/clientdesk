@@ -24,5 +24,10 @@ window.VINPRO_CONFIG = {
   listPrefix: "VGS_",
 
   // VAT periods ending before this month are not tracked (avoids old "overdue" noise). Format YYYY-MM
-  vatTrackingStart: "2026-01"
+  vatTrackingStart: "2026-01",
+
+  // Monthly Work (Accounting & Consultancy): first month tracked, and the day of the
+  // following month by which a month's accounting should be closed
+  monthlyTrackingStart: "2026-09",
+  accountingDueDay: 15
 };
