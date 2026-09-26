@@ -693,6 +693,9 @@ VIEWS.clients = () => {
     <select class="in" data-bind="cf.svc"><option value="">Any service</option><option value="__none" ${f.svc === "__none" ? "selected" : ""}>— No service set —</option>${SERVICES.map(sv => `<option ${f.svc === sv ? "selected" : ""}>${esc(sv)}</option>`).join("")}</select>
     <div class="right">
       ${isMgr() && sel.size ? `<button class="btn" data-act="bulk">Bulk update (${sel.size})</button>` : ""}
+      <button class="btn" data-act="bulkTemplate" title="Excel template with the same fields as Add client">Download template</button>
+      <button class="btn" data-act="bulkUpload">Bulk upload</button>
+      ${isAdmin() ? `<button class="btn" data-act="bulkExport" title="Download client master to edit and re-upload">Bulk export</button>` : ""}
       ${isMgr() ? `<button class="btn pri" data-act="editClient">${I.plus} Add client</button>` : ""}
     </div>
   </div>
@@ -1051,6 +1054,25 @@ MODALS.bulk = () => `<form class="modal" data-form="bulk">${mHead(`Bulk update $
   </div><p class="small muted" id="bulkProg"></p></div>
   <div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Apply</button></div></form>`;
 
+MODALS.bulkUpload = () => {
+  const b = state.bulkUp;
+  const cnt = k => b ? b.rows.filter(x => x.action === k).length : 0;
+  const actChip = a => a === "New" ? chip("green", "New") : a === "Update" ? chip("blue", "Update") : a === "Error" ? chip("red", "Error") : chip("grey", "No change");
+  return `<div class="modal wide">${mHead("Bulk upload clients")}
+  <div class="mb">
+    <p class="muted" style="margin-top:0">Use the <b>template</b> (or an Admin's <b>Bulk export</b>) and fill one row per client. Rows are matched to existing clients by <b>Client ID</b>, then CR / licence no, then name. <b>Blank cells leave the existing value unchanged</b>; type a single <b>-</b> to clear a field. Portal logins and passwords are not part of bulk upload.${isMgr() ? "" : " You can add new clients and update clients assigned to you; new clients are assigned to you automatically."}</p>
+    <div class="toolbar"><input type="file" id="bulkFile" accept=".xlsx,.xls,.csv" class="in"><button class="btn" data-act="bulkRead">Check file</button><button class="btn ghost" data-act="bulkTemplate">Download template</button></div>
+    ${b ? `<div class="toolbar"><span>${chip("green", cnt("New") + " new")} ${chip("blue", cnt("Update") + " to update")} ${chip("grey", cnt("No change") + " unchanged")} ${chip(cnt("Error") ? "red" : "grey", cnt("Error") + " with errors")}</span><span class="small muted">${esc(b.file)}</span></div>
+      ${cnt("Error") ? `<div class="banner bad">Rows with errors are skipped. Fix them in the file and check it again, or apply the valid rows now.</div>` : ""}
+      <div class="tw" style="max-height:48vh"><table class="tbl"><thead><tr><th>Row</th><th>Client</th><th>Action</th><th>Details</th></tr></thead><tbody>
+      ${[...b.rows].sort((p, q) => ["Error","New","Update","No change"].indexOf(p.action) - ["Error","New","Update","No change"].indexOf(q.action) || p.rowNo - q.rowNo).map(x => `<tr><td class="small faint">${x.rowNo}</td><td class="cname">${x.loc ? `<span class="tag loc-${x.loc}">${x.loc === "UAE" ? "UAE" : "BH"}</span> ` : ""}${esc(x.title || "(no name)")}</td><td>${actChip(x.action)}</td>
+        <td class="small">${x.errors.length ? `<span class="over">${x.errors.map(esc).join("<br>")}</span>` : x.action === "Update" ? "Changes: " + esc(x.changes.join(", ")) : x.action === "New" ? "Will be created" : ""}</td></tr>`).join("")}
+      </tbody></table></div>` : ""}
+    <p class="small muted" id="bulkUpProg"></p>
+  </div>
+  <div class="mf"><button type="button" class="btn" data-act="close">Close</button>${b ? `<button class="btn pri" data-act="bulkApply" ${cnt("New") + cnt("Update") ? "" : "disabled"}>Apply ${cnt("New") + cnt("Update")} change${cnt("New") + cnt("Update") === 1 ? "" : "s"}</button>` : ""}</div></div>`;
+};
+
 MODALS.confirm = ({ text, onYes }) => `<div class="modal" style="max-width:440px">${mHead("Please confirm")}<div class="mb">${text}</div>
   <div class="mf"><button class="btn" data-act="close">Cancel</button><button class="btn pri" data-act="confirmYes">Yes, continue</button></div></div>`;
 
@@ -1194,6 +1216,133 @@ async function runImport(){
   state.importPreview = null; render(); toast(`Import done: ${added} added, ${updated} updated, ${skipped} skipped, ${logins} logins`);
 }
 
+/* ---------- Bulk upload / export of the client master ---------- */
+const BULK_COLS = [
+  ["Client ID", "id", 12], ["Client Name *", "Title", 32], ["Location", "Location", 10], ["CR / Licence No", "CRNo", 16], ["CR / Licence Expiry", "CRExpiry", 16],
+  ["Status", "Status", 12], ["Financial Year End", "FYEnd", 14], ["Services", "Services", 36], ["Other Service Details", "OtherSvc", 22],
+  ["Contact Person", "ContactName", 18], ["Contact No", "ContactNo", 14], ["Contact Email", "ContactEmail", 24], ["VAT No / TRN", "VATNo", 18], ["Corporate Tax TRN", "CTNo", 18],
+  ["VAT Cycle", "VATCycle", 26], ["Track VAT From", "VATFrom", 14], ["Team (emails)", "AssignedTo", 34], ["Reviewer (email)", "Reviewer", 26], ["Notes", "Notes", 30]
+];
+const CYCLE_TEXT = { "Q-Mar":"Quarterly Mar/Jun/Sep/Dec", "Q-Jan":"Quarterly Jan/Apr/Jul/Oct", "Q-Feb":"Quarterly Feb/May/Aug/Nov", "Monthly":"Monthly", "Not registered":"Not registered" };
+function bulkRowOf(c){
+  const svc = servicesOf(c);
+  return { id: c.id, Title: c.Title, Location: locOf(c), CRNo: c.CRNo, CRExpiry: c.CRExpiry, Status: c.Status || "Active", FYEnd: fyEndLabel(c.FYEnd || "12-31"),
+    Services: svc.join("; "), OtherSvc: otherServiceText(c), ContactName: c.ContactName, ContactNo: c.ContactNo, ContactEmail: c.ContactEmail, VATNo: c.VATNo, CTNo: c.CTNo,
+    VATCycle: CYCLE_TEXT[c.VATCycle] || c.VATCycle || "", VATFrom: c.VATFrom, AssignedTo: teamOf(c).join("; "), Reviewer: lc(c.Reviewer), Notes: c.Notes };
+}
+function bulkInstructions(){
+  return [["Vinpro Client Desk — client bulk upload"], [],
+    ["How it works"], ["• Fill one row per client on the 'Clients' sheet. Keep the header row as it is."],
+    ["• Leave 'Client ID' blank for new clients. Rows are matched to existing clients by Client ID, then CR / licence no, then client name."],
+    ["• A blank cell keeps the existing value. Type a single - (hyphen) to clear a field."], ["• Portal logins and passwords are not uploaded in bulk; add them on the client's Logins tab."], [],
+    ["Column", "Allowed values / format"],
+    ["Client Name *", "Required for new clients"], ["Location", "Bahrain or UAE (Dubai)"], ["CR / Licence Expiry", "Date, e.g. 2026-11-08 or 08/11/2026"],
+    ["Status", "Active, Dormant or Deactivated"], ["Financial Year End", "e.g. 31 Dec, 31 Mar, 30 Jun"],
+    ["Services", "Separate with ; — " + SERVICES.join("; ")], ["Other Service Details", "Description when Services includes Others"],
+    ["VAT Cycle", Object.values(CYCLE_TEXT).join("; ")], ["Track VAT From", "Month the first tracked VAT period ends, e.g. 2026-03"],
+    ["Team (emails)", "Microsoft login emails of employees, separated by ; — must already exist under Team"], ["Reviewer (email)", "One employee email"], [],
+    ["Current employees"], ...activeEmployees().map(e => [e.Email, `${e.Title} (${e.Role}${e.Location ? ", " + e.Location : ""})`])];
+}
+function bulkWorkbook(rows){
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([BULK_COLS.map(c => c[0]), ...rows.map(r => BULK_COLS.map(c => r[c[1]] == null ? "" : String(r[c[1]])))]);
+  ws["!cols"] = BULK_COLS.map(c => ({ wch: c[2] }));
+  XLSX.utils.book_append_sheet(wb, ws, "Clients");
+  const wi = XLSX.utils.aoa_to_sheet(bulkInstructions()); wi["!cols"] = [{ wch: 26 }, { wch: 90 }];
+  XLSX.utils.book_append_sheet(wb, wi, "Instructions");
+  return wb;
+}
+function bulkTemplate(){
+  if(!window.XLSX) return toast("Excel library still loading — try again in a moment", true);
+  XLSX.writeFile(bulkWorkbook([]), "Vinpro-ClientDesk-Bulk-Upload-Template.xlsx");
+}
+async function bulkExport(){
+  if(!isAdmin()) return;
+  if(!window.XLSX) return toast("Excel library still loading — try again in a moment", true);
+  const cl = visibleClients(); XLSX.writeFile(bulkWorkbook(cl.map(bulkRowOf)), `Vinpro-ClientDesk-Clients-${state.loc || "All"}-${todayISO()}.xlsx`);
+  await logAct("Bulk export", null, `${cl.length} clients (${state.loc || "all locations"})`);
+}
+const MONTH_IX = n => MONTHS.findIndex(m => lc(String(n)).startsWith(lc(m)));
+function bParseDate(v){ if(v == null || v === "") return ""; const s = typeof v === "number" ? dateCell(v) : String(v).trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; const d = dateCell(s); if(/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const m = /^(\d{1,2})[\s-]+([A-Za-z]{3,})[\s-]+(\d{4})$/.exec(s); if(m && MONTH_IX(m[2]) >= 0) return `${m[3]}-${pad(MONTH_IX(m[2]) + 1)}-${pad(m[1])}`;
+  throw "Date not recognised: " + s; }
+function bParseYM(v){ if(v == null || v === "") return ""; if(typeof v === "number") return dateCell(v).slice(0, 7); const s = String(v).trim();
+  let m = /^(\d{4})-(\d{1,2})/.exec(s); if(m) return `${m[1]}-${pad(m[2])}`; m = /^(\d{1,2})\/(\d{4})$/.exec(s); if(m) return `${m[2]}-${pad(m[1])}`;
+  m = /^([A-Za-z]{3,})[\s-]+(\d{4})$/.exec(s); if(m && MONTH_IX(m[1]) >= 0) return `${m[2]}-${pad(MONTH_IX(m[1]) + 1)}`; throw "Month not recognised: " + s; }
+function bParseFYE(v){ if(v == null || v === "") return ""; if(typeof v === "number") return dateCell(v).slice(5); const s = String(v).trim();
+  if(/^\d{2}-\d{2}$/.test(s)) return s; const mon = s.split(/[\s\/-]+/).find(t => /[a-z]/i.test(t)); const num = s.match(/\d{1,2}/g) || [];
+  if(mon && MONTH_IX(mon) >= 0 && num.length) return `${pad(MONTH_IX(mon) + 1)}-${pad(num[0])}`;
+  if(num.length >= 2) return `${pad(num[1])}-${pad(num[0])}`; throw "Financial year end not recognised: " + s; }
+function bParseLoc(v){ const s = lc(v); if(!s) return ""; if(/uae|dubai|emirat|abu dhabi|sharjah/.test(s)) return "UAE"; if(/bahrain|manama/.test(s)) return "Bahrain"; throw "Location must be Bahrain or UAE"; }
+function bParseStatus(v){ const s = lc(v); if(!s) return ""; const m = ["Active","Dormant","Deactivated"].find(x => lc(x) === s || (s.startsWith("deactiv") && x === "Deactivated")); if(!m) throw "Status must be Active, Dormant or Deactivated"; return m; }
+function bParseCycle(v){ const s = lc(v); if(!s) return ""; const k = Object.keys(CYCLES).find(k => lc(k) === s || lc(CYCLES[k].label) === s || lc(CYCLES[k].short) === s || lc(CYCLE_TEXT[k]) === s); if(k) return k;
+  if(/month/.test(s)) return "Monthly"; if(/not|n\/a|unreg/.test(s)) return "Not registered";
+  if(/mar/.test(s) && /jun|sep|dec/.test(s)) return "Q-Mar"; if(/jan/.test(s) && /apr|jul|oct/.test(s)) return "Q-Jan"; if(/feb/.test(s) && /may|aug|nov/.test(s)) return "Q-Feb"; throw "VAT cycle not recognised: " + v; }
+const SVC_ALIAS = [[/^(vat)$/i, "VAT"], [/corporate|^ct$|^cit$/i, "Corporate Tax"], [/audit/i, "Audit"], [/account|book/i, "Accounting"], [/consult|advis/i, "Consultancy"], [/hr|payroll/i, "HRMS & Payroll"], [/^others?$/i, "Others"]];
+function bParseServices(v){ if(v == null || v === "") return null; const out = [];
+  for(const t of String(v).split(/[;,]/).map(x => x.trim()).filter(Boolean)){ const m = SERVICES.find(sv => lc(sv) === lc(t)) || (SVC_ALIAS.find(([re]) => re.test(t)) || [])[1]; if(!m) throw "Unknown service: " + t; if(!out.includes(m)) out.push(m); }
+  return out; }
+function bParseEmails(v, single){ if(v == null || v === "") return null; const list = String(v).split(/[;,\s]+/).map(lc).filter(Boolean);
+  const bad = list.filter(e => !data.employees.some(x => lc(x.Email) === e)); if(bad.length) throw "Not an employee in Team: " + bad.join(", ");
+  if(single && list.length > 1) throw "Reviewer must be a single email"; return list; }
+function bulkParse(buf, fileName){
+  const wb = XLSX.read(buf, { type: "array" });
+  const sheetName = wb.SheetNames.find(n => lc(n) === "clients") || wb.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, raw: true, defval: null });
+  const hi = rows.findIndex(r => r && r.some(v => /client\s*name/i.test(String(v || "")))); if(hi < 0) throw 'No header row with "Client Name" found on the Clients sheet';
+  const norm = h => normH(String(h || "").replace(/\*/g, "")); const colIx = {};
+  rows[hi].forEach((h, i) => { const col = BULK_COLS.find(c => norm(c[0]) === norm(h)) || (norm(h) === "client name" ? BULK_COLS[1] : null); if(col && !(col[1] in colIx)) colIx[col[1]] = i; });
+  if(!("Title" in colIx)) throw "Client Name column missing";
+  const seen = new Set(); const out = [];
+  rows.slice(hi + 1).forEach((r, k) => {
+    if(!r || r.every(v => v == null || String(v).trim() === "")) return;
+    const cell = key => (key in colIx) ? r[colIx[key]] : null; const txt = key => { const v = cell(key); return v == null ? "" : (typeof v === "number" ? cellStr(v) : String(v).trim()); };
+    const row = { rowNo: hi + k + 2, title: txt("Title"), errors: [], changes: [], fields: {} };
+    const idv = txt("id"); const crv = txt("CRNo");
+    let c = (idv && data.clients.find(x => x.id === idv)) || (crv && crv !== "-" && data.clients.find(x => lc(x.CRNo) === lc(crv))) || (row.title && data.clients.find(x => lc(x.Title) === lc(row.title)));
+    if(idv && !data.clients.some(x => x.id === idv)) row.errors.push("Client ID " + idv + " not found — leave blank for a new client");
+    if(c && !canSee(c)) { row.errors.push("This client exists but isn't assigned to you"); c = null; }
+    if(c && seen.has(c.id)) row.errors.push("Same client appears more than once in the file");
+    if(c) seen.add(c.id);
+    row.client = c; if(!row.title && c) row.title = c.Title;
+    const f = {};
+    const put = (key, fn) => { const raw = cell(key); if(raw == null || String(raw).trim() === "") return; if(String(raw).trim() === "-"){ f[key] = ""; return; } try { f[key] = fn ? fn(raw) : txt(key); } catch(e){ row.errors.push(String(e)); } };
+    put("Title"); put("Location", bParseLoc); put("CRNo"); put("CRExpiry", bParseDate); put("Status", bParseStatus); put("FYEnd", bParseFYE);
+    put("ContactName"); put("ContactNo"); put("ContactEmail"); put("VATNo"); put("CTNo"); put("VATCycle", bParseCycle); put("VATFrom", bParseYM); put("Notes");
+    try { const t = bParseEmails(cell("AssignedTo")); if(t) f.AssignedTo = t.join("; "); else if(txt("AssignedTo") === "-") f.AssignedTo = ""; } catch(e){ row.errors.push(String(e)); }
+    try { const rv = bParseEmails(cell("Reviewer"), true); if(rv) f.Reviewer = rv[0]; else if(txt("Reviewer") === "-") f.Reviewer = ""; } catch(e){ row.errors.push(String(e)); }
+    try { const sv = txt("Services") === "-" ? [] : bParseServices(cell("Services")); if(sv){ const other = txt("OtherSvc") === "-" ? "" : (txt("OtherSvc") || (c ? otherServiceText(c) : "")); f.Services = buildServices({ Svc: sv, OtherSvc: other }); } } catch(e){ row.errors.push(String(e)); }
+    if(f.Location === "") delete f.Location; if(f.Status === "") delete f.Status; if(f.Title === "") { row.errors.push("Client name can't be cleared"); delete f.Title; }
+    row.loc = f.Location || (c ? locOf(c) : (state.loc || DEFAULT_LOC));
+    if(c){
+      for(const [k2, v] of Object.entries(f)){ const cur = k2 === "Location" ? locOf(c) : String(c[k2] || ""); if(String(v) !== cur) { row.fields[k2] = v; row.changes.push(BULK_COLS.find(x => x[1] === k2)[0].replace(" *", "")); } }
+      if(!isMgr() && ("AssignedTo" in row.fields) && !splitEmails(row.fields.AssignedTo).includes(lc(me.email)) && lc(row.fields.Reviewer || c.Reviewer) !== lc(me.email)) row.errors.push("You can't remove yourself from this client's team");
+      row.action = row.errors.length ? "Error" : Object.keys(row.fields).length ? "Update" : "No change";
+    } else {
+      if(!row.title) row.errors.push("Client name is required for a new client");
+      if(row.title && out.some(o => !o.client && lc(o.title) === lc(row.title))) row.errors.push("Same new client appears more than once in the file");
+      row.fields = Object.assign({ Status: "Active", FYEnd: "12-31", Location: row.loc }, f, { Title: row.title });
+      if(!isMgr() && !splitEmails(row.fields.AssignedTo).includes(lc(me.email))) row.fields.AssignedTo = splitEmails(row.fields.AssignedTo).concat(lc(me.email)).join("; ");
+      row.action = row.errors.length ? "Error" : "New";
+    }
+    out.push(row);
+  });
+  return { file: fileName, rows: out };
+}
+async function bulkApply(){
+  const b = state.bulkUp; if(!b) return; const todo = b.rows.filter(x => x.action === "New" || x.action === "Update"); let n = 0, added = 0, updated = 0; const prog = () => $("#bulkUpProg");
+  await withBusy(async () => {
+    for(const x of todo){
+      if(x.action === "New"){ const rec = await store.create("clients", x.fields); data.clients.push(rec); await logAct("Client added (bulk upload)", rec, ""); added++; }
+      else { await store.update("clients", x.client.id, x.fields); Object.assign(x.client, cleanFields("clients", x.fields)); await logAct("Client updated (bulk upload)", x.client, "Changed: " + x.changes.join(", ")); updated++; }
+      n++; if(prog()) prog().textContent = `Saving ${n} of ${todo.length}…`;
+    }
+  });
+  await logAct("Bulk upload", null, `${b.file}: ${added} added, ${updated} updated, ${b.rows.filter(x => x.action === "Error").length} rows skipped with errors`);
+  state.bulkUp = null; closeModal(); render(); toast(`Bulk upload done: ${added} added, ${updated} updated`);
+}
+
 async function exportXlsx(){
   if(!window.XLSX) return toast("Excel library still loading — try again in a moment", true);
   const withPwd = $("#expPwd") && $("#expPwd").checked; const cl = visibleClients(); const name = id => (clientById(id) || {}).Title || "";
@@ -1245,6 +1394,12 @@ const ACT = {
   cancelImport: () => { state.importPreview = null; render(); },
   runImport: () => runImport(),
   export: () => exportXlsx(),
+  bulkTemplate: () => bulkTemplate(),
+  bulkExport: () => bulkExport(),
+  bulkUpload: () => { state.bulkUp = null; openModal("bulkUpload"); },
+  bulkRead: async () => { const f = $("#bulkFile") && $("#bulkFile").files[0]; if(!f) return toast("Choose the Excel file first", true); if(!window.XLSX) return toast("Excel library still loading — try again", true);
+    try { state.bulkUp = bulkParse(await f.arrayBuffer(), f.name); if(!state.bulkUp.rows.length) toast("No client rows found in the file", true); } catch(e){ console.error(e); state.bulkUp = null; toast(typeof e === "string" ? e : "Could not read file: " + e.message, true); } renderModals(); },
+  bulkApply: () => bulkApply(),
   closeOff: () => { const upto = $("#closeUpto").value; const items = [];
     for(const c of data.clients.filter(c => c.Status !== "Deactivated")) for(const pe of periodsFor(c, ymAdd(curYM(), -36), curYM())) if(dueOf(pe, c).slice(0, 7) <= upto && !VAT_DONE.has(vatStatus(c.id, pe))) items.push([c, pe]);
     if(!items.length) return toast("Nothing to close off — all periods up to that month already have a completed status");
