@@ -5,7 +5,8 @@
  * While clientId still starts with "YOUR-", the app runs in DEMO mode with sample data.
  */
 window.VINPRO_CONFIG = {
-  companyName: "Vinpro Global Services WLL",
+  companyName: "Vinpro Global · Bahrain & UAE",
+  defaultLocation: "Bahrain",   // location given to clients that have none set
   appName: "Client Desk",
 
   // Microsoft Entra ID (Azure AD) — from the App Registration "Overview" page

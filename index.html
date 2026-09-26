@@ -108,7 +108,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .chip.grey{background:var(--grey-bg);color:var(--grey)}
 .chip.outline{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:550}
 .chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
-.tag{display:inline-block;font-size:11px;font-weight:650;padding:1px 6px;border-radius:5px;background:var(--brand-soft);color:var(--brand);margin:1px 2px 1px 0}
+.tag{white-space:nowrap;display:inline-block;font-size:11px;font-weight:650;padding:1px 6px;border-radius:5px;background:var(--brand-soft);color:var(--brand);margin:1px 2px 1px 0}
 .avs{display:flex;flex-wrap:wrap;gap:4px}
 .av{display:inline-flex;align-items:center;gap:5px;font-size:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:1px 8px 1px 2px;white-space:nowrap}
 .av i{width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-style:normal;font-size:9.5px;font-weight:700;display:grid;place-items:center}
@@ -155,6 +155,11 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .svc label:has(input:checked){background:var(--brand-soft);border-color:var(--brand);color:var(--brand)!important}
 .svc input{accent-color:var(--brand);margin:0}
 .tag.svc-tag{background:var(--ok-bg);color:var(--ok)}
+.tag.loc-UAE{background:var(--pur-bg);color:var(--pur)}
+.tag.loc-Bahrain{background:var(--info-bg);color:var(--info)}
+.locsw button{padding:5px 12px}
+tr.click-row{cursor:pointer}
+tr.click-row:hover td{background:var(--panel-2)}
 .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);padding:0 20px;overflow-x:auto}
 .tabs button{border:0;background:none;padding:11px 14px;cursor:pointer;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;white-space:nowrap}
 .tabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
@@ -189,7 +194,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
   .side{position:static;height:auto;flex-direction:row;overflow-x:auto;padding:8px;border-right:0;border-bottom:1px solid var(--line);gap:2px}
   .brand,.side .spacer,.side .me{display:none}
   .nav{width:auto;white-space:nowrap;padding:8px 10px}
-  .top{padding:12px 16px}
+  .top{padding:12px 16px;flex-wrap:wrap}
+  .top .right{margin-left:0;width:100%;justify-content:space-between}
   .content{padding:16px 16px 50px}
   .demo-bar{padding:7px 16px}
   .form{grid-template-columns:1fr}
@@ -221,19 +227,24 @@ const SCOPES = ["User.Read", "Sites.ReadWrite.All", "Sites.Manage.All"];
 
 /* SharePoint list schema. 'text' = single line (255), 'note' = multi-line */
 const SCHEMA = {
-  employees: { list: "Employees", fields: { Title:"text", Email:"text", Role:"text", Active:"text", Phone:"text" } },
-  clients:   { list: "Clients", fields: { Title:"text", CRNo:"text", CRExpiry:"text", Status:"text", ContactName:"text", ContactNo:"text", ContactEmail:"text",
+  employees: { list: "Employees", fields: { Title:"text", Email:"text", Role:"text", Active:"text", Phone:"text", Location:"text" } },
+  clients:   { list: "Clients", fields: { Title:"text", Location:"text", CTNo:"text", CRNo:"text", CRExpiry:"text", Status:"text", ContactName:"text", ContactNo:"text", ContactEmail:"text",
                 VATNo:"text", VATCycle:"text", VATFrom:"text", FYEnd:"text", AuditRequired:"text", AssignedTo:"note", Reviewer:"text", Services:"note", Notes:"note" } },
   creds:     { list: "Credentials", fields: { Title:"text", ClientId:"text", Username:"text", Pwd:"text", PortalURL:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   vat:       { list: "VATReturns", fields: { Title:"text", ClientId:"text", PeriodEnd:"text", Status:"text", Preparer:"text", Reviewer:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   audits:    { list: "Audits", fields: { Title:"text", ClientId:"text", FY:"text", Auditor:"text", AssignedTo:"text", Status:"text", DueDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  ct:        { list: "CorporateTax", fields: { Title:"text", ClientId:"text", FY:"text", Status:"text", Preparer:"text", Reviewer:"text", DueDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   activity:  { list: "ActivityLog", fields: { Title:"text", ClientId:"text", ClientName:"text", UserEmail:"text", UserName:"text", Details:"note", At:"text" } }
 };
 
 const ROLES = ["Admin", "Manager", "Staff"];
-const SERVICES = ["VAT", "Audit", "Accounting", "Consultancy", "HRMS & Payroll", "Others"];
-const PORTALS = ["NBR", "Sijilat", "LMRA", "SIO", "Tally", "Odoo", "Zoho Books", "QuickBooks", "Bank (online banking)", "eGovernment / eKey", "Other"];
-const PORTAL_URLS = { NBR:"https://www.nbr.gov.bh", Sijilat:"https://www.sijilat.bh", LMRA:"https://www.lmra.gov.bh", SIO:"https://www.sio.gov.bh" };
+const SERVICES = ["VAT", "Corporate Tax", "Audit", "Accounting", "Consultancy", "HRMS & Payroll", "Others"];
+const PORTALS = ["NBR", "Sijilat", "LMRA", "SIO", "EmaraTax (FTA)", "MOHRE", "Dubai Economy (DET)", "ICP / GDRFA", "Tally", "Odoo", "Zoho Books", "QuickBooks", "Bank (online banking)", "eGovernment / eKey / UAE Pass", "Other"];
+const PORTAL_URLS = { NBR:"https://www.nbr.gov.bh", Sijilat:"https://www.sijilat.bh", LMRA:"https://www.lmra.gov.bh", SIO:"https://www.sio.gov.bh", "EmaraTax (FTA)":"https://tax.gov.ae", MOHRE:"https://www.mohre.gov.ae", "Dubai Economy (DET)":"https://www.dubaidet.gov.ae", "ICP / GDRFA":"https://icp.gov.ae" };
+const PORTAL_ALIASES = [[/emara|^fta$|federal tax/i, "EmaraTax (FTA)"], [/mohre|ministry of human/i, "MOHRE"], [/^det$|dubai econ|ded/i, "Dubai Economy (DET)"], [/icp|gdrfa/i, "ICP / GDRFA"]];
+const LOCATIONS = ["Bahrain", "UAE"];
+const LOC = { Bahrain: { cur:"BHD", auth:"NBR", ctMonths:15, ctNote:"Bahrain DMTT: 15 months after FY end (18 for first year)" }, UAE: { cur:"AED", auth:"FTA", ctMonths:9, ctNote:"UAE CT: 9 months after end of tax period" } };
+const DEFAULT_LOC = LOCATIONS.includes(CFG.defaultLocation) ? CFG.defaultLocation : "Bahrain";
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 const CYCLES = {
@@ -248,9 +259,12 @@ const VAT_DONE = new Set(["Filed","Paid / Closed","Nil return filed","Not applic
 const VAT_COLOR = {"Not started":"grey","Data requested":"amber","Data received":"blue","In preparation":"blue","Under review":"purple","Filed":"green","Paid / Closed":"green","Nil return filed":"green","Not applicable":"grey"};
 const VAT_SHORT = {"Not started":"—","Data requested":"Req","Data received":"Rcvd","In preparation":"Prep","Under review":"Review","Filed":"Filed","Paid / Closed":"Paid","Nil return filed":"Nil","Not applicable":"N/A"};
 
-const AUDIT_STATUSES = ["Not started","Engagement / Planning","Fieldwork","Draft FS issued","Management review","Signed","Filed with MOIC (Sijilat)","Not applicable"];
-const AUDIT_DONE = new Set(["Filed with MOIC (Sijilat)","Not applicable"]);
-const AUDIT_COLOR = {"Not started":"grey","Engagement / Planning":"amber","Fieldwork":"blue","Draft FS issued":"blue","Management review":"purple","Signed":"green","Filed with MOIC (Sijilat)":"green","Not applicable":"grey"};
+const AUDIT_STATUSES = ["Not started","Engagement / Planning","Fieldwork","Draft FS issued","Management review","Signed","Filed with authority","Not applicable"];
+const AUDIT_DONE = new Set(["Filed with authority","Filed with MOIC (Sijilat)","Not applicable"]);
+const CT_STATUSES = ["Not started","Data requested","Data received","Computation in progress","Under review","Filed","Paid / Closed","Not applicable"];
+const CT_DONE = new Set(["Filed","Paid / Closed","Not applicable"]);
+const CT_COLOR = {"Not started":"grey","Data requested":"amber","Data received":"blue","Computation in progress":"blue","Under review":"purple","Filed":"green","Paid / Closed":"green","Not applicable":"grey"};
+const AUDIT_COLOR = {"Not started":"grey","Engagement / Planning":"amber","Fieldwork":"blue","Draft FS issued":"blue","Management review":"purple","Signed":"green","Filed with authority":"green","Filed with MOIC (Sijilat)":"green","Not applicable":"grey"};
 
 /* ============================================================
    HELPERS
@@ -276,6 +290,7 @@ function splitEmails(s){ return String(s||"").split(/[;,]/).map(lc).filter(Boole
 const I = { // icons
   dash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
   clients:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6M8 10h.01M12 10h.01M16 10h.01"/></svg>',
+  ct:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h16M6 20V9l6-5 6 5v11"/><path d="M9.5 16l5-5M10 11.2h.01M14 15.8h.01"/></svg>',
   vat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h4"/></svg>',
   audit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l2 2 4-4"/><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>',
   team:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.8c1.8.7 3 2.4 3.5 5.2"/></svg>',
@@ -340,6 +355,12 @@ class GraphStore {
     }
     this.missing = [];
   }
+  async ensureColumns(){
+    for(const k of Object.keys(SCHEMA)){ const lid = this.listIds[k]; if(!lid) continue;
+      const cols = await this.g("GET", `/sites/${this.siteId}/lists/${lid}/columns?$select=name&$top=500`); const have = new Set(cols.value.map(c => c.name));
+      for(const [name, t] of Object.entries(SCHEMA[k].fields)){ if(name === "Title" || have.has(name)) continue;
+        await this.g("POST", `/sites/${this.siteId}/lists/${lid}/columns`, { name, text: t === "note" ? { allowMultipleLines: true, linesForEditing: 6 } : {} }); } }
+  }
   norm(kind, it){ const r = { id: String(it.id) }; const f = it.fields || {}; for(const k of Object.keys(SCHEMA[kind].fields)) r[k] = f[k] == null ? "" : String(f[k]); return r; }
   async loadAll(){
     const out = {};
@@ -361,7 +382,7 @@ class DemoStore {
   persist(){ try { localStorage.setItem("vinpro-demo", JSON.stringify(this.data)); } catch(e){} }
   async loadAll(){
     let saved = null; try { saved = JSON.parse(localStorage.getItem("vinpro-demo") || "null"); } catch(e){}
-    this.data = saved && saved.clients ? saved : demoSeed();
+    this.data = saved && saved.clients && saved.ct ? saved : demoSeed();
     return JSON.parse(JSON.stringify(this.data));
   }
   async create(kind, fields){ const r = Object.assign({ id: uid() }, Object.fromEntries(Object.keys(SCHEMA[kind].fields).map(k => [k, ""])), cleanFields(kind, fields)); this.data[kind].push(r); this.persist(); return { ...r }; }
@@ -373,56 +394,59 @@ class DemoStore {
 function demoSeed(){
   let s = 7; const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280; const pick = a => a[Math.floor(rnd() * a.length)];
   const employees = [
-    { id:"e1", Title:"Vignesh SG", Email:"vignesh@vinproglobal.com", Role:"Admin", Active:"Yes", Phone:"" },
-    { id:"e2", Title:"Priya Nair", Email:"priya@demo.vinpro", Role:"Manager", Active:"Yes", Phone:"" },
-    { id:"e3", Title:"Rahul Menon", Email:"rahul@demo.vinpro", Role:"Staff", Active:"Yes", Phone:"" },
-    { id:"e4", Title:"Fatima Ali", Email:"fatima@demo.vinpro", Role:"Staff", Active:"Yes", Phone:"" }
+    { id:"e1", Title:"Vignesh SG", Email:"vignesh@vinproglobal.com", Role:"Admin", Active:"Yes", Phone:"", Location:"Both" },
+    { id:"e2", Title:"Priya Nair", Email:"priya@demo.vinpro", Role:"Manager", Active:"Yes", Phone:"", Location:"Both" },
+    { id:"e3", Title:"Rahul Menon", Email:"rahul@demo.vinpro", Role:"Staff", Active:"Yes", Phone:"", Location:"Bahrain" },
+    { id:"e4", Title:"Fatima Ali", Email:"fatima@demo.vinpro", Role:"Staff", Active:"Yes", Phone:"", Location:"UAE" }
   ];
-  const names = ["Al Noor Trading WLL","Gulf Horizon Contracting","Pearl Coast Restaurants","Seef Digital Solutions","Manama Medical Supplies","Oasis Interiors WLL","Riffa Auto Parts","Bahrain Bay Logistics","Delmon Foods Co.","Sitra Engineering Works","Juffair Fitness Studio","Tubli Printing Press","Amwaj Marine Services","Hidd Steel Fabrication"];
+  const names = ["Al Noor Trading WLL","Gulf Horizon Contracting","Pearl Coast Restaurants","Seef Digital Solutions","Manama Medical Supplies","Oasis Interiors WLL","Riffa Auto Parts","Bahrain Bay Logistics","Delmon Foods Co.","Sitra Engineering Works","Juffair Fitness Studio","Tubli Printing Press","Amwaj Marine Services","Hidd Steel Fabrication","Jumeirah Events LLC","Al Quoz Metal Works LLC","Deira Spice Traders","Marina Tech FZ-LLC","Business Bay Consultants"];
   const cycles = ["Q-Mar","Q-Mar","Q-Jan","Q-Feb","Monthly","Q-Mar","Q-Jan","Not registered"];
   const staff = ["rahul@demo.vinpro","fatima@demo.vinpro"];
-  const clients = [], creds = [], vat = [], audits = [];
+  const clients = [], creds = [], vat = [], audits = [], ct = [];
   const cur = curYM();
   names.forEach((n, i) => {
-    const id = "c" + (i+1);
+    const id = "c" + (i+1); const uae = i >= 14;
     const exp = ymAdd(cur, Math.floor(rnd() * 16) - 3) + "-" + pad(1 + Math.floor(rnd() * 27));
-    clients.push({ id, Title:n, CRNo: (10000 + Math.floor(rnd()*150000)) + "-1", CRExpiry: exp, Status: i === 13 ? "Deactivated" : "Active",
+    clients.push({ id, Title:n, CRNo: (10000 + Math.floor(rnd()*150000)) + "-1", CRExpiry: exp, Status: i === 13 ? "Deactivated" : "Active", Location: uae ? "UAE" : "Bahrain", CTNo: uae ? "1" + Math.floor(1e8 + rnd()*8e8) : "",
       ContactName: pick(["Ahmed","Sara","Mohammed","Anil","Joseph","Layla","Hassan"]), ContactNo: "3" + Math.floor(1000000 + rnd()*8999999),
       ContactEmail:"", VATNo: cycles[i % cycles.length] === "Not registered" ? "" : "2000" + Math.floor(100000 + rnd()*899999),
       VATCycle: cycles[i % cycles.length], VATFrom:"", FYEnd:"12-31",
-      AssignedTo: staff[i % 2] + (i % 4 === 0 ? "; priya@demo.vinpro" : ""), Reviewer:"priya@demo.vinpro", Services: ["VAT","Accounting"].concat(i % 5 === 4 ? [] : ["Audit"]).concat(i % 3 === 0 ? ["HRMS & Payroll"] : []).concat(i % 7 === 2 ? ["Consultancy"] : []).join("; "), Notes:"" });
-    const portals = ["NBR", "Sijilat"].concat(i % 3 === 0 ? ["LMRA","SIO"] : []).concat(i % 4 === 1 ? ["Odoo"] : i % 4 === 2 ? ["Tally"] : []);
+      AssignedTo: (uae ? "fatima@demo.vinpro" : "rahul@demo.vinpro") + (i % 4 === 0 ? "; priya@demo.vinpro" : ""), Reviewer:"priya@demo.vinpro", Services: ["VAT","Accounting"].concat(uae ? ["Corporate Tax"] : []).concat(i % 5 === 4 ? [] : ["Audit"]).concat(i % 3 === 0 ? ["HRMS & Payroll"] : []).concat(i % 7 === 2 ? ["Consultancy"] : []).join("; "), Notes:"" });
+    const portals = (uae ? ["EmaraTax (FTA)", "Dubai Economy (DET)"].concat(i % 2 ? ["MOHRE"] : []) : ["NBR", "Sijilat"].concat(i % 3 === 0 ? ["LMRA","SIO"] : [])).concat(i % 4 === 1 ? ["Odoo"] : i % 4 === 2 ? ["Tally"] : []);
     portals.forEach(p => creds.push({ id: uid(), Title:p, ClientId:id, Username:"demo_" + n.split(" ")[0].toLowerCase() + "_" + p.toLowerCase().replace(/\W/g,""), Pwd:"Demo@" + Math.floor(1000 + rnd()*8999), PortalURL: PORTAL_URLS[p] || "", Notes:"Sample login (demo only)", UpdatedBy:"Vignesh SG", UpdatedOn: nowISO() }));
     const cyc = clients[i].VATCycle;
     for(let k = 12; k >= 1; k--){
       const pe = ymAdd(cur, -k); if(!isPeriodEnd(cyc, pe) || pe < CFG.vatTrackingStart) continue;
-      const d = daysUntil(dueOf(pe)); let st;
+      const d = daysUntil(dueOf(pe, clients[i])); let st;
       if(d < -20) st = rnd() < .92 ? pick(["Filed","Paid / Closed","Paid / Closed"]) : "In preparation";
       else st = pick(["Data requested","Data received","In preparation","Under review","Filed","Not started"]);
       vat.push({ id: uid(), Title: id + "|" + pe, ClientId:id, PeriodEnd:pe, Status:st, Preparer: staff[i % 2], Reviewer:"priya@demo.vinpro",
-        FiledDate: VAT_DONE.has(st) ? dueOf(pe).slice(0,8) + pad(10 + Math.floor(rnd()*15)) : "", RefNo: VAT_DONE.has(st) ? "ACK" + Math.floor(rnd()*1e8) : "",
+        FiledDate: VAT_DONE.has(st) ? dueOf(pe, clients[i]).slice(0,8) + pad(10 + Math.floor(rnd()*15)) : "", RefNo: VAT_DONE.has(st) ? "ACK" + Math.floor(rnd()*1e8) : "",
         Amount: VAT_DONE.has(st) ? (rnd()*4000).toFixed(3) : "", Notes:"", UpdatedBy: staff[i % 2], UpdatedOn: nowISO() });
     }
+    if(uae){ const fy = String(new Date().getFullYear() - 1); ct.push({ id: uid(), Title: id + "|FY" + fy, ClientId:id, FY:fy, Status: pick(CT_STATUSES.slice(0,7)), Preparer:"fatima@demo.vinpro", Reviewer:"priya@demo.vinpro", DueDate:"", FiledDate:"", RefNo:"", Amount:"", Notes:"", UpdatedBy:"fatima@demo.vinpro", UpdatedOn: nowISO() }); }
     if(hasService(clients[i], "Audit")){
       const fy = String(new Date().getFullYear() - 1);
       audits.push({ id: uid(), Title: id + "|FY" + fy, ClientId:id, FY:fy, Auditor: pick(["Grant Thornton","BDO","Crowe","Baker Tilly"]), AssignedTo: staff[i % 2], Status: pick(AUDIT_STATUSES.slice(0,7)), DueDate: (+fy + 1) + pick(["-06-30","-09-30","-12-31","-12-31"]), CompletedDate:"", Notes:"", UpdatedBy: staff[i % 2], UpdatedOn: nowISO() });
     }
   });
   const activity = [{ id: uid(), Title:"Demo data created", ClientId:"", ClientName:"", UserEmail:"vignesh@vinproglobal.com", UserName:"Vignesh SG", Details:"Sample clients, logins, VAT and audit records", At: nowISO() }];
-  return { employees, clients, creds, vat, audits, activity };
+  return { employees, clients, creds, vat, audits, ct, activity };
 }
 
 /* ============================================================
    STATE
    ============================================================ */
 let store, msalApp, account;
-let data = { employees:[], clients:[], creds:[], vat:[], audits:[], activity:[] };
+let data = { employees:[], clients:[], creds:[], vat:[], audits:[], ct:[], activity:[] };
 let me = { email:"", name:"", role:null };
 const state = {
   view: "dashboard",
   cf: { q:"", status:"Active", who:"", cycle:"", svc:"", sel: new Set() },
   vf: { mode:"month", month: curYM(), year: new Date().getFullYear(), q:"", who:"", show:"all" },
   af: { fy: String(new Date().getFullYear() - 1), q:"", who:"", show:"all" },
+  tf: { fy: String(new Date().getFullYear() - 1), q:"", who:"", show:"all" },
+  loc: (() => { try { const v = localStorage.getItem("vinpro-loc") || ""; return LOCATIONS.includes(v) ? v : ""; } catch(e){ return ""; } })(),
   lf: { q:"", who:"" },
   revealed: {}, modals: [], busy: 0, importPreview: null
 };
@@ -438,7 +462,11 @@ function clientById(id){ return data.clients.find(c => c.id === id); }
 function teamOf(c){ const t = splitEmails(c.AssignedTo); return t; }
 function isMine(c){ const e = lc(me.email); return teamOf(c).includes(e) || lc(c.Reviewer) === e; }
 function canSee(c){ return isMgr() || isMine(c); }
-function visibleClients(){ return data.clients.filter(canSee).sort((a,b) => a.Title.localeCompare(b.Title)); }
+function locOf(c){ return LOCATIONS.includes(c.Location) ? c.Location : DEFAULT_LOC; }
+function curOf(c){ return LOC[locOf(c)].cur; }
+function locTag(c){ return `<span class="tag loc-${locOf(c)}">${locOf(c) === "UAE" ? "UAE" : "BH"}</span>`; }
+function allowedClients(){ return data.clients.filter(canSee); }
+function visibleClients(){ return allowedClients().filter(c => !state.loc || locOf(c) === state.loc).sort((a,b) => a.Title.localeCompare(b.Title)); }
 function roleOf(email){
   const e = lc(email);
   if((CFG.adminEmails || []).map(lc).includes(e)) return "Admin";
@@ -453,7 +481,15 @@ function periodLabel(cycle, pe){
   const st = ymAdd(pe, -(n-1)); const [sy, sm] = st.split("-"), [ey, em] = pe.split("-");
   return sy === ey ? `${MONTHS[sm-1]}–${MONTHS[em-1]} ${ey}` : `${MONTHS[sm-1]} ${sy} – ${MONTHS[em-1]} ${ey}`;
 }
-function dueOf(pe){ return lastDay(ymAdd(pe, 1)); }
+function dueOf(pe, c){ const m = ymAdd(pe, 1); return c && locOf(c) === "UAE" ? `${m}-28` : lastDay(m); }
+function ctRec(cid, fy){ return data.ct.find(a => a.ClientId === cid && a.FY === String(fy)); }
+function ctClients(list){ return list.filter(c => c.Status !== "Deactivated" && hasService(c, "Corporate Tax")); }
+function ctDefaultDue(c, fy){ const end = `${fy}-${c.FYEnd || "12-31"}`; return lastDay(ymAdd(end.slice(0, 7), LOC[locOf(c)].ctMonths)); }
+function ctDue(c, fy){ const r = ctRec(c.id, fy); return (r && r.DueDate) || ctDefaultDue(c, fy); }
+function ctItems(clients, horizonDays = 60){ const y = new Date().getFullYear(); const out = [];
+  for(const c of ctClients(clients)) for(const fy of [y - 1, y].map(String)){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; if(CT_DONE.has(st)) continue; const due = ctDue(c, fy); const d = daysUntil(due); if(d <= horizonDays && due.slice(0,4) >= String(y - 1)) out.push({ c, fy, due, d, st, rec: r }); }
+  return out.sort((a,b) => a.d - b.d); }
+function ctChip(st){ return chip(CT_COLOR[st] || "grey", esc(st), true); }
 function vatStart(c){ const a = CFG.vatTrackingStart || "2000-01", b = c.VATFrom || ""; return b > a ? b : a; }
 function vatRec(cid, pe){ return data.vat.find(v => v.ClientId === cid && v.PeriodEnd === pe); }
 function vatStatus(cid, pe){ const r = vatRec(cid, pe); return (r && r.Status) || "Not started"; }
@@ -463,7 +499,7 @@ function vatItems(clients, horizonDays = 45){
   const items = []; const cur = curYM();
   for(const c of clients){ if(c.Status === "Deactivated") continue;
     for(const pe of periodsFor(c, ymAdd(cur, -24), cur)){
-      const st = vatStatus(c.id, pe); if(VAT_DONE.has(st)) continue; const due = dueOf(pe); const d = daysUntil(due);
+      const st = vatStatus(c.id, pe); if(VAT_DONE.has(st)) continue; const due = dueOf(pe, c); const d = daysUntil(due);
       if(d <= horizonDays) items.push({ c, pe, due, d, st, rec: vatRec(c.id, pe) });
     } }
   return items.sort((a,b) => a.d - b.d);
@@ -513,18 +549,19 @@ function toast(msg, err){ const t = $("#toast"); t.innerHTML = `<div class="toas
 function renderBusy(){ let b = document.getElementById("busy"); if(state.busy && !b){ b = document.createElement("div"); b.id = "busy"; b.className = "busy"; document.body.appendChild(b); } if(!state.busy && b) b.remove(); }
 
 const NAV = [
-  ["dashboard", "Dashboard", "dash"], ["clients", "Clients", "clients"], ["vat", "VAT Tracker", "vat"], ["audit", "Audit Tracker", "audit"],
+  ["dashboard", "Dashboard", "dash"], ["clients", "Clients", "clients"], ["vat", "VAT Tracker", "vat"], ["ct", "Corporate Tax", "ct"], ["audit", "Audit Tracker", "audit"],
   ["team", "Team", "team", () => isMgr()], ["activity", "Activity Log", "log"], ["admin", "Admin & Import", "admin", () => isAdmin()]
 ];
-const TITLES = { dashboard:"Dashboard", clients:"Client Master", vat:"VAT Return Tracker", audit:"Audit Tracker", team:"Team & Assignments", activity:"Activity Log", admin:"Admin, Import & Export" };
+const TITLES = { dashboard:"Dashboard", clients:"Client Master", vat:"VAT Return Tracker", ct:"Corporate Tax Tracker", audit:"Audit Tracker", team:"Team & Assignments", activity:"Activity Log", admin:"Admin, Import & Export" };
 
 function render(){
   const app = $("#app");
   if(!me.role){ app.innerHTML = noAccessScreen(); return; }
   const ae = document.activeElement; const fid = ae && ae.id && app.contains(ae) ? ae.id : null; const pos = fid && ae.selectionStart;
   const overdue = vatItems(visibleClients(), 0).filter(x => x.d < 0).length;
-  const sub = { dashboard: isMgr() ? "All clients" : "Your assigned clients", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
-    vat: "Quarterly / monthly VAT returns · NBR due date = last day of the month after the period", audit: "Statutory audit progress by financial year",
+  const locName = state.loc || "Bahrain & UAE";
+  const sub = { dashboard: (isMgr() ? "All clients" : "Your assigned clients") + " · " + locName, ct: "Corporate tax returns by financial year · UAE (FTA): 9 months after year end · Bahrain (DMTT): 15 months", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
+    vat: "Due date: Bahrain (NBR) last day of the following month · UAE (FTA) 28th of the following month", audit: "Statutory audit progress by financial year",
     team: "Employees, roles and client assignments", activity: "Every change and every password view is recorded", admin: "Import the client master, export, and SharePoint setup" }[state.view];
   app.innerHTML = `
   <div class="shell">
@@ -539,6 +576,7 @@ function render(){
       <div class="top">
         <div><h1>${TITLES[state.view]}</h1><div class="sub">${sub || ""}</div></div>
         <div class="right">
+          <div class="seg locsw" role="group" aria-label="Location">${[["", "All"], ["Bahrain", "Bahrain"], ["UAE", "UAE"]].map(([v, l]) => `<button class="${state.loc === v ? "on" : ""}" data-act="setloc" data-v="${v}">${l}</button>`).join("")}</div>
           <button class="btn ghost" data-act="reload" title="Reload latest data">${I.refresh}<span>Refresh</span></button>
           ${DEMO ? "" : `<button class="btn ghost" data-act="signout" title="Sign out">${I.logout}</button>`}
         </div>
@@ -569,6 +607,7 @@ VIEWS.dashboard = () => {
   const items = vatItems(cl, 45); const overdue = items.filter(x => x.d < 0); const dueSoon = items.filter(x => x.d >= 0);
   const fy = state.af.fy; const aud = auditClients(cl); const audPending = aud.filter(c => !AUDIT_DONE.has((auditRec(c.id, fy) || {}).Status || "Not started"));
   const cr = active.map(c => ({ c, i: crInfo(c) })).filter(x => x.i.d != null && x.i.d <= 30).sort((a,b) => a.i.d - b.i.d);
+  const cti = ctItems(cl, 60); const ctOver = cti.filter(x => x.d < 0).length;
   const unsetCycle = active.filter(c => !c.VATCycle).length;
   const hour = new Date().getHours(); const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const acts = data.activity.filter(a => isMgr() || !a.ClientId || cl.some(c => c.id === a.ClientId)).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 8);
@@ -577,26 +616,31 @@ VIEWS.dashboard = () => {
   ${unsetCycle ? `<div class="banner">${unsetCycle} active client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
   <div class="kpis">
     <button class="kpi" data-act="nav" data-v="clients"><div class="l">${isMgr() ? "Active clients" : "My active clients"}</div><div class="v">${active.length}</div><div class="s">${cl.length - active.length} deactivated</div></button>
-    <button class="kpi ${overdue.length ? "bad" : "ok"}" data-act="nav" data-v="vat"><div class="l">VAT returns overdue</div><div class="v">${overdue.length}</div><div class="s">past NBR due date, not filed</div></button>
+    <button class="kpi ${overdue.length ? "bad" : "ok"}" data-act="nav" data-v="vat"><div class="l">VAT returns overdue</div><div class="v">${overdue.length}</div><div class="s">past due date, not filed</div></button>
     <button class="kpi ${dueSoon.length ? "warn" : ""}" data-act="nav" data-v="vat"><div class="l">VAT due in next 45 days</div><div class="v">${dueSoon.length}</div><div class="s">not yet filed</div></button>
+    <button class="kpi ${ctOver ? "bad" : cti.length ? "warn" : ""}" data-act="nav" data-v="ct"><div class="l">Corporate tax due ≤60d / overdue</div><div class="v">${cti.length}</div><div class="s">${ctOver} overdue</div></button>
     <button class="kpi" data-act="nav" data-v="audit"><div class="l">Audits pending · FY${esc(fy)}</div><div class="v">${audPending.length}</div><div class="s">of ${aud.length} requiring audit</div></button>
-    <button class="kpi ${cr.some(x => x.i.d < 0) ? "bad" : cr.length ? "warn" : ""}" data-act="nav" data-v="clients"><div class="l">CR expired / expiring ≤30d</div><div class="v">${cr.length}</div><div class="s">${cr.filter(x => x.i.d < 0).length} already expired</div></button>
+    <button class="kpi ${cr.some(x => x.i.d < 0) ? "bad" : cr.length ? "warn" : ""}" data-act="nav" data-v="clients"><div class="l">CR / licence expiring ≤30d</div><div class="v">${cr.length}</div><div class="s">${cr.filter(x => x.i.d < 0).length} already expired</div></button>
   </div>
+  ${!state.loc && isMgr() ? locationCard(allowedClients()) : ""}
   <div class="grid2">
     <div>
       <div class="card"><div class="card-h"><h3>VAT returns needing action</h3><div class="right"><button class="btn sm" data-act="nav" data-v="vat">Open tracker</button></div></div>
-      ${items.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Due</th><th>Status</th><th>Preparer</th><th></th></tr></thead><tbody>
-        ${items.slice(0, 14).map(x => `<tr><td class="cname">${esc(x.c.Title)}</td><td class="nowrap">${periodLabel(x.c.VATCycle, x.pe)}</td>
+      ${items.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>
+        ${items.slice(0, 14).map(x => `<tr><td class="cname">${state.loc ? "" : locTag(x.c) + " "}${esc(x.c.Title)}</td><td class="nowrap">${periodLabel(x.c.VATCycle, x.pe)}</td>
           <td class="nowrap">${fmtDate(x.due)}<div class="small ${x.d < 0 ? "over" : x.d <= 10 ? "soon" : "faint"}">${relDays(x.d)}</div></td>
-          <td>${vatChip(x.st)}</td><td class="small">${esc(empName((x.rec && x.rec.Preparer) || teamOf(x.c)[0] || ""))}</td>
+          <td>${vatChip(x.st)}</td>
           <td><button class="btn sm" data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}">Update</button></td></tr>`).join("")}
       </tbody></table></div>${items.length > 14 ? `<div class="card-b small muted">+ ${items.length - 14} more in the VAT tracker</div>` : ""}` : `<div class="empty">Nothing pending — all returns due in the next 45 days are filed. 🎉</div>`}
       </div>
       ${isMgr() ? teamWorkloadCard(cl) : ""}
     </div>
     <div>
-      <div class="card"><div class="card-h"><h3>CR expiry alerts</h3></div>
-        ${cr.length ? `<ul class="feed">${cr.map(x => `<li style="cursor:pointer" data-act="openClient" data-id="${x.c.id}"><b>${esc(x.c.Title)}</b> <span style="float:right">${chip(x.i.cls, x.i.d < 0 ? "Expired" : x.i.d + " days")}</span><div class="when">CR ${esc(x.c.CRNo)} · expiry ${fmtDate(x.c.CRExpiry)}</div></li>`).join("")}</ul>` : `<div class="empty">No CRs expiring in the next 30 days.</div>`}
+      <div class="card"><div class="card-h"><h3>Corporate tax returns due</h3><div class="right"><button class="btn sm" data-act="nav" data-v="ct">Open tracker</button></div></div>
+        ${cti.length ? `<ul class="feed">${cti.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}">${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b> <span style="float:right">${ctChip(x.st)}</span><div class="when">FY${esc(x.fy)} · due ${fmtDate(x.due)} · <span class="${x.d < 0 ? "over" : x.d <= 30 ? "soon" : ""}">${relDays(x.d)}</span></div></li>`).join("")}</ul>` : `<div class="empty">No corporate tax returns due in the next 60 days.</div>`}
+      </div>
+      <div class="card"><div class="card-h"><h3>CR / trade licence expiry</h3></div>
+        ${cr.length ? `<ul class="feed">${cr.map(x => `<li style="cursor:pointer" data-act="openClient" data-id="${x.c.id}">${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b> <span style="float:right">${chip(x.i.cls, x.i.d < 0 ? "Expired" : x.i.d + " days")}</span><div class="when">${locOf(x.c) === "UAE" ? "Licence" : "CR"} ${esc(x.c.CRNo)} · expiry ${fmtDate(x.c.CRExpiry)}</div></li>`).join("")}</ul>` : `<div class="empty">No CRs or licences expiring in the next 30 days.</div>`}
       </div>
       <div class="card"><div class="card-h"><h3>Recent activity</h3><div class="right"><button class="btn sm" data-act="nav" data-v="activity">All</button></div></div>
         ${acts.length ? `<ul class="feed">${acts.map(feedItem).join("")}</ul>` : `<div class="empty">No activity yet.</div>`}
@@ -604,6 +648,19 @@ VIEWS.dashboard = () => {
     </div>
   </div>`;
 };
+function locationCard(all){
+  const fy = state.af.fy;
+  const rows = LOCATIONS.map(L => { const cl = all.filter(c => locOf(c) === L); const act = cl.filter(c => c.Status !== "Deactivated"); const it = vatItems(cl, 45); const ct = ctItems(cl, 60);
+    const aud = auditClients(cl); const audP = aud.filter(c => !AUDIT_DONE.has((auditRec(c.id, fy) || {}).Status || "Not started")).length;
+    const crA = act.filter(c => { const d = crInfo(c).d; return d != null && d <= 30; }).length;
+    return { L, n: act.length, vo: it.filter(x => x.d < 0).length, vd: it.filter(x => x.d >= 0).length, ct: ct.length, cto: ct.filter(x => x.d < 0).length, audP, aud: aud.length, crA,
+      staff: activeEmployees().filter(e => act.some(c => teamOf(c).includes(lc(e.Email)))).length }; });
+  const cell = (v, bad) => `<td class="num ${bad && v ? "over" : ""}">${v}</td>`;
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>By location</h3><div class="right small muted">Click a row to switch to that location</div></div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT overdue</th><th class="num">VAT due ≤45d</th><th class="num">CT due ≤60d</th><th class="num">CT overdue</th><th class="num">Audits pending FY${esc(fy)}</th><th class="num">CR / licence ≤30d</th></tr></thead><tbody>
+  ${rows.map(r => `<tr class="click-row" data-act="setloc" data-v="${r.L}"><td class="cname">${r.L === "UAE" ? "UAE (Dubai)" : "Bahrain"}</td><td class="num">${r.n}</td>${cell(r.vo, 1)}<td class="num">${r.vd}</td><td class="num">${r.ct}</td>${cell(r.cto, 1)}<td class="num">${r.audP} <span class="faint">/ ${r.aud}</span></td>${cell(r.crA, 1)}</tr>`).join("")}
+  </tbody></table></div></div>`;
+}
 function feedItem(a){ return `<li><b>${esc(a.UserName || a.UserEmail)}</b> · ${esc(a.Title)}${a.ClientName ? ` — <span class="cname">${esc(a.ClientName)}</span>` : ""}${a.Details ? `<div class="small muted">${esc(a.Details)}</div>` : ""}<div class="when">${fmtDT(a.At)}</div></li>`; }
 function teamWorkloadCard(cl){
   const rows = activeEmployees().map(e => {
@@ -612,8 +669,8 @@ function teamWorkloadCard(cl){
     return { e, n: mine.length, pend: items.filter(x => x.d >= 0).length, over: items.filter(x => x.d < 0).length };
   });
   return `<div class="card"><div class="card-h"><h3>Team workload</h3><div class="right"><button class="btn sm" data-act="nav" data-v="team">Manage</button></div></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Employee</th><th>Role</th><th class="num">Clients</th><th class="num">VAT due ≤45d</th><th class="num">VAT overdue</th></tr></thead><tbody>
-  ${rows.map(r => `<tr><td class="cname">${esc(r.e.Title)}</td><td class="muted">${esc(r.e.Role)}</td><td class="num">${r.n}</td><td class="num">${r.pend}</td><td class="num ${r.over ? "over" : ""}">${r.over}</td></tr>`).join("")}
+  <div class="tw"><table class="tbl"><thead><tr><th>Employee</th><th>Role</th><th>Location</th><th class="num">Clients</th><th class="num">VAT due ≤45d</th><th class="num">VAT overdue</th></tr></thead><tbody>
+  ${rows.map(r => `<tr><td class="cname">${esc(r.e.Title)}</td><td class="muted">${esc(r.e.Role)}</td><td class="small muted">${esc(r.e.Location || "—")}</td><td class="num">${r.n}</td><td class="num">${r.pend}</td><td class="num ${r.over ? "over" : ""}">${r.over}</td></tr>`).join("")}
   </tbody></table></div></div>`;
 }
 
@@ -624,12 +681,12 @@ VIEWS.clients = () => {
     (!f.who || (f.who === "__none" ? !teamOf(c).length : teamOf(c).includes(f.who))) &&
     (!f.cycle || (f.cycle === "__unset" ? !c.VATCycle : c.VATCycle === f.cycle)) &&
     (!f.svc || (f.svc === "__none" ? !servicesOf(c).length : hasService(c, f.svc))) &&
-    (!q || [c.Title, c.CRNo, c.ContactName, c.ContactNo, c.VATNo].some(v => lc(v).includes(q))));
+    (!q || [c.Title, c.CRNo, c.ContactName, c.ContactNo, c.VATNo, c.CTNo].some(v => lc(v).includes(q))));
   const credsBy = {}; data.creds.forEach(x => (credsBy[x.ClientId] = credsBy[x.ClientId] || []).push(x.Title));
   const sel = f.sel; const allSel = list.length && list.every(c => sel.has(c.id));
   return `
   <div class="toolbar">
-    <input id="cf-q" class="in search" placeholder="Search name, CR no, contact, VAT no…" value="${esc(f.q)}" data-bind="cf.q">
+    <input id="cf-q" class="in search" placeholder="Search name, CR / licence no, contact, VAT / TRN…" value="${esc(f.q)}" data-bind="cf.q">
     <select class="in" data-bind="cf.status"><option value="">All statuses</option>${["Active","Dormant","Deactivated"].map(s => `<option ${f.status === s ? "selected" : ""}>${s}</option>`).join("")}</select>
     ${isMgr() ? `<select class="in" data-bind="cf.who"><option value="">All employees</option><option value="__none" ${f.who === "__none" ? "selected" : ""}>— Unassigned —</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
     <select class="in" data-bind="cf.cycle"><option value="">Any VAT cycle</option><option value="__unset" ${f.cycle === "__unset" ? "selected" : ""}>— Not set —</option>${Object.keys(CYCLES).map(k => `<option value="${k}" ${f.cycle === k ? "selected" : ""}>${CYCLES[k].short}</option>`).join("")}</select>
@@ -641,11 +698,11 @@ VIEWS.clients = () => {
   </div>
   <div class="card"><div class="tw"><table class="tbl"><thead><tr>
     ${isMgr() ? `<th style="width:30px"><input type="checkbox" data-act="selAll" ${allSel ? "checked" : ""} aria-label="Select all"></th>` : ""}
-    <th>Client</th><th>CR No</th><th>CR expiry</th><th>Contact</th><th>Services</th><th>VAT cycle</th><th>Team</th><th>Logins</th></tr></thead><tbody>
+    <th>Client</th><th>Location</th><th>CR / Licence</th><th>Expiry</th><th>Contact</th><th>Services</th><th>VAT cycle</th><th>Team</th><th>Logins</th></tr></thead><tbody>
     ${list.map(c => { const cr = crInfo(c); return `<tr class="click" data-act="openClient" data-id="${c.id}">
       ${isMgr() ? `<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${c.id}" ${sel.has(c.id) ? "checked" : ""} aria-label="Select"></td>` : ""}
       <td><span class="cname">${esc(c.Title)}</span>${c.Status && c.Status !== "Active" ? ` ${chip("grey", esc(c.Status))}` : ""}</td>
-      <td class="nowrap">${esc(c.CRNo)}</td><td>${chip(cr.cls, cr.txt)}</td>
+      <td>${locTag(c)}</td><td class="nowrap">${esc(c.CRNo)}</td><td>${chip(cr.cls, cr.txt)}</td>
       <td class="small">${esc(c.ContactName)}${c.ContactNo ? `<div class="faint">${esc(c.ContactNo)}</div>` : ""}</td>
       <td>${serviceTags(c) || `<span class="soon small">Not set</span>`}</td>
       <td class="small nowrap">${c.VATCycle ? esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].short : c.VATCycle) : `<span class="soon">Not set</span>`}</td>
@@ -670,21 +727,23 @@ VIEWS.vat = () => {
   return head + (f.mode === "month" ? vatMonthView(base) : vatYearView(base));
 };
 function vatMonthView(base){
-  const f = state.vf; const pe = ymAdd(f.month, -1); const due = lastDay(f.month); const d = daysUntil(due);
+  const f = state.vf; const pe = ymAdd(f.month, -1);
   let rows = base.filter(c => periodsFor(c, pe, pe).length).map(c => ({ c, st: vatStatus(c.id, pe), rec: vatRec(c.id, pe) }));
   const total = rows.length, done = rows.filter(r => VAT_DONE.has(r.st)).length;
   if(f.show === "pending") rows = rows.filter(r => !VAT_DONE.has(r.st)); if(f.show === "done") rows = rows.filter(r => VAT_DONE.has(r.st));
   const pct = total ? Math.round(done / total * 100) : 0;
+  const locsHere = LOCATIONS.filter(L => base.some(c => locOf(c) === L));
+  const dueLine = locsHere.map(L => { const du = dueOf(pe, { Location: L }); const dd = daysUntil(du); return `${L} (${LOC[L].auth}) ${fmtDate(du)} · <span class="${dd < 0 && done < total ? "over" : dd <= 10 ? "soon" : ""}">${relDays(dd)}</span>`; }).join(" &nbsp;|&nbsp; ");
   return `<div class="card"><div class="card-b">
-    <div class="progress-row"><div><b>Returns for periods ending ${ymLabel(pe)}</b><div class="small muted">NBR due date ${fmtDate(due)} · <span class="${d < 0 && done < total ? "over" : d <= 10 ? "soon" : ""}">${relDays(d)}</span></div></div>
+    <div class="progress-row"><div><b>Returns for periods ending ${ymLabel(pe)}</b><div class="small muted">Due: ${dueLine}</div></div>
     <div class="bar" title="${pct}% complete"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} filed (${pct}%)</span></div></div></div>
-    <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Net VAT (BHD)</th><th>Last update</th><th></th></tr></thead><tbody>
-    ${rows.map(r => { const late = !VAT_DONE.has(r.st) && d < 0; return `<tr>
-      <td class="cname"><a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
+    <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Net VAT</th><th>Last update</th><th></th></tr></thead><tbody>
+    ${rows.map(r => { const late = !VAT_DONE.has(r.st) && daysUntil(dueOf(pe, r.c)) < 0; return `<tr>
+      <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
       <td class="nowrap small">${periodLabel(r.c.VATCycle, pe)}</td>
       <td>${vatChip(r.st)}${late ? ` ${chip("red", "Overdue")}` : ""}</td>
       <td class="small">${esc(empName((r.rec && r.rec.Preparer) || ""))}</td>
-      <td class="small nowrap">${fmtDate(r.rec && r.rec.FiledDate)}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td><td class="num">${esc(r.rec && r.rec.Amount)}</td>
+      <td class="small nowrap">${fmtDate(r.rec && r.rec.FiledDate)}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td><td class="num">${r.rec && r.rec.Amount ? esc(r.rec.Amount) + ` <span class="faint small">${curOf(r.c)}</span>` : ""}</td>
       <td class="small faint nowrap">${updCell(r.rec)}</td>
       <td><button class="btn sm" data-act="editVat" data-c="${r.c.id}" data-pe="${pe}">Update</button></td></tr>`; }).join("")}
     </tbody></table>${rows.length ? "" : `<div class="empty">No VAT returns fall due in ${ymLabel(f.month)} for these clients.</div>`}</div></div>`;
@@ -694,10 +753,10 @@ function vatYearView(base){
   const rows = base.filter(c => CYCLES[c.VATCycle] && CYCLES[c.VATCycle].n);
   return `<div class="card"><div class="card-b small muted">Each cell is the VAT period <b>ending</b> in that month (filing due the following month). Click a cell to update. Red outline = past due and not filed.</div>
   <div class="tw"><table class="tbl ygrid"><thead><tr><th>Client</th><th>Cycle</th>${months.map(m => `<th class="m">${MONTHS[+m.slice(5)-1]}</th>`).join("")}</tr></thead><tbody>
-  ${rows.map(c => `<tr><td class="cname nowrap">${esc(c.Title)}</td><td class="small faint nowrap">${esc(CYCLES[c.VATCycle].short)}</td>
+  ${rows.map(c => `<tr><td class="cname nowrap">${state.loc ? "" : locTag(c) + " "}${esc(c.Title)}</td><td class="small faint nowrap">${esc(CYCLES[c.VATCycle].short)}</td>
     ${months.map(m => { if(!isPeriodEnd(c.VATCycle, m)) return `<td class="cell off"></td>`; if(m < vatStart(c)) return `<td class="cell"><span class="faint small">–</span></td>`;
-      const st = vatStatus(c.id, m); const dd = daysUntil(dueOf(m)); const over = !VAT_DONE.has(st) && dd < 0; const fut = st === "Not started" && dd > 45;
-      return `<td class="cell"><span class="yc chip ${VAT_COLOR[st]} ${over ? "overdue" : ""} ${fut ? "future" : ""}" data-act="editVat" data-c="${c.id}" data-pe="${m}" title="${esc(periodLabel(c.VATCycle, m))} · ${esc(st)} · due ${fmtDate(dueOf(m))}">${VAT_SHORT[st]}</span></td>`; }).join("")}</tr>`).join("")}
+      const st = vatStatus(c.id, m); const dd = daysUntil(dueOf(m, c)); const over = !VAT_DONE.has(st) && dd < 0; const fut = st === "Not started" && dd > 45;
+      return `<td class="cell"><span class="yc chip ${VAT_COLOR[st]} ${over ? "overdue" : ""} ${fut ? "future" : ""}" data-act="editVat" data-c="${c.id}" data-pe="${m}" title="${esc(periodLabel(c.VATCycle, m))} · ${esc(st)} · due ${fmtDate(dueOf(m, c))}">${VAT_SHORT[st]}</span></td>`; }).join("")}</tr>`).join("")}
   </tbody></table>${rows.length ? "" : `<div class="empty">No clients with a VAT cycle.</div>`}</div></div>`;
 }
 
@@ -717,7 +776,7 @@ VIEWS.audit = () => {
   <div class="card"><div class="card-b"><div class="progress-row"><div><b>FY${esc(f.fy)} audits</b><div class="small muted">Clients with the <b>Audit</b> service ticked</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>FY end</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Progress</th><th>Due</th><th>Completed</th><th>Last update</th><th></th></tr></thead><tbody>
   ${rows.map(r => { const idx = AUDIT_STATUSES.indexOf(r.st); const steps = 7; const d = daysUntil(r.rec && r.rec.DueDate); return `<tr>
-    <td class="cname"><a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
+    <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
     <td class="small nowrap">${fmtDate(f.fy + "-" + (r.c.FYEnd || "12-31"))}</td><td class="small">${esc(r.rec && r.rec.Auditor)}</td>
     <td class="small">${esc(empName((r.rec && r.rec.AssignedTo) || teamOf(r.c)[0] || ""))}</td><td>${auditChip(r.st)}</td>
     <td style="min-width:80px"><div class="steps" title="${esc(r.st)}">${Array.from({length:steps - 1}, (_, i) => `<i class="${r.st === "Not applicable" || i < idx ? "on" : ""}"></i>`).join("")}</div></td>
@@ -728,19 +787,46 @@ VIEWS.audit = () => {
   </tbody></table>${rows.length ? "" : `<div class="empty">No clients to show.</div>`}</div></div>`;
 };
 
+VIEWS.ct = () => {
+  const f = state.tf; const q = lc(f.q); const y = new Date().getFullYear();
+  let rows = ctClients(visibleClients()).filter(c => (!q || [c.Title, c.CTNo].some(v => lc(v).includes(q))) && (!f.who || teamOf(c).includes(f.who) || lc((ctRec(c.id, f.fy) || {}).Preparer) === f.who))
+    .map(c => { const rec = ctRec(c.id, f.fy); return { c, rec, st: (rec && rec.Status) || "Not started", due: ctDue(c, f.fy) }; });
+  const total = rows.length, done = rows.filter(r => CT_DONE.has(r.st)).length;
+  if(f.show === "pending") rows = rows.filter(r => !CT_DONE.has(r.st)); if(f.show === "done") rows = rows.filter(r => CT_DONE.has(r.st));
+  rows.sort((a, b) => a.due.localeCompare(b.due) || a.c.Title.localeCompare(b.c.Title));
+  const pct = total ? Math.round(done / total * 100) : 0;
+  return `<div class="toolbar">
+    <select class="in" data-bind="tf.fy">${[0,1,2,3,4].map(i => String(y - i)).map(v => `<option value="${v}" ${f.fy === v ? "selected" : ""}>Financial year ${v}</option>`).join("")}</select>
+    <input id="tf-q" class="in search" placeholder="Search client or CT TRN…" value="${esc(f.q)}" data-bind="tf.q">
+    ${isMgr() ? `<select class="in" data-bind="tf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
+    <select class="in" data-bind="tf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>
+  </div>
+  <div class="card"><div class="card-b"><div class="progress-row"><div><b>FY${esc(f.fy)} corporate tax returns</b><div class="small muted">Clients with the <b>Corporate Tax</b> service ticked · default due date can be overridden per return</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} filed (${pct}%)</span></div></div></div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>CT TRN</th><th>Due</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Tax payable</th><th></th></tr></thead><tbody>
+  ${rows.map(r => { const d = daysUntil(r.due); return `<tr>
+    <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
+    <td class="small">${esc(r.c.CTNo) || '<span class="faint">—</span>'}</td>
+    <td class="small nowrap" title="Tax period ends ${fmtDate(f.fy + "-" + (r.c.FYEnd || "12-31"))}">${fmtDate(r.due)}${!CT_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
+    <td>${ctChip(r.st)}</td><td class="small">${esc(empName((r.rec && r.rec.Preparer) || ""))}</td>
+    <td class="small nowrap">${fmtDate(r.rec && r.rec.FiledDate)}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td>
+    <td class="num">${r.rec && r.rec.Amount ? esc(r.rec.Amount) + ` <span class="faint small">${curOf(r.c)}</span>` : ""}</td>
+    <td><button class="btn sm" data-act="editCt" data-c="${r.c.id}" data-fy="${esc(f.fy)}">Update</button></td></tr>`; }).join("")}
+  </tbody></table>${rows.length ? "" : `<div class="empty">No clients with the Corporate Tax service${state.loc ? " in " + esc(state.loc) : ""}. Tick <b>Corporate Tax</b> under Services on the client.</div>`}</div></div>`;
+};
+
 VIEWS.team = () => {
   const cl = data.clients.filter(c => c.Status !== "Deactivated");
   const emps = [...data.employees].sort((a,b) => (a.Active === "No") - (b.Active === "No") || a.Title.localeCompare(b.Title));
   const unassigned = cl.filter(c => !teamOf(c).length).length;
   return `<div class="toolbar"><div class="muted">${activeEmployees().length} active employees · ${unassigned} unassigned client${unassigned===1?"":"s"}</div>
     <div class="right">${isAdmin() ? `<button class="btn pri" data-act="editEmp">${I.plus} Add employee</button>` : ""}</div></div>
-  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Name</th><th>Microsoft login (email)</th><th>Role</th><th>Status</th><th class="num">Clients</th><th class="num">VAT due ≤45d</th><th class="num">VAT overdue</th><th></th></tr></thead><tbody>
+  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Name</th><th>Microsoft login (email)</th><th>Role</th><th>Location</th><th>Status</th><th class="num">Clients</th><th class="num">VAT due ≤45d</th><th class="num">VAT overdue</th><th></th></tr></thead><tbody>
   ${emps.map(e => { const mine = cl.filter(c => teamOf(c).includes(lc(e.Email))); const it = vatItems(mine, 45); return `<tr>
-    <td class="cname">${esc(e.Title)}</td><td class="small">${esc(e.Email)}</td><td>${chip(e.Role === "Admin" ? "purple" : e.Role === "Manager" ? "blue" : "grey", esc(e.Role || "Staff"))}</td>
+    <td class="cname">${esc(e.Title)}</td><td class="small">${esc(e.Email)}</td><td>${chip(e.Role === "Admin" ? "purple" : e.Role === "Manager" ? "blue" : "grey", esc(e.Role || "Staff"))}</td><td class="small">${esc(e.Location || "—")}</td>
     <td>${e.Active === "No" ? chip("red", "Disabled") : chip("green", "Active")}</td><td class="num">${mine.length}</td><td class="num">${it.filter(x => x.d >= 0).length}</td><td class="num ${it.some(x => x.d < 0) ? "over" : ""}">${it.filter(x => x.d < 0).length}</td>
     <td>${isAdmin() ? `<button class="btn sm" data-act="editEmp" data-id="${e.id}">Edit & assign</button>` : ""}</td></tr>`; }).join("")}
   </tbody></table>${emps.length ? "" : `<div class="empty">No employees yet — add your team so you can assign clients.</div>`}</div></div>
-  <div class="card"><div class="card-b small muted"><b>How access works:</b> employees sign in with their Vinpro Microsoft account. The email here must match their Microsoft login exactly. <b>Staff</b> see only clients they are assigned to (as team member or reviewer) and can update VAT, audit and login details for them. <b>Managers</b> see and edit all clients. <b>Admins</b> additionally manage employees, import and export. Set an employee to <i>Disabled</i> when they leave — they lose access immediately.</div></div>`;
+  <div class="card"><div class="card-b small muted"><b>How access works:</b> employees sign in with their Vinpro Microsoft account. The email here must match their Microsoft login exactly. <b>Staff</b> see only clients they are assigned to (as team member or reviewer) and can update VAT, audit and login details for them. <b>Managers</b> see and edit all clients in both Bahrain and UAE. <b>Admins</b> additionally manage employees, import and export. Set an employee to <i>Disabled</i> when they leave — they lose access immediately.</div></div>`;
 };
 
 VIEWS.activity = () => {
@@ -758,7 +844,7 @@ VIEWS.admin = () => {
   const p = state.importPreview;
   return `
   <div class="card"><div class="card-h"><h3>1 · Import client master from Excel</h3></div><div class="card-b">
-    <p class="muted" style="margin-top:0">Upload your <b>Client – Master Data.xlsx</b>. The importer finds the header row ("Client Name"), reads CR No, CR expiry, contact details, and every <i>&lt;Portal&gt; Login</i> / <i>&lt;Portal&gt; Pwd</i> column pair (NBR, LMRA, SIO, Sijilat, Tally, Odoo, …). Rows with CR expiry "Deactivated" are imported as deactivated clients. Existing clients are matched by CR No, then by name.</p>
+    <p class="muted" style="margin-top:0">Upload your <b>Client – Master Data.xlsx</b>. The importer finds the header row ("Client Name"), reads CR / trade licence no, expiry, location, CT TRN, contact details, and every <i>&lt;Portal&gt; Login</i> / <i>&lt;Portal&gt; Pwd</i> column pair (NBR, LMRA, SIO, Sijilat, EmaraTax, MOHRE, Tally, Odoo, …). Rows with CR expiry "Deactivated" are imported as deactivated clients. Existing clients are matched by CR No, then by name.</p>
     <div class="toolbar"><input type="file" id="xlsx" accept=".xlsx,.xls,.csv" class="in"><button class="btn" data-act="parseXlsx">Read file</button></div>
     ${p ? importPreviewHtml(p) : ""}
   </div></div>
@@ -783,7 +869,7 @@ VIEWS.admin = () => {
 };
 function importPreviewHtml(p){
   return `<div class="banner info"><div><b>${p.rows.length} clients found</b> · ${p.rows.filter(r => r.match).length} already exist · ${p.rows.reduce((n, r) => n + r.creds.length, 0)} logins across portals: ${[...new Set(p.rows.flatMap(r => r.creds.map(c => c.Title)))].map(x => `<span class="tag">${esc(x)}</span>`).join("")}</div></div>
-  <div class="toolbar"><label class="small">Existing clients: <select class="in" id="impMode"><option value="skip">Skip (keep what's in the app)</option><option value="update">Update master details & logins from file</option></select></label>
+  <div class="toolbar"><label class="small">Location for rows without one: <select class="in" id="impLoc">${LOCATIONS.map(L => `<option ${(state.loc || DEFAULT_LOC) === L ? "selected" : ""}>${L}</option>`).join("")}</select></label><label class="small">Existing clients: <select class="in" id="impMode"><option value="skip">Skip (keep what's in the app)</option><option value="update">Update master details & logins from file</option></select></label>
     <button class="btn pri" data-act="runImport">Import ${p.rows.length} clients</button><button class="btn ghost" data-act="cancelImport">Cancel</button><span id="impProg" class="small muted"></span></div>
   <div class="tw" style="max-height:360px"><table class="tbl"><thead><tr><th>Client</th><th>CR No</th><th>CR expiry</th><th>Contact</th><th>Logins</th><th>In app?</th></tr></thead><tbody>
   ${p.rows.map(r => `<tr><td class="cname">${esc(r.f.Title)}</td><td>${esc(r.f.CRNo)}</td><td class="small">${r.f.Status === "Deactivated" ? chip("grey", "Deactivated") : fmtDate(r.f.CRExpiry)}</td><td class="small">${esc(r.f.ContactName)} ${esc(r.f.ContactNo)}</td>
@@ -809,11 +895,11 @@ MODALS.client = ({ id }) => {
   const c = clientById(id); if(!c) return "";
   const tab = state.clientTab || "overview"; const cr = crInfo(c);
   const canEdit = isMgr();
-  const tabs = [["overview","Overview"],["logins",`Logins (${data.creds.filter(x => x.ClientId === id).length})`],["vat","VAT returns"],["audit","Audit"],["activity","Activity"]];
+  const tabs = [["overview","Overview"],["logins",`Logins (${data.creds.filter(x => x.ClientId === id).length})`],["vat","VAT returns"],["ct","Corporate tax"],["audit","Audit"],["activity","Activity"]];
   let body = "";
   if(tab === "overview") body = `<div class="kv">
-      ${[["CR No", esc(c.CRNo)], ["CR expiry", chip(cr.cls, cr.txt)], ["Status", esc(c.Status || "Active")], ["Contact person", esc(c.ContactName)], ["Contact no", esc(c.ContactNo)], ["Contact email", esc(c.ContactEmail)],
-        ["VAT account no", esc(c.VATNo)], ["VAT cycle", esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].label : (c.VATCycle || "Not set"))], ["Financial year end", esc(fyEndLabel(c.FYEnd))], ["Services", serviceTags(c) + (otherServiceText(c) ? ` <span class="small muted">Others: ${esc(otherServiceText(c))}</span>` : "")],
+      ${[["Location", locTag(c) + " " + esc(locOf(c) === "UAE" ? "UAE (Dubai)" : "Bahrain")], [locOf(c) === "UAE" ? "Trade licence no" : "CR No", esc(c.CRNo)], ["Expiry", chip(cr.cls, cr.txt)], ["Status", esc(c.Status || "Active")], ["Contact person", esc(c.ContactName)], ["Contact no", esc(c.ContactNo)], ["Contact email", esc(c.ContactEmail)],
+        [locOf(c) === "UAE" ? "VAT TRN" : "VAT account no", esc(c.VATNo)], ["Corporate tax TRN", esc(c.CTNo)], ["VAT cycle", esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].label : (c.VATCycle || "Not set"))], ["Financial year end", esc(fyEndLabel(c.FYEnd))], ["Services", serviceTags(c) + (otherServiceText(c) ? ` <span class="small muted">Others: ${esc(otherServiceText(c))}</span>` : "")],
         ["Reviewer / manager", esc(empName(c.Reviewer))]].map(([k, v]) => `<div><span>${k}</span><b>${v || '<span class="faint">—</span>'}</b></div>`).join("")}
     </div>
     <div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:uppercase;letter-spacing:.3px">Assigned team</div><div style="margin-top:6px">${teamOf(c).length ? avatars(teamOf(c)) : '<span class="faint">Unassigned</span>'}</div></div>
@@ -829,18 +915,23 @@ MODALS.client = ({ id }) => {
     </tbody></table>${cs.length ? "" : `<div class="empty">No logins saved yet.</div>`}</div>`; }
   if(tab === "vat"){ const cur = curYM(); const pes = periodsFor(c, ymAdd(cur, -24), ymAdd(cur, 3)).reverse();
     body = !CYCLES[c.VATCycle] ? `<div class="banner">Set this client's VAT cycle (Edit client) to start tracking returns.</div>` : !CYCLES[c.VATCycle].n ? `<div class="empty">Client is marked as not VAT registered.</div>` :
-    `<div class="tw"><table class="tbl"><thead><tr><th>Period</th><th>Due</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Net VAT (BHD)</th><th>Notes</th><th></th></tr></thead><tbody>
-    ${pes.map(pe => { const r = vatRec(id, pe); const st = (r && r.Status) || "Not started"; const d = daysUntil(dueOf(pe)); return `<tr><td class="nowrap">${periodLabel(c.VATCycle, pe)}</td>
-      <td class="nowrap small">${fmtDate(dueOf(pe))}${!VAT_DONE.has(st) ? `<div class="${d < 0 ? "over" : d <= 10 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td><td>${vatChip(st)}</td>
+    `<div class="tw"><table class="tbl"><thead><tr><th>Period</th><th>Due</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Net VAT (${curOf(c)})</th><th>Notes</th><th></th></tr></thead><tbody>
+    ${pes.map(pe => { const r = vatRec(id, pe); const st = (r && r.Status) || "Not started"; const d = daysUntil(dueOf(pe, c)); return `<tr><td class="nowrap">${periodLabel(c.VATCycle, pe)}</td>
+      <td class="nowrap small">${fmtDate(dueOf(pe, c))}${!VAT_DONE.has(st) ? `<div class="${d < 0 ? "over" : d <= 10 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td><td>${vatChip(st)}</td>
       <td class="small">${esc(empName(r && r.Preparer))}</td><td class="small nowrap">${fmtDate(r && r.FiledDate)}</td><td class="small">${esc(r && r.RefNo)}</td><td class="num">${esc(r && r.Amount)}</td><td class="small muted">${esc(r && r.Notes)}</td>
       <td><button class="btn sm" data-act="editVat" data-c="${id}" data-pe="${pe}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
+  if(tab === "ct"){ const y = new Date().getFullYear(); body = !hasService(c, "Corporate Tax") ? `<div class="empty">Corporate tax is not a service for this client. Tick <b>Corporate Tax</b> under Services in Edit client to track it.</div>` :
+    `<div class="small muted" style="margin-bottom:10px">CT TRN: <b>${esc(c.CTNo) || "not set"}</b> · ${esc(LOC[locOf(c)].ctNote)}</div><div class="tw"><table class="tbl"><thead><tr><th>FY</th><th>Due</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Tax payable (${curOf(c)})</th><th>Notes</th><th></th></tr></thead><tbody>
+    ${[0,1,2,3].map(i => String(y - i)).map(fy => { const r = ctRec(id, fy); const st = (r && r.Status) || "Not started"; const du = ctDue(c, fy); const d = daysUntil(du); return `<tr><td><b>FY${fy}</b></td>
+      <td class="small nowrap">${fmtDate(du)}${!CT_DONE.has(st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td><td>${ctChip(st)}</td><td class="small">${esc(empName(r && r.Preparer))}</td>
+      <td class="small nowrap">${fmtDate(r && r.FiledDate)}</td><td class="small">${esc(r && r.RefNo)}</td><td class="num">${esc(r && r.Amount)}</td><td class="small muted">${esc(r && r.Notes)}</td><td><button class="btn sm" data-act="editCt" data-c="${id}" data-fy="${fy}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
   if(tab === "audit"){ const y = new Date().getFullYear(); body = !hasService(c, "Audit") ? `<div class="empty">Audit is not a service for this client. Tick <b>Audit</b> under Services in Edit client to track it.</div>` :
     `<div class="tw"><table class="tbl"><thead><tr><th>FY</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Due</th><th>Completed</th><th>Notes</th><th></th></tr></thead><tbody>
     ${[0,1,2,3].map(i => String(y - i)).map(fy => { const r = auditRec(id, fy); return `<tr><td><b>FY${fy}</b></td><td class="small">${esc(r && r.Auditor)}</td><td class="small">${esc(empName(r && r.AssignedTo))}</td><td>${auditChip((r && r.Status) || "Not started")}</td>
       <td class="small nowrap">${fmtDate(r && r.DueDate)}</td><td class="small nowrap">${fmtDate(r && r.CompletedDate)}</td><td class="small muted">${esc(r && r.Notes)}</td><td><button class="btn sm" data-act="editAudit" data-c="${id}" data-fy="${fy}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
   if(tab === "activity"){ const acts = data.activity.filter(a => a.ClientId === id).sort((a,b) => b.At.localeCompare(a.At));
     body = acts.length ? `<ul class="feed">${acts.map(feedItem).join("")}</ul>` : `<div class="empty">No activity yet.</div>`; }
-  return `<div class="modal wide">${mHead(esc(c.Title), `${c.Status && c.Status !== "Active" ? chip("grey", esc(c.Status)) : ""}${canEdit ? `<button class="btn sm" style="margin-left:8px" data-act="editClient" data-id="${id}">${I.edit} Edit client</button>` : ""}`)}
+  return `<div class="modal wide">${mHead(locTag(c) + " " + esc(c.Title), `${c.Status && c.Status !== "Active" ? chip("grey", esc(c.Status)) : ""}${canEdit ? `<button class="btn sm" style="margin-left:8px" data-act="editClient" data-id="${id}">${I.edit} Edit client</button>` : ""}`)}
     <div class="tabs">${tabs.map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-act="ctab" data-v="${k}">${l}</button>`).join("")}</div>
     <div class="mb">${body}</div></div>`;
 };
@@ -848,20 +939,22 @@ function fyEndLabel(v){ if(!v) return "31 Dec"; const [m, d] = v.split("-"); ret
 const FYENDS = ["12-31","03-31","06-30","09-30","01-31","02-28","04-30","05-31","07-31","08-31","10-31","11-30"];
 
 MODALS.clientForm = ({ id }) => {
-  const c = id ? clientById(id) : { Status:"Active", FYEnd:"12-31", Services:"" }; const team = teamOf(c);
+  const c = id ? clientById(id) : { Status:"Active", FYEnd:"12-31", Services:"", Location: state.loc || DEFAULT_LOC }; const team = teamOf(c);
   return `<form class="modal" data-form="client" data-id="${id || ""}">${mHead(id ? "Edit client" : "Add client")}
   <div class="mb"><div class="form">
-    <label class="full">Client name *<input class="in" name="Title" required value="${esc(c.Title)}"></label>
-    <label>CR No<input class="in" name="CRNo" value="${esc(c.CRNo)}"></label>
-    <label>CR expiry date<input class="in" type="date" name="CRExpiry" value="${/^\d{4}-\d{2}-\d{2}$/.test(c.CRExpiry || "") ? c.CRExpiry : ""}"></label>
+    <label>Client name *<input class="in" name="Title" required value="${esc(c.Title)}"></label>
+    <label>Location *<select class="in" name="Location">${opt(LOCATIONS, locOf(c), { Bahrain:"Bahrain", UAE:"UAE (Dubai)" })}</select></label>
+    <label>CR / Trade licence no<input class="in" name="CRNo" value="${esc(c.CRNo)}"></label>
+    <label>CR / licence expiry date<input class="in" type="date" name="CRExpiry" value="${/^\d{4}-\d{2}-\d{2}$/.test(c.CRExpiry || "") ? c.CRExpiry : ""}"></label>
     <label>Status<select class="in" name="Status">${opt(["Active","Dormant","Deactivated"], c.Status || "Active")}</select></label>
     <label>Financial year end<select class="in" name="FYEnd">${FYENDS.map(v => `<option value="${v}" ${(c.FYEnd || "12-31") === v ? "selected" : ""}>${fyEndLabel(v)}</option>`).join("")}</select></label>
-    <div class="full lbl">Services provided <span class="hint">Tick every service Vinpro handles for this client. Ticking <b>Audit</b> adds the client to the Audit Tracker.</span><div class="svc">${SERVICES.map(sv => `<label><input type="checkbox" name="Svc" value="${esc(sv)}" ${hasService(c, sv) ? "checked" : ""}> ${esc(sv)}</label>`).join("")}</div>
+    <div class="full lbl">Services provided <span class="hint">Tick every service Vinpro handles for this client. Ticking <b>Corporate Tax</b> or <b>Audit</b> adds the client to that tracker.</span><div class="svc">${SERVICES.map(sv => `<label><input type="checkbox" name="Svc" value="${esc(sv)}" ${hasService(c, sv) ? "checked" : ""}> ${esc(sv)}</label>`).join("")}</div>
       <input class="in" name="OtherSvc" value="${esc(otherServiceText(c))}" placeholder="If Others: specify (e.g. Company formation, PRO services)" style="margin-top:6px;font-weight:400"></div>
     <label>Contact person<input class="in" name="ContactName" value="${esc(c.ContactName)}"></label>
     <label>Contact no<input class="in" name="ContactNo" value="${esc(c.ContactNo)}"></label>
     <label class="full">Contact email<input class="in" type="email" name="ContactEmail" value="${esc(c.ContactEmail)}"></label>
-    <label>VAT account no<input class="in" name="VATNo" value="${esc(c.VATNo)}"></label>
+    <label>VAT account no / TRN<input class="in" name="VATNo" value="${esc(c.VATNo)}"></label>
+    <label>Corporate tax TRN<input class="in" name="CTNo" value="${esc(c.CTNo)}"></label>
     <label>VAT filing cycle<select class="in" name="VATCycle"><option value="">— Not set —</option>${Object.keys(CYCLES).map(k => `<option value="${k}" ${c.VATCycle === k ? "selected" : ""}>${CYCLES[k].label}</option>`).join("")}</select></label>
     <label>Track VAT from<input class="in" type="month" name="VATFrom" value="${esc(c.VATFrom)}"><span class="hint">First period-end month to track (blank = ${ymLabel(CFG.vatTrackingStart)})</span></label>
     <div class="full lbl">Assigned team (can view & update this client)<div class="checks">${activeEmployees().map(e => `<label><input type="checkbox" name="AssignedTo" value="${esc(lc(e.Email))}" ${team.includes(lc(e.Email)) ? "checked" : ""}> ${esc(e.Title)} <span class="faint small">${esc(e.Role)}</span></label>`).join("") || '<span class="faint">Add employees under Team first</span>'}</div></div>
@@ -887,15 +980,32 @@ MODALS.credForm = ({ cid, id }) => {
 MODALS.vatForm = ({ cid, pe }) => {
   const c = clientById(cid); const r = vatRec(cid, pe) || {};
   return `<form class="modal" data-form="vat" data-c="${cid}" data-pe="${pe}">${mHead("VAT return — " + esc(c.Title))}
-  <div class="mb"><div class="banner info" style="margin-bottom:14px">Period <b>${periodLabel(c.VATCycle, pe)}</b> · NBR due date <b>${fmtDate(dueOf(pe))}</b> (${relDays(daysUntil(dueOf(pe)))})</div>
+  <div class="mb"><div class="banner info" style="margin-bottom:14px">${locTag(c)} Period <b>${periodLabel(c.VATCycle, pe)}</b> · ${LOC[locOf(c)].auth} due date <b>${fmtDate(dueOf(pe, c))}</b> (${relDays(daysUntil(dueOf(pe, c)))})</div>
   <div class="form">
     <label class="full">Status<select class="in" name="Status">${opt(VAT_STATUSES, r.Status || "Not started")}</select></label>
     <label>Preparer<select class="in" name="Preparer">${empOpts(r.Preparer || (teamOf(c).includes(lc(me.email)) ? me.email : teamOf(c)[0]))}</select></label>
     <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || c.Reviewer)}</select></label>
     <label>Filed on<input class="in" type="date" name="FiledDate" value="${esc(r.FiledDate)}"></label>
-    <label>NBR acknowledgement / ref no<input class="in" name="RefNo" value="${esc(r.RefNo)}"></label>
-    <label>Net VAT payable / (refundable), BHD<input class="in" name="Amount" value="${esc(r.Amount)}" inputmode="decimal" placeholder="e.g. 1250.500 or -300"></label>
+    <label>${LOC[locOf(c)].auth} acknowledgement / ref no<input class="in" name="RefNo" value="${esc(r.RefNo)}"></label>
+    <label>Net VAT payable / (refundable), ${curOf(c)}<input class="in" name="Amount" value="${esc(r.Amount)}" inputmode="decimal" placeholder="e.g. 1250.50 or -300"></label>
     <label class="full">Notes / work log<textarea class="in" name="Notes" rows="4" placeholder="What's done, what's pending from client…">${esc(r.Notes)}</textarea></label>
+  </div>${r.UpdatedOn ? `<p class="small faint">Last updated by ${esc(empName(r.UpdatedBy))} on ${fmtDT(r.UpdatedOn)}</p>` : ""}</div>
+  <div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
+};
+
+MODALS.ctForm = ({ cid, fy }) => {
+  const c = clientById(cid); const r = ctRec(cid, fy) || {};
+  return `<form class="modal" data-form="ct" data-c="${cid}" data-fy="${esc(fy)}">${mHead(`Corporate tax FY${esc(fy)} — ${esc(c.Title)}`)}
+  <div class="mb"><div class="banner info" style="margin-bottom:14px">${locTag(c)} Tax period ends <b>${fmtDate(fy + "-" + (c.FYEnd || "12-31"))}</b> · CT TRN <b>${esc(c.CTNo) || "not set"}</b><br><span class="small">${esc(LOC[locOf(c)].ctNote)} → default due ${fmtDate(ctDefaultDue(c, fy))}</span></div>
+  <div class="form">
+    <label class="full">Status<select class="in" name="Status">${opt(CT_STATUSES, r.Status || "Not started")}</select></label>
+    <label>Preparer<select class="in" name="Preparer">${empOpts(r.Preparer || (teamOf(c).includes(lc(me.email)) ? me.email : teamOf(c)[0]))}</select></label>
+    <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || c.Reviewer)}</select></label>
+    <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate || ctDefaultDue(c, fy))}"><span class="hint">Change only if the authority set a different date</span></label>
+    <label>Filed on<input class="in" type="date" name="FiledDate" value="${esc(r.FiledDate)}"></label>
+    <label>${LOC[locOf(c)].auth} acknowledgement / ref no<input class="in" name="RefNo" value="${esc(r.RefNo)}"></label>
+    <label>Tax payable / (refundable), ${curOf(c)}<input class="in" name="Amount" value="${esc(r.Amount)}" inputmode="decimal"></label>
+    <label class="full">Notes / work log<textarea class="in" name="Notes" rows="4" placeholder="e.g. Small business relief elected; transfer pricing disclosure pending">${esc(r.Notes)}</textarea></label>
   </div>${r.UpdatedOn ? `<p class="small faint">Last updated by ${esc(empName(r.UpdatedBy))} on ${fmtDT(r.UpdatedOn)}</p>` : ""}</div>
   <div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
@@ -923,12 +1033,14 @@ MODALS.empForm = ({ id }) => {
     <label>Microsoft login email *<input class="in" type="email" name="Email" required value="${esc(e.Email)}" placeholder="name@vinproglobal.com"></label>
     <label>Role<select class="in" name="Role">${opt(ROLES, e.Role || "Staff")}</select></label>
     <label>Access<select class="in" name="Active">${opt(["Yes","No"], e.Active || "Yes", { Yes:"Active", No:"Disabled (no access)" })}</select></label>
-    <div class="full lbl">Assigned clients <span class="hint">Tick the clients this employee works on</span><div class="checks">${cl.map(c => `<label><input type="checkbox" name="clients" value="${c.id}" ${em && teamOf(c).includes(em) ? "checked" : ""}> ${esc(c.Title)}</label>`).join("") || '<span class="faint">No clients yet</span>'}</div></div>
+    <label class="full">Works in<select class="in" name="Location">${opt(["Bahrain","UAE","Both"], e.Location || "Bahrain", { Bahrain:"Bahrain", UAE:"UAE (Dubai)", Both:"Both locations" })}</select><span class="hint">For reporting. Staff still see only the clients ticked below; Admins and Managers see both locations.</span></label>
+    <div class="full lbl">Assigned clients <span class="hint">Tick the clients this employee works on</span><div class="checks">${cl.map(c => `<label><input type="checkbox" name="clients" value="${c.id}" ${em && teamOf(c).includes(em) ? "checked" : ""}> ${locTag(c)} ${esc(c.Title)}</label>`).join("") || '<span class="faint">No clients yet</span>'}</div></div>
   </div></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
 
 MODALS.bulk = () => `<form class="modal" data-form="bulk">${mHead(`Bulk update ${state.cf.sel.size} clients`)}
   <div class="mb"><div class="form">
+    <label class="full">Location<select class="in" name="Location"><option value="">— no change —</option>${LOCATIONS.map(L => `<option>${L}</option>`).join("")}</select></label>
     <label>Add team member<select class="in" name="add">${empOpts("", "— no change —")}</select></label>
     <label>Remove team member<select class="in" name="remove">${empOpts("", "— no change —")}</select></label>
     <label>Reviewer<select class="in" name="Reviewer">${empOpts("", "— no change —")}</select></label>
@@ -951,7 +1063,7 @@ function formObj(form){ const fd = new FormData(form); const o = {}; for(const [
 function buildServices(o){ const picked = [].concat(o.Svc || []); const other = String(o.OtherSvc || "").trim(); return picked.map(s => s === "Others" && other ? "Others: " + other : s).join("; "); }
 SUBMIT.client = async (form, o) => {
   const id = form.dataset.id; const team = [].concat(o.AssignedTo || []);
-  const f = { Title: o.Title.trim(), CRNo: o.CRNo.trim(), CRExpiry: o.CRExpiry, Status: o.Status, ContactName: o.ContactName, ContactNo: o.ContactNo, ContactEmail: o.ContactEmail,
+  const f = { Title: o.Title.trim(), Location: o.Location, CTNo: o.CTNo.trim(), CRNo: o.CRNo.trim(), CRExpiry: o.CRExpiry, Status: o.Status, ContactName: o.ContactName, ContactNo: o.ContactNo, ContactEmail: o.ContactEmail,
     VATNo: o.VATNo, VATCycle: o.VATCycle, VATFrom: o.VATFrom, FYEnd: o.FYEnd, AssignedTo: team.join("; "), Reviewer: o.Reviewer, Services: buildServices(o), Notes: o.Notes };
   const before = id ? { ...clientById(id) } : null;
   const r = await saveRec("clients", id || null, f);
@@ -976,6 +1088,15 @@ SUBMIT.vat = async (form, o) => {
   await logAct("VAT status updated", c, `${periodLabel(c.VATCycle, pe)}: ${prev} → ${o.Status}${o.RefNo ? " · Ref " + o.RefNo : ""}`);
   closeModal(); render(); toast("VAT return updated");
 };
+SUBMIT.ct = async (form, o) => {
+  const cid = form.dataset.c, fy = form.dataset.fy; const c = clientById(cid); const r = ctRec(cid, fy);
+  if(CT_DONE.has(o.Status) && o.Status !== "Not applicable" && !o.FiledDate) o.FiledDate = todayISO();
+  const f = { Title: cid + "|FY" + fy, ClientId: cid, FY: fy, Status: o.Status, Preparer: o.Preparer, Reviewer: o.Reviewer, DueDate: o.DueDate === ctDefaultDue(c, fy) ? "" : o.DueDate, FiledDate: o.FiledDate, RefNo: o.RefNo, Amount: o.Amount, Notes: o.Notes, UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const prev = (r && r.Status) || "Not started";
+  await saveRec("ct", r ? r.id : null, f);
+  await logAct("Corporate tax status updated", c, `FY${fy}: ${prev} → ${o.Status}${o.RefNo ? " · Ref " + o.RefNo : ""}`);
+  closeModal(); render(); toast("Corporate tax return updated");
+};
 SUBMIT.audit = async (form, o) => {
   const cid = form.dataset.c, fy = form.dataset.fy; const c = clientById(cid); const r = auditRec(cid, fy);
   if(AUDIT_DONE.has(o.Status) && o.Status !== "Not applicable" && !o.CompletedDate) o.CompletedDate = todayISO();
@@ -989,7 +1110,7 @@ SUBMIT.emp = async (form, o) => {
   const id = form.dataset.id; const email = lc(o.Email);
   if(data.employees.some(e => lc(e.Email) === email && e.id !== id)) return toast("An employee with this email already exists", true);
   const old = id ? lc(data.employees.find(e => e.id === id).Email) : null;
-  await saveRec("employees", id || null, { Title: o.Title.trim(), Email: email, Role: o.Role, Active: o.Active });
+  await saveRec("employees", id || null, { Title: o.Title.trim(), Email: email, Role: o.Role, Active: o.Active, Location: o.Location });
   const want = new Set([].concat(o.clients || []));
   const changed = [];
   for(const c of data.clients.filter(c => c.Status !== "Deactivated")){
@@ -1006,7 +1127,7 @@ SUBMIT.bulk = async (form, o) => {
   for(const id of ids){ const c = clientById(id); if(!c) continue; const f = {};
     let t = teamOf(c); if(o.add && !t.includes(o.add)) t.push(o.add); if(o.remove) t = t.filter(x => x !== o.remove);
     if(t.join("; ") !== teamOf(c).join("; ")) f.AssignedTo = t.join("; ");
-    ["Reviewer","VATCycle","FYEnd"].forEach(k => { if(o[k]) f[k] = o[k]; });
+    ["Reviewer","VATCycle","FYEnd","Location"].forEach(k => { if(o[k]) f[k] = o[k]; });
     if(o.addSvc || o.removeSvc){ let parts = String(c.Services || "").split(";").map(x => x.trim()).filter(Boolean); if(o.addSvc && !hasService(c, o.addSvc)) parts.push(o.addSvc); if(o.removeSvc) parts = parts.filter(x => !(x === o.removeSvc || (o.removeSvc === "Others" && /^others?\b/i.test(x)))); const nv = parts.join("; "); if(nv !== (c.Services || "")) f.Services = nv; }
     if(Object.keys(f).length) await saveRec("clients", id, f); n++; if(prog) prog.textContent = `Updated ${n} of ${ids.length}…`; }
   await logAct("Bulk update", null, `${ids.length} clients: ` + Object.entries(o).filter(([, v]) => v).map(([k, v]) => `${k}=${empName(v)}`).join(", "));
@@ -1019,6 +1140,9 @@ SUBMIT.bulk = async (form, o) => {
 function normH(h){ return String(h || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
 const MASTER_MAP = { "client name":"Title","client":"Title","company name":"Title","cr no":"CRNo","cr number":"CRNo","cr":"CRNo","cr expiry date":"CRExpiry","cr expiry":"CRExpiry","cr expiry dt":"CRExpiry",
   "client contact name":"ContactName","contact name":"ContactName","contact person":"ContactName","contact no":"ContactNo","contact number":"ContactNo","mobile":"ContactNo","phone":"ContactNo",
+  "trade licence no":"CRNo","trade license no":"CRNo","licence no":"CRNo","license no":"CRNo","trade licence":"CRNo","trade license":"CRNo","cr licence no":"CRNo",
+  "licence expiry":"CRExpiry","license expiry":"CRExpiry","trade licence expiry":"CRExpiry","trade license expiry":"CRExpiry","licence expiry date":"CRExpiry","license expiry date":"CRExpiry",
+  "location":"Location","country":"Location","region":"Location","ct trn":"CTNo","ct no":"CTNo","corporate tax trn":"CTNo","corporate tax no":"CTNo","ct registration no":"CTNo",
   "email":"ContactEmail","contact email":"ContactEmail","vat no":"VATNo","vat number":"VATNo","vat account no":"VATNo","trn":"VATNo","vat trn":"VATNo","notes":"Notes","remarks":"Notes" };
 function cellStr(v){ if(v == null) return ""; if(v instanceof Date) return `${v.getFullYear()}-${pad(v.getMonth()+1)}-${pad(v.getDate())}`; if(typeof v === "number") return Number.isInteger(v) ? String(v) : String(v); return String(v).trim(); }
 function parseWorkbook(buf){
@@ -1034,6 +1158,7 @@ function parseWorkbook(buf){
       if(!r) continue; const title = cellStr(r[map.Title]); if(!title) continue;
       const f = { Status:"Active" }; for(const [k, i] of Object.entries(map)) f[k] = k === "CRExpiry" ? dateCell(r[i]) : cellStr(r[i]);
       if(/deactiv|cancel|struck/i.test(f.CRExpiry || "")){ f.Status = "Deactivated"; f.CRExpiry = ""; }
+      if("Location" in f){ f.Location = /uae|dubai|emirat|abu dhabi|sharjah/i.test(f.Location) ? "UAE" : /bahrain|manama|bh/i.test(f.Location) ? "Bahrain" : ""; }
       const creds = portals.map(p => ({ Title: canonPortal(p.name), Username: cellStr(r[p.ui]), Pwd: p.pi >= 0 ? cellStr(r[p.pi]) : "" })).filter(x => x.Username || x.Pwd)
         .map(x => ({ ...x, PortalURL: PORTAL_URLS[x.Title] || "" }));
       out.push({ f, creds });
@@ -1043,11 +1168,12 @@ function parseWorkbook(buf){
 }
 function dateCell(v){ if(typeof v === "number" && v > 20000 && v < 80000){ const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; }
   const s = cellStr(v); const m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(s); return m ? `${m[3]}-${pad(m[2])}-${pad(m[1])}` : s; }
-function canonPortal(n){ const k = PORTALS.find(p => lc(p) === lc(n)); return k || n.replace(/\b\w/g, ch => ch.toUpperCase()); }
+function canonPortal(n){ const k = PORTALS.find(p => lc(p) === lc(n)) || (PORTAL_ALIASES.find(([re]) => re.test(n)) || [])[1]; return k || n.replace(/\b\w/g, ch => ch.toUpperCase()); }
 function matchClient(f){ return data.clients.find(c => (f.CRNo && lc(c.CRNo) === lc(f.CRNo)) || lc(c.Title) === lc(f.Title)); }
 
 async function runImport(){
-  const p = state.importPreview; if(!p) return; const mode = ($("#impMode") || {}).value || "skip"; const prog = () => $("#impProg");
+  const p = state.importPreview; if(!p) return; const mode = ($("#impMode") || {}).value || "skip"; const impLoc = ($("#impLoc") || {}).value || DEFAULT_LOC; const prog = () => $("#impProg");
+  for(const row of p.rows) if(!row.f.Location) row.f.Location = impLoc;
   let added = 0, updated = 0, skipped = 0, logins = 0, i = 0;
   await withBusy(async () => {
     for(const row of p.rows){
@@ -1072,11 +1198,12 @@ async function exportXlsx(){
   if(!window.XLSX) return toast("Excel library still loading — try again in a moment", true);
   const withPwd = $("#expPwd") && $("#expPwd").checked; const cl = visibleClients(); const name = id => (clientById(id) || {}).Title || "";
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cl.map(c => ({ "Client Name": c.Title, "CR No": c.CRNo, "CR Expiry": c.CRExpiry, Status: c.Status, "Contact Name": c.ContactName, "Contact No": c.ContactNo, "Contact Email": c.ContactEmail,
-    "VAT No": c.VATNo, "VAT Cycle": (CYCLES[c.VATCycle] || {}).label || c.VATCycle, "FY End": fyEndLabel(c.FYEnd), Team: teamOf(c).map(empName).join(", "), Reviewer: empName(c.Reviewer), Services: c.Services, Notes: c.Notes }))), "Clients");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cl.map(c => ({ "Client Name": c.Title, Location: locOf(c), "CR / Licence No": c.CRNo, "CR / Licence Expiry": c.CRExpiry, Status: c.Status, "Contact Name": c.ContactName, "Contact No": c.ContactNo, "Contact Email": c.ContactEmail,
+    "VAT No / TRN": c.VATNo, "CT TRN": c.CTNo, "VAT Cycle": (CYCLES[c.VATCycle] || {}).label || c.VATCycle, "FY End": fyEndLabel(c.FYEnd), Team: teamOf(c).map(empName).join(", "), Reviewer: empName(c.Reviewer), Services: c.Services, Notes: c.Notes }))), "Clients");
   const ids = new Set(cl.map(c => c.id));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.creds.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), Portal: x.Title, Username: x.Username, Password: withPwd ? x.Pwd : (x.Pwd ? "(hidden)" : ""), URL: x.PortalURL, Notes: x.Notes }))), "Logins");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.vat.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Period: periodLabel(c.VATCycle, x.PeriodEnd), "Due Date": dueOf(x.PeriodEnd), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Net VAT (BHD)": x.Amount, Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "VAT Returns");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.vat.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Period: periodLabel(c.VATCycle, x.PeriodEnd), Location: locOf(c), "Due Date": dueOf(x.PeriodEnd, c), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Net VAT": x.Amount, Currency: curOf(c), Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "VAT Returns");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.ct.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Location: locOf(c), "CT TRN": c.CTNo, FY: x.FY, "Due Date": ctDue(c, x.FY), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Tax Payable": x.Amount, Currency: curOf(c), Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "Corporate Tax");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.audits.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), FY: x.FY, Status: x.Status, Auditor: x.Auditor, "Assigned To": empName(x.AssignedTo), "Due Date": x.DueDate, "Completed On": x.CompletedDate, Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }))), "Audits");
   XLSX.writeFile(wb, `Vinpro-ClientDesk-Export-${todayISO()}.xlsx`);
   await logAct(withPwd ? "Export with passwords" : "Export", null, `${cl.length} clients`);
@@ -1098,6 +1225,8 @@ const ACT = {
   editCred: d => openModal("credForm", { cid: d.c, id: d.id }),
   editVat: d => { const c = clientById(d.c); if(!c || !canSee(c)) return; openModal("vatForm", { cid: d.c, pe: d.pe }); },
   editAudit: d => openModal("auditForm", { cid: d.c, fy: d.fy }),
+  editCt: d => { const c = clientById(d.c); if(!c || !canSee(c)) return; openModal("ctForm", { cid: d.c, fy: d.fy }); },
+  setloc: d => { state.loc = d.v || ""; try { localStorage.setItem("vinpro-loc", state.loc); } catch(e){} state.cf.sel.clear(); render(); },
   editEmp: d => openModal("empForm", { id: d.id }),
   bulk: () => openModal("bulk"),
   sel: (d, e) => { e.stopPropagation(); const s = state.cf.sel; s.has(d.id) ? s.delete(d.id) : s.add(d.id); render(); },
@@ -1117,7 +1246,7 @@ const ACT = {
   runImport: () => runImport(),
   export: () => exportXlsx(),
   closeOff: () => { const upto = $("#closeUpto").value; const items = [];
-    for(const c of data.clients.filter(c => c.Status !== "Deactivated")) for(const pe of periodsFor(c, ymAdd(curYM(), -36), curYM())) if(dueOf(pe).slice(0, 7) <= upto && !VAT_DONE.has(vatStatus(c.id, pe))) items.push([c, pe]);
+    for(const c of data.clients.filter(c => c.Status !== "Deactivated")) for(const pe of periodsFor(c, ymAdd(curYM(), -36), curYM())) if(dueOf(pe, c).slice(0, 7) <= upto && !VAT_DONE.has(vatStatus(c.id, pe))) items.push([c, pe]);
     if(!items.length) return toast("Nothing to close off — all periods up to that month already have a completed status");
     openModal("confirm", { text: `Mark <b>${items.length}</b> VAT return${items.length > 1 ? "s" : ""} (due up to ${ymLabel(upto)}) across ${new Set(items.map(x => x[0].id)).size} clients as <b>Filed</b>?`, onYes: async () => {
       for(const [c, pe] of items){ const r = vatRec(c.id, pe); await saveRec("vat", r ? r.id : null, { Title: c.id + "|" + pe, ClientId: c.id, PeriodEnd: pe, Status: "Filed", Notes: ((r && r.Notes) ? r.Notes + "\n" : "") + "Marked as filed at go-live", UpdatedBy: me.email, UpdatedOn: nowISO() }); }
@@ -1150,7 +1279,7 @@ document.addEventListener("keydown", e => { if(e.key === "Escape" && state.modal
    ============================================================ */
 function loginScreen(msg){
   $("#app").innerHTML = `<div class="center-screen"><div class="login"><div class="logo">${I.logo}</div>
-    <h1>${esc(CFG.appName)}</h1><p>${esc(CFG.companyName)}<br><span class="small">Client master · Portal logins · VAT & audit tracker</span></p>
+    <h1>${esc(CFG.appName)}</h1><p>${esc(CFG.companyName)}<br><span class="small">Bahrain & UAE · Client master · Portal logins · VAT, corporate tax & audit tracker</span></p>
     <button class="ms-btn" id="msLogin">${I.ms} Sign in with Microsoft</button>
     ${msg ? `<div class="banner bad" style="margin-top:16px;text-align:left">${esc(msg)}</div>` : ""}
     <p class="small faint" style="margin:18px 0 0">Use your Vinpro Microsoft 365 work account.</p></div></div>`;
@@ -1179,11 +1308,16 @@ async function start(){
   $("#app").innerHTML = `<div class="center-screen"><div><div class="spin"></div><div class="muted">Connecting to SharePoint…</div></div></div>`;
   try {
     store = new GraphStore(msalApp, account); await store.init();
+    if(store.missing.length && store.missing.length < Object.keys(SCHEMA).length && (CFG.adminEmails || []).map(lc).includes(me.email)){
+      $("#app").innerHTML = `<div class="center-screen"><div><div class="spin"></div><div class="muted">Upgrading SharePoint lists…</div></div></div>`;
+      await store.provision();
+    }
     if(store.missing.length){
       if(!(CFG.adminEmails || []).map(lc).includes(me.email)) return errorScreen("Not set up yet", "The Client Desk lists haven't been created on SharePoint yet. Ask the administrator to sign in once to complete setup.");
       $("#app").innerHTML = `<div class="center-screen"><div class="login"><div class="logo">${I.logo}</div><h1>First-time setup</h1><p>Create the ${store.missing.length} SharePoint lists the Client Desk needs on<br><b>${esc(store.siteUrl)}</b>?</p><button class="btn pri" id="prov">Create lists</button><p class="small muted" id="provMsg"></p></div></div>`;
       await new Promise(resolve => { $("#prov").onclick = async () => { $("#prov").disabled = true; try { await store.provision(n => $("#provMsg").textContent = "Creating " + n + "…"); resolve(); } catch(e){ errorScreen("Setup failed", e.message); } }; });
     }
+    try { await store.ensureColumns(); } catch(e){ console.warn("Column check failed", e); }
     data = await store.loadAll();
     me.role = roleOf(me.email);
     if(me.role === "Admin" && !data.employees.some(e => lc(e.Email) === me.email)){
