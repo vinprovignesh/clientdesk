@@ -5,11 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vinpro Client Desk</title>
 <meta name="description" content="Client master, portal logins, VAT and audit tracker for Vinpro Global Services WLL, Bahrain">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f4c81'/%3E%3Cpath d='M16 18l16 30 16-30' stroke='white' stroke-width='7' fill='none' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="https://vinproglobal.com/favicon.png">
+<link rel="apple-touch-icon" href="https://vinproglobal.com/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Work+Sans:wght@400;500;600;700&display=swap">
 <style>
 :root{
-  --bg:#f3f5f9; --panel:#ffffff; --panel-2:#f8fafc; --ink:#152033; --muted:#5b6880; --faint:#8c97ab; --line:#e1e6ee; --line-2:#eef1f6;
-  --brand:#0f4c81; --brand-ink:#ffffff; --brand-soft:#e6eef7; --accent:#1f7a8c;
+  --bg:#f6f7f4; --panel:#ffffff; --panel-2:#f7f8f6; --ink:#0a1a3d; --muted:#4f5b73; --faint:#8a93a3; --line:#e2e5e9; --line-2:#eef0f2;
+  --brand:#050c42; --brand-ink:#ffffff; --brand-soft:#e0f2f0; --accent:#009e95; --accent-ink:#00756e; --paper:#fcfcf9; --navy:#050c42; --teal:#009e95;
   --ok:#17804a; --ok-bg:#e5f5ec; --warn:#a15c00; --warn-bg:#fdf1de; --bad:#b83227; --bad-bg:#fbe7e5;
   --info:#2359a8; --info-bg:#e6effb; --pur:#6a3fb5; --pur-bg:#efe8fa; --grey:#56637a; --grey-bg:#edf0f5;
   --shadow:0 1px 2px rgba(16,24,40,.06),0 4px 16px rgba(16,24,40,.06);
@@ -17,35 +20,38 @@
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0f141c; --panel:#171e29; --panel-2:#1c2431; --ink:#e7ecf3; --muted:#a3aec0; --faint:#77839a; --line:#2a3444; --line-2:#222b39;
-    --brand:#4f93d6; --brand-ink:#0b1320; --brand-soft:#1d2d42; --accent:#4fb3c4;
+    --bg:#080d26; --panel:#0f1636; --panel-2:#141c42; --ink:#e8ecf5; --muted:#a4acc4; --faint:#717a98; --line:#252e58; --line-2:#1b2349;
+    --brand:#2fbfb4; --brand-ink:#04121a; --brand-soft:#11393c; --accent:#2fbfb4; --accent-ink:#62d6cd;
     --ok:#5cc98f; --ok-bg:#15301f; --warn:#e6a64a; --warn-bg:#35270f; --bad:#f07a6e; --bad-bg:#3a1a17;
     --info:#7fb0f0; --info-bg:#172a45; --pur:#b69af0; --pur-bg:#2a2042; --grey:#aab4c5; --grey-bg:#252e3c;
     --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25); color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0f141c; --panel:#171e29; --panel-2:#1c2431; --ink:#e7ecf3; --muted:#a3aec0; --faint:#77839a; --line:#2a3444; --line-2:#222b39;
-  --brand:#4f93d6; --brand-ink:#0b1320; --brand-soft:#1d2d42; --accent:#4fb3c4;
+  --bg:#080d26; --panel:#0f1636; --panel-2:#141c42; --ink:#e8ecf5; --muted:#a4acc4; --faint:#717a98; --line:#252e58; --line-2:#1b2349;
+  --brand:#2fbfb4; --brand-ink:#04121a; --brand-soft:#11393c; --accent:#2fbfb4; --accent-ink:#62d6cd;
   --ok:#5cc98f; --ok-bg:#15301f; --warn:#e6a64a; --warn-bg:#35270f; --bad:#f07a6e; --bad-bg:#3a1a17;
   --info:#7fb0f0; --info-bg:#172a45; --pur:#b69af0; --pur-bg:#2a2042; --grey:#aab4c5; --grey-bg:#252e3c;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25); color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 "Work Sans","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.serif{font-family:"Instrument Serif","Times New Roman",Georgia,serif;font-weight:400}
 button,input,select,textarea{font:inherit;color:inherit}
-a{color:var(--brand)}
+a{color:var(--accent-ink)}
 .shell{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
 .side{background:var(--panel);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
-.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
-.logo{width:34px;height:34px;border-radius:9px;background:var(--brand);display:grid;place-items:center;flex:none}
-.logo svg{width:20px;height:20px}
-.brand b{display:block;font-size:14px;letter-spacing:.2px}
-.brand small{color:var(--muted);font-size:11.5px}
+.brand{display:flex;flex-direction:column;gap:8px;padding:2px 8px 18px;margin-bottom:6px;border-bottom:1px solid var(--line-2)}
+.brand-logo{height:40px;width:auto;display:block}
+.logo-chip{display:inline-flex;align-self:flex-start;border-radius:8px}
+.brand b{display:block;font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:22px;line-height:1.1;letter-spacing:.1px}
+.brand small{color:var(--accent-ink);font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.wordmark{display:inline-flex;align-items:baseline;font-family:"Work Sans",sans-serif;font-weight:700;font-size:24px;letter-spacing:.06em;color:var(--navy)}
+.wordmark i{font-style:normal;color:var(--teal)}
 .nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--muted);cursor:pointer;border:0;background:none;text-align:left;width:100%;font-weight:500}
 .nav:hover{background:var(--panel-2);color:var(--ink)}
-.nav.on{background:var(--brand-soft);color:var(--brand)}
+.nav.on{background:var(--brand-soft);color:var(--accent-ink);font-weight:600}
 .nav svg{width:18px;height:18px;flex:none}
 .nav .count{margin-left:auto;background:var(--bad);color:#fff;border-radius:10px;font-size:11px;padding:0 7px;line-height:18px}
 .side .spacer{flex:1}
@@ -53,7 +59,7 @@ a{color:var(--brand)}
 .side .me b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .main{min-width:0;display:flex;flex-direction:column}
 .top{display:flex;align-items:center;gap:12px;padding:14px 28px;border-bottom:1px solid var(--line);background:var(--panel)}
-.top h1{font-size:18px;margin:0;font-weight:650}
+.top h1{font-family:"Instrument Serif",Georgia,serif;font-size:27px;line-height:1.1;margin:0;font-weight:400;letter-spacing:.1px}
 .top .sub{color:var(--muted);font-size:12.5px}
 .top .right{margin-left:auto;display:flex;gap:8px;align-items:center}
 .content{padding:22px 28px 60px;max-width:1500px;width:100%}
@@ -87,7 +93,7 @@ a{color:var(--brand)}
 .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .toolbar .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
 .in, select.in, textarea.in{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 10px;min-width:0}
-.in:focus{outline:2px solid var(--brand-soft);border-color:var(--brand)}
+.in:focus{outline:2px solid var(--brand-soft);border-color:var(--accent)}
 .search{min-width:240px}
 .tw{overflow:auto;border-radius:var(--radius)}
 table.tbl{width:100%;border-collapse:collapse;font-size:13px}
@@ -95,6 +101,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .tbl td{padding:9px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
 .tbl tr.click{cursor:pointer}
 .tbl tr.click:hover td{background:var(--panel-2)}
+.tbl.hwrap th{white-space:normal;vertical-align:bottom;line-height:1.3}
 .tbl .num{text-align:right;font-variant-numeric:tabular-nums}
 .tbl .nowrap{white-space:nowrap}
 .cname{font-weight:600}
@@ -176,14 +183,47 @@ tr.click-row:hover td{background:var(--panel-2)}
 .toast.err{background:var(--bad);color:#fff}
 .center-screen{min-height:100vh;display:grid;place-items:center;padding:16px}
 .login{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:34px;max-width:420px;width:100%;text-align:center}
-.login .logo{width:52px;height:52px;margin:0 auto 14px;border-radius:13px}
-.login .logo svg{width:30px;height:30px}
-.login h1{font-size:21px;margin:0 0 4px}
+.login .brand-logo{height:56px;margin:0 auto 16px}
+.login h1{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:30px;margin:0 0 6px}
 .login p{color:var(--muted);margin:0 0 22px}
 .ms-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer;font-weight:600;font-size:14.5px}
 .ms-btn:hover{border-color:var(--faint)}
-.spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:sp 0.8s linear infinite;margin:0 auto 12px}
+.spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 0.8s linear infinite;margin:0 auto 12px}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* ---------- branded sign-in & loading (styled after vinproglobal.com) ---------- */
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.32em;text-transform:uppercase;color:var(--teal)}
+.auth{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);background:var(--paper)}
+.auth-hero{background:var(--navy);color:#eef1f8;padding:56px 64px;display:flex;flex-direction:column;justify-content:space-between;gap:40px;position:relative;overflow:hidden}
+.auth-hero::after{content:"";position:absolute;right:-120px;bottom:-120px;width:420px;height:420px;border-radius:50%;border:1px solid rgba(0,158,149,.35);box-shadow:0 0 0 60px rgba(0,158,149,.05),0 0 0 140px rgba(0,158,149,.035)}
+.auth-hero h1{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:clamp(44px,5.4vw,72px);line-height:1.02;margin:18px 0 18px;letter-spacing:-.01em;color:#fcfcf9;text-wrap:balance}
+.auth-hero h1 em{font-style:italic;color:#9fdcd6}
+.auth-hero p{font-size:16px;line-height:1.6;color:#c9cfe0;max-width:46ch;margin:0}
+.auth-list{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:10px;font-size:14px;color:#dfe4f0}
+.auth-list li{display:flex;gap:10px;align-items:center}
+.auth-list li::before{content:"";width:16px;height:9px;border-left:2px solid var(--teal);border-bottom:2px solid var(--teal);transform:rotate(-45deg) translateY(-3px);flex:none}
+.auth-foot{font-size:12.5px;color:#9aa3bf;position:relative;z-index:1}
+.auth-foot a{color:#9fdcd6;text-decoration:none}
+.auth-panel{display:grid;place-items:center;padding:40px 24px;background:var(--paper)}
+.auth-card{width:100%;max-width:380px}
+.auth-card .brand-logo{height:64px;margin-bottom:34px}
+.auth-card h2{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:36px;line-height:1.1;margin:10px 0 8px;color:#0a1a3d}
+.auth-card p{color:#4f5b73;margin:0 0 28px;line-height:1.55}
+.ms-btn.navy{background:var(--navy);color:#fcfcf9;border-color:var(--navy);padding:13px;font-size:15px;border-radius:10px}
+.ms-btn.navy:hover{filter:brightness(1.25)}
+.ms-btn.navy .ms-ic{background:#fff;border-radius:4px;padding:3px;display:grid;place-items:center}
+.auth-note{font-size:12.5px;color:#8a93a3;margin-top:18px}
+.auth-card .banner{text-align:left;margin-top:16px}
+.boot{min-height:100vh;display:grid;place-items:center;background:var(--paper);padding:16px;text-align:center}
+.boot .brand-logo{height:64px;margin:0 auto 26px;animation:breathe 1.8s ease-in-out infinite}
+.boot-bar{width:180px;height:3px;border-radius:3px;background:rgba(5,12,66,.08);overflow:hidden;margin:0 auto 14px}
+.boot-bar i{display:block;width:40%;height:100%;background:var(--teal);border-radius:3px;animation:slide 1.2s ease-in-out infinite}
+.boot-msg{font-size:13px;color:#4f5b73;letter-spacing:.02em}
+@keyframes breathe{50%{opacity:.72}}
+@keyframes slide{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
+@media (prefers-reduced-motion: reduce){.boot .brand-logo,.boot-bar i{animation:none}}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .side .logo-chip{background:#fcfcf9;padding:6px 8px}}
+:root[data-theme="dark"] .side .logo-chip{background:#fcfcf9;padding:6px 8px}
+@media (max-width:860px){.auth{grid-template-columns:1fr}.auth-hero{padding:36px 24px}.auth-hero::after{display:none}.auth-list{display:none}.auth-panel{padding:36px 20px 48px}}
 .busy{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--brand),var(--accent));z-index:100;animation:bz 1s ease-in-out infinite alternate}
 @keyframes bz{from{opacity:.4}to{opacity:1}}
 .steps{display:flex;gap:3px}
@@ -210,7 +250,7 @@ tr.click-row:hover td{background:var(--panel-2)}
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
 </head>
 <body>
-<div id="app"><div class="center-screen"><div><div class="spin"></div><div class="muted">Loading Client Desk…</div></div></div></div>
+<div id="app"><div class="boot"><div><img class="brand-logo" src="https://vinproglobal.com/favicon.png" alt="Vinpro Global" onerror="this.style.display='none'"><div class="boot-bar"><i></i></div><div class="boot-msg">Loading Client Desk…</div></div></div></div>
 <div id="modals"></div>
 <div id="toast"></div>
 <script>
@@ -284,6 +324,10 @@ const AUDIT_COLOR = {"Not started":"grey","Engagement / Planning":"amber","Field
    HELPERS
    ============================================================ */
 const $ = s => document.querySelector(s);
+const LOGO_URL = CFG.logoUrl || "https://vinproglobal.com/favicon.png";
+function logoImg(){ return `<img class="brand-logo" src="${LOGO_URL}" alt="Vinpro Global" onerror="logoFail(this)">`; }
+function logoFail(img){ const s = document.createElement("span"); s.className = "wordmark"; s.innerHTML = "<i>V</i>INPRO"; img.replaceWith(s); }
+function bootScreen(msg){ $("#app").innerHTML = `<div class="boot"><div>${logoImg()}<div class="boot-bar"><i></i></div><div class="boot-msg">${esc(msg)}</div></div></div>`; }
 const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pad = n => String(n).padStart(2, "0");
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
@@ -615,7 +659,7 @@ function render(){
   app.innerHTML = `
   <div class="shell">
     <aside class="side">
-      <div class="brand"><div class="logo">${I.logo}</div><div><b>${esc(CFG.appName)}</b><small>${esc(CFG.companyName)}</small></div></div>
+      <div class="brand"><span class="logo-chip">${logoImg()}</span><div><b>${esc(CFG.appName)}</b><small>Bahrain · UAE</small></div></div>
       ${NAV.filter(n => !n[3] || n[3]()).map(([k, label, icon]) => `<button class="nav ${state.view === k ? "on" : ""}" data-act="nav" data-v="${k}">${I[icon]}<span>${label}</span>${k === "vat" && overdue ? `<span class="count" title="Overdue returns">${overdue}</span>` : ""}</button>`).join("")}
       <div class="spacer"></div>
       <div class="me"><b>${esc(me.name)}</b><span class="muted">${esc(me.role)}</span> · <span class="faint small">${esc(me.email)}</span></div>
@@ -641,7 +685,7 @@ function demoBar(){
     <button class="btn sm" data-act="demoreset">Reset demo data</button></div>`;
 }
 function noAccessScreen(){
-  return `<div class="center-screen"><div class="login"><div class="logo">${I.logo}</div><h1>Access pending</h1>
+  return `<div class="center-screen"><div class="login">${logoImg()}<h1>Access pending</h1>
     <p>You're signed in as <b>${esc(me.email)}</b>, but you haven't been added to ${esc(CFG.appName)} yet.<br><br>Ask an Admin to add you under <b>Team</b>.</p>
     ${DEMO ? "" : `<button class="btn" data-act="signout">${I.logout} Sign out</button>`}</div></div>`;
 }
@@ -712,7 +756,7 @@ function locationCard(all){
     const crA = act.filter(c => { const d = crInfo(c).d; return d != null && d <= 30; }).length;
     return { L, n: act.length, vat, ct, mw, audP, aud: aud.length, crA }; });
   return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>By location</h3><div class="right small muted">Pending items · click a row to switch to that location</div></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT due · ${ymLabel(cur)}</th><th class="num">CT due · ${yr}</th><th class="num">Accounting & consulting due · ${ymLabel(cur)}</th><th class="num">Audits pending · FY${esc(fy)}</th><th class="num">CR / licence expiring ≤30d</th></tr></thead><tbody>
+  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT due · ${ymLabel(cur)}</th><th class="num">CT due · ${yr}</th><th class="num">Accounting &amp; consulting · ${ymLabel(cur)}</th><th class="num">Audits pending · FY${esc(fy)}</th><th class="num">CR / licence expiring ≤30d</th></tr></thead><tbody>
   ${rows.map(r => `<tr class="click-row" data-act="setloc" data-v="${r.L}"><td class="cname">${r.L === "UAE" ? "UAE (Dubai)" : "Bahrain"}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.ct}</td><td class="num">${r.mw}</td><td class="num">${r.audP} <span class="faint">/ ${r.aud}</span></td><td class="num">${r.crA}</td></tr>`).join("")}
   </tbody></table></div></div>`;
 }
@@ -1613,11 +1657,22 @@ document.addEventListener("keydown", e => { if(e.key === "Escape" && state.modal
    BOOT
    ============================================================ */
 function loginScreen(msg){
-  $("#app").innerHTML = `<div class="center-screen"><div class="login"><div class="logo">${I.logo}</div>
-    <h1>${esc(CFG.appName)}</h1><p>${esc(CFG.companyName)}<br><span class="small">Bahrain & UAE · Client master · Portal logins · VAT, corporate tax & audit tracker</span></p>
-    <button class="ms-btn" id="msLogin">${I.ms} Sign in with Microsoft</button>
-    ${msg ? `<div class="banner bad" style="margin-top:16px;text-align:left">${esc(msg)}</div>` : ""}
-    <p class="small faint" style="margin:18px 0 0">Use your Vinpro Microsoft 365 work account.</p></div></div>`;
+  $("#app").innerHTML = `<div class="auth">
+    <section class="auth-hero"><div style="position:relative;z-index:1">
+      <div class="eyebrow">Vinpro Global — Est. 2014</div>
+      <h1>Client Desk<br><em>for Bahrain &amp; UAE.</em></h1>
+      <p>One place for the client master, portal logins and every compliance deadline your team tracks.</p>
+      <ul class="auth-list"><li>VAT returns — NBR &amp; FTA</li><li>Corporate tax &amp; DMTT</li><li>Accounting &amp; consulting</li><li>Statutory audits &amp; CR / licence renewals</li></ul>
+    </div><div class="auth-foot">Internal tool of <a href="https://vinproglobal.com" target="_blank" rel="noopener">vinproglobal.com</a> · Global Advisory Partner</div></section>
+    <section class="auth-panel"><div class="auth-card">
+      ${logoImg()}
+      <div class="eyebrow">Staff sign-in</div>
+      <h2>Welcome back.</h2>
+      <p>Sign in with your Vinpro Microsoft 365 work account to open the Client Desk.</p>
+      <button class="ms-btn navy" id="msLogin"><span class="ms-ic">${I.ms}</span> Sign in with Microsoft</button>
+      ${msg ? `<div class="banner bad">${esc(msg)}</div>` : ""}
+      <div class="auth-note">Access is limited to Vinpro employees added to the Client Desk team.</div>
+    </div></section></div>`;
   $("#msLogin").onclick = () => msalApp.loginRedirect({ scopes: SCOPES, prompt: "select_account" });
 }
 function errorScreen(title, msg){
@@ -1640,16 +1695,16 @@ async function start(){
   msalApp.setActiveAccount(account);
   if(CFG.tenantId && account.tenantId && lc(account.tenantId) !== lc(CFG.tenantId)) return loginScreen("This account is not part of the Vinpro Microsoft 365 organisation.");
   me = { email: lc(account.username), name: account.name || account.username, role: null };
-  $("#app").innerHTML = `<div class="center-screen"><div><div class="spin"></div><div class="muted">Connecting to SharePoint…</div></div></div>`;
+  bootScreen("Connecting to the Client Desk…");
   try {
     store = new GraphStore(msalApp, account); await store.init();
     if(store.missing.length && store.missing.length < Object.keys(SCHEMA).length && (CFG.adminEmails || []).map(lc).includes(me.email)){
-      $("#app").innerHTML = `<div class="center-screen"><div><div class="spin"></div><div class="muted">Upgrading SharePoint lists…</div></div></div>`;
+      bootScreen("Updating the Client Desk…");
       await store.provision();
     }
     if(store.missing.length){
       if(!(CFG.adminEmails || []).map(lc).includes(me.email)) return errorScreen("Not set up yet", "The Client Desk lists haven't been created on SharePoint yet. Ask the administrator to sign in once to complete setup.");
-      $("#app").innerHTML = `<div class="center-screen"><div class="login"><div class="logo">${I.logo}</div><h1>First-time setup</h1><p>Create the ${store.missing.length} SharePoint lists the Client Desk needs on<br><b>${esc(store.siteUrl)}</b>?</p><button class="btn pri" id="prov">Create lists</button><p class="small muted" id="provMsg"></p></div></div>`;
+      $("#app").innerHTML = `<div class="center-screen"><div class="login">${logoImg()}<h1>First-time setup</h1><p>Create the ${store.missing.length} SharePoint lists the Client Desk needs on<br><b>${esc(store.siteUrl)}</b>?</p><button class="btn pri" id="prov">Create lists</button><p class="small muted" id="provMsg"></p></div></div>`;
       await new Promise(resolve => { $("#prov").onclick = async () => { $("#prov").disabled = true; try { await store.provision(n => $("#provMsg").textContent = "Creating " + n + "…"); resolve(); } catch(e){ errorScreen("Setup failed", e.message); } }; });
     }
     try { await store.ensureColumns(); } catch(e){ console.warn("Column check failed", e); }
