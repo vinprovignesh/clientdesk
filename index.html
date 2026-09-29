@@ -75,7 +75,7 @@ a{color:var(--accent-ink)}
 .btn.ghost:hover{background:var(--panel-2)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .btn svg{width:15px;height:15px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:20px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:14px;margin-bottom:20px}
 .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;text-align:left}
 .kpi .l{color:var(--muted);font-size:12.5px;font-weight:550}
 .kpi .v{font-size:28px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
@@ -651,7 +651,6 @@ function render(){
   const app = $("#app");
   if(!me.role){ app.innerHTML = noAccessScreen(); return; }
   const ae = document.activeElement; const fid = ae && ae.id && app.contains(ae) ? ae.id : null; const pos = fid && ae.selectionStart;
-  const overdue = vatItems(visibleClients(), 0).filter(x => x.d < 0).length;
   const locName = state.loc || "Bahrain & UAE";
   const sub = { dashboard: (isMgr() ? "All clients" : "Your assigned clients") + " · " + locName, mw: `Monthly or annual per client · monthly accounting due day ${ACCT_DUE_DAY} of the next month · annual accounting ${ANNUAL_ACCT_MONTHS} months after year end`, ct: "Corporate tax returns by financial year · UAE (FTA): 9 months after year end · Bahrain (DMTT): 15 months", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
     vat: "Due date: Bahrain (NBR) last day of the following month · UAE (FTA) 28th of the following month", audit: "Statutory audit progress by financial year",
@@ -660,7 +659,7 @@ function render(){
   <div class="shell">
     <aside class="side">
       <div class="brand"><span class="logo-chip">${logoImg()}</span><div><b>${esc(CFG.appName)}</b><small>Bahrain · UAE</small></div></div>
-      ${NAV.filter(n => !n[3] || n[3]()).map(([k, label, icon]) => `<button class="nav ${state.view === k ? "on" : ""}" data-act="nav" data-v="${k}">${I[icon]}<span>${label}</span>${k === "vat" && overdue ? `<span class="count" title="Overdue returns">${overdue}</span>` : ""}</button>`).join("")}
+      ${NAV.filter(n => !n[3] || n[3]()).map(([k, label, icon]) => `<button class="nav ${state.view === k ? "on" : ""}" data-act="nav" data-v="${k}">${I[icon]}<span>${label}</span></button>`).join("")}
       <div class="spacer"></div>
       <div class="me"><b>${esc(me.name)}</b><span class="muted">${esc(me.role)}</span> · <span class="faint small">${esc(me.email)}</span></div>
     </aside>
@@ -695,50 +694,74 @@ function noAccessScreen(){
    ============================================================ */
 const VIEWS = {};
 
+/* ---------- period windows for the dashboard ---------- */
+function qWin(){ const cur = curYM(); const m = +cur.slice(5); const qs = Math.floor((m - 1) / 3) * 3 + 1; const y = cur.slice(0, 4);
+  const from = `${y}-${pad(qs)}`, to = `${y}-${pad(qs + 2)}`; return { from, to, label: `${MONTHS[qs-1]}–${MONTHS[qs+1]} ${y}` }; }
+function inWin(date, fromYm, toYm){ const ym = String(date || "").slice(0, 7); return ym >= fromYm && ym <= toYm; }
+function vatDueIn(clients, fromYm, toYm){ const out = []; const cur = curYM();
+  for(const c of clients){ if(isDeact(c)) continue; for(const pe of periodsFor(c, ymAdd(cur, -24), ymAdd(cur, 6))){ const due = dueOf(pe, c); if(!inWin(due, fromYm, toYm)) continue;
+    const st = vatStatus(c.id, pe); out.push({ c, pe, due, st, done: VAT_DONE.has(st), rec: vatRec(c.id, pe) }); } }
+  return out.sort((a, b) => a.due.localeCompare(b.due)); }
+function mwDueIn(clients, ym){ const out = []; const cur = curYM();
+  for(const c of clients){ if(isDeact(c)) continue; for(const svc of MW_SERVICES){ if(!hasService(c, svc)) continue;
+    for(const p of mwPeriods(c, svc, ymAdd(cur, -15), ymAdd(cur, 1))){ const due = mwDue(c, svc, p.ym, p.freq); if(due.slice(0, 7) !== ym) continue;
+      const st = mwStatus(c.id, svc, p.ym, p.freq); out.push({ c, svc, ym: p.ym, freq: p.freq, due, st, done: MW_DONE.has(st) }); } } }
+  return out.sort((a, b) => a.due.localeCompare(b.due)); }
+function ctDueIn(clients, year){ const out = []; const y = +year;
+  for(const c of ctClients(clients)) for(const fy of [y - 2, y - 1, y].map(String)){ const due = ctDue(c, fy); if(due.slice(0, 4) !== String(year)) continue;
+    const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; out.push({ c, fy, due, st, done: CT_DONE.has(st) }); }
+  return out.sort((a, b) => a.due.localeCompare(b.due)); }
+function auditDue(clients, fy){ return auditClients(clients).map(c => { const r = auditRec(c.id, fy); const st = (r && r.Status) || "Not started"; return { c, st, done: AUDIT_DONE.has(st), due: (r && r.DueDate) || "" }; }); }
+function dueTag(due){ const d = daysUntil(due); return d == null ? "" : d < 0 ? "" : d === 0 ? `<span class="soon">today</span>` : d <= 7 ? `<span class="soon">in ${d} day${d === 1 ? "" : "s"}</span>` : ""; }
+
 VIEWS.dashboard = () => {
-  const cl = visibleClients(); const active = cl.filter(c => c.Status !== "Deactivated");
-  const items = vatItems(cl, 45); const overdue = items.filter(x => x.d < 0); const dueSoon = items.filter(x => x.d >= 0);
-  const fy = state.af.fy; const aud = auditClients(cl); const audPending = aud.filter(c => !AUDIT_DONE.has((auditRec(c.id, fy) || {}).Status || "Not started"));
+  const cl = visibleClients(); const active = cl.filter(c => !isDeact(c));
+  const cur = curYM(); const yr = cur.slice(0, 4); const Q = qWin(); const fy = state.af.fy;
+  const vat = vatDueIn(cl, Q.from, Q.to), vatP = vat.filter(x => !x.done);
+  const mw = mwDueIn(cl, cur), mwP = mw.filter(x => !x.done);
+  const ct = ctDueIn(cl, yr), ctP = ct.filter(x => !x.done);
+  const aud = auditDue(cl, fy), audP = aud.filter(x => !x.done);
   const cr = active.map(c => ({ c, i: crInfo(c) })).filter(x => x.i.d != null && x.i.d <= 30).sort((a,b) => a.i.d - b.i.d);
-  const cti = ctItems(cl, 60); const ctOver = cti.filter(x => x.d < 0).length;
-  const mwi = mwItems(cl, 10); const mwOver = mwi.filter(x => x.d < 0).length;
   const unsetCycle = active.filter(c => !c.VATCycle).length;
   const hour = new Date().getHours(); const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const acts = data.activity.filter(a => isMgr() || !a.ClientId || cl.some(c => c.id === a.ClientId)).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 8);
+  const tile = (view, label, pending, total, doneWord) => `<button class="kpi" data-act="nav" data-v="${view}"><div class="l">${label}</div><div class="v">${pending}</div><div class="s">pending of ${total} · ${total - pending} ${doneWord}</div></button>`;
+  const who = x => `${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b>`;
   return `
   <div style="margin-bottom:16px"><b style="font-size:16px">${greet}, ${esc(me.name.split(" ")[0])}.</b> <span class="muted">${fmtDate(todayISO())}</span></div>
   ${unsetCycle ? `<div class="banner">${unsetCycle} active client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
   <div class="kpis">
     <button class="kpi" data-act="nav" data-v="clients"><div class="l">${isMgr() ? "Active clients" : "My active clients"}</div><div class="v">${active.length}</div><div class="s">${cl.length - active.length} deactivated</div></button>
-    <button class="kpi ${overdue.length ? "bad" : "ok"}" data-act="nav" data-v="vat"><div class="l">VAT returns overdue</div><div class="v">${overdue.length}</div><div class="s">past due date, not filed</div></button>
-    <button class="kpi ${dueSoon.length ? "warn" : ""}" data-act="nav" data-v="vat"><div class="l">VAT due in next 45 days</div><div class="v">${dueSoon.length}</div><div class="s">not yet filed</div></button>
-    <button class="kpi ${ctOver ? "bad" : cti.length ? "warn" : ""}" data-act="nav" data-v="ct"><div class="l">Corporate tax due ≤60d / overdue</div><div class="v">${cti.length}</div><div class="s">${ctOver} overdue</div></button>
-    <button class="kpi ${mwOver ? "bad" : mwi.length ? "warn" : ""}" data-act="nav" data-v="mw"><div class="l">Accounting & consultancy overdue</div><div class="v">${mwOver}</div><div class="s">${mwi.length - mwOver} more due in 10 days</div></button>
-    <button class="kpi" data-act="nav" data-v="audit"><div class="l">Audits pending · FY${esc(fy)}</div><div class="v">${audPending.length}</div><div class="s">of ${aud.length} requiring audit</div></button>
-    <button class="kpi ${cr.some(x => x.i.d < 0) ? "bad" : cr.length ? "warn" : ""}" data-act="nav" data-v="clients"><div class="l">CR / licence expiring ≤30d</div><div class="v">${cr.length}</div><div class="s">${cr.filter(x => x.i.d < 0).length} already expired</div></button>
+    ${tile("vat", `VAT due · this quarter (${Q.label})`, vatP.length, vat.length, "filed")}
+    ${tile("mw", `Accounting & consulting · ${ymLabel(cur)}`, mwP.length, mw.length, "completed")}
+    ${tile("ct", `Corporate tax due · ${yr}`, ctP.length, ct.length, "filed")}
+    ${tile("audit", `Audits · FY${esc(fy)}`, audP.length, aud.length, "completed")}
+    <button class="kpi" data-act="nav" data-v="clients"><div class="l">CR / licence expiring ≤30d</div><div class="v">${cr.length}</div><div class="s">renewals to follow up</div></button>
   </div>
   ${!state.loc && isMgr() ? locationCard(allowedClients()) : ""}
   <div class="grid2">
     <div>
-      <div class="card"><div class="card-h"><h3>VAT returns needing action</h3><div class="right"><button class="btn sm" data-act="nav" data-v="vat">Open tracker</button></div></div>
-      ${items.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>
-        ${items.slice(0, 14).map(x => `<tr><td class="cname">${state.loc ? "" : locTag(x.c) + " "}${esc(x.c.Title)}</td><td class="nowrap">${periodLabel(x.c.VATCycle, x.pe)}</td>
-          <td class="nowrap">${fmtDate(x.due)}<div class="small ${x.d < 0 ? "over" : x.d <= 10 ? "soon" : "faint"}">${relDays(x.d)}</div></td>
-          <td>${vatChip(x.st)}</td>
+      <div class="card"><div class="card-h"><h3>VAT returns due this quarter · ${Q.label}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="vat">Open tracker</button></div></div>
+      ${vatP.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>
+        ${vatP.slice(0, 15).map(x => `<tr><td class="cname">${state.loc ? "" : locTag(x.c) + " "}${esc(x.c.Title)}</td><td class="nowrap">${periodLabel(x.c.VATCycle, x.pe)}</td>
+          <td class="nowrap">${fmtDate(x.due)}<div class="small">${dueTag(x.due)}</div></td><td>${vatChip(x.st)}</td>
           <td><button class="btn sm" data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}">Update</button></td></tr>`).join("")}
-      </tbody></table></div>${items.length > 14 ? `<div class="card-b small muted">+ ${items.length - 14} more in the VAT tracker</div>` : ""}` : `<div class="empty">Nothing pending — all returns due in the next 45 days are filed. 🎉</div>`}
+      </tbody></table></div>${vatP.length > 15 ? `<div class="card-b small muted">+ ${vatP.length - 15} more in the VAT tracker</div>` : ""}` : `<div class="empty">All ${vat.length} VAT returns due this quarter are filed.</div>`}
       </div>
       ${isMgr() ? teamWorkloadCard(cl) : ""}
     </div>
     <div>
-      <div class="card"><div class="card-h"><h3>Accounting & consultancy due</h3><div class="right"><button class="btn sm" data-act="nav" data-v="mw">Open tracker</button></div></div>
-        ${mwi.length ? `<ul class="feed">${mwi.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}">${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b> <span style="float:right">${mwChip(x.st)}</span><div class="when">${esc(x.svc)} · ${esc(mwLabel(x.c, x.ym, x.freq))} · due ${fmtDate(x.due)} · <span class="${x.d < 0 ? "over" : x.d <= 3 ? "soon" : ""}">${relDays(x.d)}</span></div></li>`).join("")}</ul>${mwi.length > 8 ? `<div class="card-b small muted">+ ${mwi.length - 8} more in Monthly Work</div>` : ""}` : `<div class="empty">No accounting or consultancy work due in the next 10 days.</div>`}
+      <div class="card"><div class="card-h"><h3>Accounting & consulting · ${ymLabel(cur)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="mw">Open tracker</button></div></div>
+        ${mwP.length ? `<ul class="feed">${mwP.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}">${who(x)} <span style="float:right">${mwChip(x.st)}</span><div class="when">${esc(x.svc)} · ${esc(mwLabel(x.c, x.ym, x.freq))} · due ${fmtDate(x.due)} ${dueTag(x.due)}</div></li>`).join("")}</ul>${mwP.length > 8 ? `<div class="card-b small muted">+ ${mwP.length - 8} more in Accounting & Consulting</div>` : ""}` : `<div class="empty">Nothing pending for ${ymLabel(cur)}.</div>`}
       </div>
-      <div class="card"><div class="card-h"><h3>Corporate tax returns due</h3><div class="right"><button class="btn sm" data-act="nav" data-v="ct">Open tracker</button></div></div>
-        ${cti.length ? `<ul class="feed">${cti.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}">${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b> <span style="float:right">${ctChip(x.st)}</span><div class="when">FY${esc(x.fy)} · due ${fmtDate(x.due)} · <span class="${x.d < 0 ? "over" : x.d <= 30 ? "soon" : ""}">${relDays(x.d)}</span></div></li>`).join("")}</ul>` : `<div class="empty">No corporate tax returns due in the next 60 days.</div>`}
+      <div class="card"><div class="card-h"><h3>Corporate tax due · ${yr}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="ct">Open tracker</button></div></div>
+        ${ctP.length ? `<ul class="feed">${ctP.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}">${who(x)} <span style="float:right">${ctChip(x.st)}</span><div class="when">FY${esc(x.fy)} · due ${fmtDate(x.due)} ${dueTag(x.due)}</div></li>`).join("")}</ul>` : `<div class="empty">No corporate tax returns pending for ${yr}.</div>`}
+      </div>
+      <div class="card"><div class="card-h"><h3>Audits · FY${esc(fy)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="audit">Open tracker</button></div></div>
+        ${audP.length ? `<ul class="feed">${audP.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editAudit" data-c="${x.c.id}" data-fy="${esc(fy)}">${who(x)} <span style="float:right">${auditChip(x.st)}</span><div class="when">${x.due ? "target " + fmtDate(x.due) : "no target date set"}</div></li>`).join("")}</ul>${audP.length > 8 ? `<div class="card-b small muted">+ ${audP.length - 8} more in the Audit tracker</div>` : ""}` : `<div class="empty">All FY${esc(fy)} audits are complete.</div>`}
       </div>
       <div class="card"><div class="card-h"><h3>CR / trade licence expiry</h3></div>
-        ${cr.length ? `<ul class="feed">${cr.map(x => `<li style="cursor:pointer" data-act="openClient" data-id="${x.c.id}">${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b> <span style="float:right">${chip(x.i.cls, x.i.d < 0 ? "Expired" : x.i.d + " days")}</span><div class="when">${locOf(x.c) === "UAE" ? "Licence" : "CR"} ${esc(x.c.CRNo)} · expiry ${fmtDate(x.c.CRExpiry)}</div></li>`).join("")}</ul>` : `<div class="empty">No CRs or licences expiring in the next 30 days.</div>`}
+        ${cr.length ? `<ul class="feed">${cr.map(x => `<li style="cursor:pointer" data-act="openClient" data-id="${x.c.id}">${who(x)} <span style="float:right">${chip(x.i.cls, x.i.d < 0 ? "Expired" : x.i.d + " days")}</span><div class="when">${locOf(x.c) === "UAE" ? "Licence" : "CR"} ${esc(x.c.CRNo)} · expiry ${fmtDate(x.c.CRExpiry)}</div></li>`).join("")}</ul>` : `<div class="empty">No CRs or licences expiring in the next 30 days.</div>`}
       </div>
       <div class="card"><div class="card-h"><h3>Recent activity</h3><div class="right"><button class="btn sm" data-act="nav" data-v="activity">All</button></div></div>
         ${acts.length ? `<ul class="feed">${acts.map(feedItem).join("")}</ul>` : `<div class="empty">No activity yet.</div>`}
@@ -747,29 +770,24 @@ VIEWS.dashboard = () => {
   </div>`;
 };
 function locationCard(all){
-  const fy = state.af.fy; const cur = curYM(); const yr = cur.slice(0, 4);
+  const fy = state.af.fy; const cur = curYM(); const yr = cur.slice(0, 4); const Q = qWin();
   const rows = LOCATIONS.map(L => { const cl = all.filter(c => locOf(c) === L); const act = cl.filter(c => !isDeact(c));
-    const vat = vatItems(cl, 70).filter(x => x.due.slice(0, 7) === cur).length;
-    const ct = ctItems(cl, 500).filter(x => x.due.slice(0, 4) === yr).length;
-    const mw = mwItems(cl, 70).filter(x => x.due.slice(0, 7) === cur).length;
-    const aud = auditClients(cl); const audP = aud.filter(c => !AUDIT_DONE.has((auditRec(c.id, fy) || {}).Status || "Not started")).length;
+    const cnt = a => `${a.filter(x => !x.done).length} <span class="faint">/ ${a.length}</span>`;
     const crA = act.filter(c => { const d = crInfo(c).d; return d != null && d <= 30; }).length;
-    return { L, n: act.length, vat, ct, mw, audP, aud: aud.length, crA }; });
-  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>By location</h3><div class="right small muted">Pending items · click a row to switch to that location</div></div>
-  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT due · ${ymLabel(cur)}</th><th class="num">CT due · ${yr}</th><th class="num">Accounting &amp; consulting · ${ymLabel(cur)}</th><th class="num">Audits pending · FY${esc(fy)}</th><th class="num">CR / licence expiring ≤30d</th></tr></thead><tbody>
-  ${rows.map(r => `<tr class="click-row" data-act="setloc" data-v="${r.L}"><td class="cname">${r.L === "UAE" ? "UAE (Dubai)" : "Bahrain"}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.ct}</td><td class="num">${r.mw}</td><td class="num">${r.audP} <span class="faint">/ ${r.aud}</span></td><td class="num">${r.crA}</td></tr>`).join("")}
+    return { L, n: act.length, vat: cnt(vatDueIn(cl, Q.from, Q.to)), mw: cnt(mwDueIn(cl, cur)), ct: cnt(ctDueIn(cl, yr)), aud: cnt(auditDue(cl, fy)), crA }; });
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>By location</h3><div class="right small muted">Pending / total due · click a row to switch location</div></div>
+  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT · quarterly<br><span class="faint">${Q.label}</span></th><th class="num">Accounting &amp; consulting · monthly<br><span class="faint">${ymLabel(cur)}</span></th><th class="num">Corporate tax · annual<br><span class="faint">${yr}</span></th><th class="num">Audit · annual<br><span class="faint">FY${esc(fy)}</span></th><th class="num">CR / licence expiring ≤30d</th></tr></thead><tbody>
+  ${rows.map(r => `<tr class="click-row" data-act="setloc" data-v="${r.L}"><td class="cname">${r.L === "UAE" ? "UAE (Dubai)" : "Bahrain"}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.mw}</td><td class="num">${r.ct}</td><td class="num">${r.aud}</td><td class="num">${r.crA}</td></tr>`).join("")}
   </tbody></table></div></div>`;
 }
 function feedItem(a){ return `<li><b>${esc(a.UserName || a.UserEmail)}</b> · ${esc(a.Title)}${a.ClientName ? ` — <span class="cname">${esc(a.ClientName)}</span>` : ""}${a.Details ? `<div class="small muted">${esc(a.Details)}</div>` : ""}<div class="when">${fmtDT(a.At)}</div></li>`; }
 function teamWorkloadCard(cl){
-  const rows = activeEmployees().map(e => {
-    const mine = cl.filter(c => c.Status !== "Deactivated" && teamOf(c).includes(lc(e.Email)));
-    const items = vatItems(mine, 45);
-    return { e, n: mine.length, pend: items.filter(x => x.d >= 0).length, over: items.filter(x => x.d < 0).length };
-  });
+  const cur = curYM(); const Q = qWin();
+  const rows = activeEmployees().map(e => { const mine = cl.filter(c => !isDeact(c) && teamOf(c).includes(lc(e.Email)));
+    return { e, n: mine.length, vat: vatDueIn(mine, Q.from, Q.to).filter(x => !x.done).length, mw: mwDueIn(mine, cur).filter(x => !x.done).length }; });
   return `<div class="card"><div class="card-h"><h3>Team workload</h3><div class="right"><button class="btn sm" data-act="nav" data-v="team">Manage</button></div></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Employee</th><th>Role</th><th>Location</th><th class="num">Clients</th><th class="num">VAT due ≤45d</th><th class="num">VAT overdue</th></tr></thead><tbody>
-  ${rows.map(r => `<tr><td class="cname">${esc(r.e.Title)}</td><td class="muted">${esc(r.e.Role)}</td><td class="small muted">${esc(r.e.Location || "—")}</td><td class="num">${r.n}</td><td class="num">${r.pend}</td><td class="num ${r.over ? "over" : ""}">${r.over}</td></tr>`).join("")}
+  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Employee</th><th>Role</th><th>Location</th><th class="num">Clients</th><th class="num">VAT pending · ${Q.label}</th><th class="num">Acc. &amp; consulting pending · ${ymLabel(cur)}</th></tr></thead><tbody>
+  ${rows.map(r => `<tr><td class="cname">${esc(r.e.Title)}</td><td class="muted">${esc(r.e.Role)}</td><td class="small muted">${esc(r.e.Location || "—")}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.mw}</td></tr>`).join("")}
   </tbody></table></div></div>`;
 }
 
