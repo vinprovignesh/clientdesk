@@ -7,8 +7,6 @@
 <meta name="description" content="Client master, portal logins, VAT and audit tracker for Vinpro Global Services WLL, Bahrain">
 <link rel="icon" type="image/png" href="https://vinproglobal.com/favicon.png">
 <link rel="apple-touch-icon" href="https://vinproglobal.com/favicon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Work+Sans:wght@400;500;600;700&display=swap">
 <style>
 :root{
   --bg:#f6f7f4; --panel:#ffffff; --panel-2:#f7f8f6; --ink:#0a1a3d; --muted:#4f5b73; --faint:#8a93a3; --line:#e2e5e9; --line-2:#eef0f2;
@@ -36,18 +34,21 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--ink);font:14px/1.45 "Work Sans","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
-.serif{font-family:"Instrument Serif","Times New Roman",Georgia,serif;font-weight:400}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 "Palatino Linotype","Book Antiqua",Palatino,"URW Palladio L",serif;-webkit-font-smoothing:antialiased}
+.serif{font-family:"Palatino Linotype","Book Antiqua",Palatino,"URW Palladio L",serif;font-weight:400}
 button,input,select,textarea{font:inherit;color:inherit}
+/* Title Case on all headings, labels, buttons, menus and table headers (not on typed data) */
+h1,h2,h3,h4,.nav,.btn,.seg button,.tabs button,.kpi .l,.kpi .s,.chip,.form label,.form .lbl,.toolbar select,.toolbar .in::placeholder,.tbl th,.card-h,.modal-h,.pill,.ttl{text-transform:capitalize}
+.form label .in,.form label textarea,.form label input{text-transform:none}
 a{color:var(--accent-ink)}
 .shell{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
 .side{background:var(--panel);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
 .brand{display:flex;flex-direction:column;gap:8px;padding:2px 8px 18px;margin-bottom:6px;border-bottom:1px solid var(--line-2)}
 .brand-logo{height:40px;width:auto;display:block}
 .logo-chip{display:inline-flex;align-self:flex-start;border-radius:8px}
-.brand b{display:block;font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:22px;line-height:1.1;letter-spacing:.1px}
+.brand b{display:block;font-family:"Palatino Linotype","Book Antiqua",Palatino,"URW Palladio L",serif;font-weight:400;font-size:22px;line-height:1.1;letter-spacing:.1px}
 .brand small{color:var(--accent-ink);font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
-.wordmark{display:inline-flex;align-items:baseline;font-family:"Work Sans",sans-serif;font-weight:700;font-size:24px;letter-spacing:.06em;color:var(--navy)}
+.wordmark{display:inline-flex;align-items:baseline;font-family:"Palatino Linotype","Book Antiqua",Palatino,"URW Palladio L",serif;font-weight:700;font-size:24px;letter-spacing:.06em;color:var(--navy)}
 .wordmark i{font-style:normal;color:var(--teal)}
 .nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--muted);cursor:pointer;border:0;background:none;text-align:left;width:100%;font-weight:500}
 .nav:hover{background:var(--panel-2);color:var(--ink)}
@@ -59,7 +60,7 @@ a{color:var(--accent-ink)}
 .side .me b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .main{min-width:0;display:flex;flex-direction:column}
 .top{display:flex;align-items:center;gap:12px;padding:14px 28px;border-bottom:1px solid var(--line);background:var(--panel)}
-.top h1{font-family:"Instrument Serif",Georgia,serif;font-size:27px;line-height:1.1;margin:0;font-weight:400;letter-spacing:.1px}
+.top h1{font-family:"Palatino Linotype","Book Antiqua",Palatino,"URW Palladio L",serif;font-size:27px;line-height:1.1;margin:0;font-weight:400;letter-spacing:.1px}
 .top .sub{color:var(--muted);font-size:12.5px}
 .top .right{margin-left:auto;display:flex;gap:8px;align-items:center}
 .content{padding:22px 28px 60px;max-width:1500px;width:100%}
@@ -97,7 +98,7 @@ a{color:var(--accent-ink)}
 .search{min-width:240px}
 .tw{overflow:auto;border-radius:var(--radius)}
 table.tbl{width:100%;border-collapse:collapse;font-size:13px}
-.tbl th{position:sticky;top:0;background:var(--panel-2);text-align:left;font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.3px;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1}
+.tbl th{position:sticky;top:0;background:var(--panel-2);text-align:left;font-weight:600;color:var(--muted);font-size:12.5px;text-transform:capitalize;letter-spacing:.1px;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1}
 .tbl td{padding:9px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
 .tbl tr.click{cursor:pointer}
 .tbl tr.click:hover td{background:var(--panel-2)}
@@ -173,7 +174,7 @@ tr.click-row:hover td{background:var(--panel-2)}
 .tabs button{border:0;background:none;padding:11px 14px;cursor:pointer;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;white-space:nowrap}
 .tabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
 .kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px 18px}
-.kv div span{display:block;font-size:11.5px;color:var(--faint);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.kv div span{display:block;font-size:12px;color:var(--faint);font-weight:600;text-transform:capitalize}
 .kv div b{font-weight:550;word-break:break-word}
 .secret{font-family:ui-monospace,Consolas,monospace;letter-spacing:.3px}
 .icon-btn{border:0;background:none;cursor:pointer;color:var(--muted);padding:3px;border-radius:5px;display:inline-grid;place-items:center}
@@ -184,7 +185,7 @@ tr.click-row:hover td{background:var(--panel-2)}
 .center-screen{min-height:100vh;display:grid;place-items:center;padding:16px}
 .login{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:34px;max-width:420px;width:100%;text-align:center}
 .login .brand-logo{height:56px;margin:0 auto 16px}
-.login h1{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:30px;margin:0 0 6px}
+.login h1{font-family:"Palatino Linotype","Book Antiqua",Palatino,"URW Palladio L",serif;font-weight:400;font-size:30px;margin:0 0 6px}
 .login p{color:var(--muted);margin:0 0 22px}
 .ms-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer;font-weight:600;font-size:14.5px}
 .ms-btn:hover{border-color:var(--faint)}
@@ -195,7 +196,7 @@ tr.click-row:hover td{background:var(--panel-2)}
 .auth{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);background:var(--paper)}
 .auth-hero{background:var(--navy);color:#eef1f8;padding:56px 64px;display:flex;flex-direction:column;justify-content:space-between;gap:40px;position:relative;overflow:hidden}
 .auth-hero::after{content:"";position:absolute;right:-120px;bottom:-120px;width:420px;height:420px;border-radius:50%;border:1px solid rgba(0,158,149,.35);box-shadow:0 0 0 60px rgba(0,158,149,.05),0 0 0 140px rgba(0,158,149,.035)}
-.auth-hero h1{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:clamp(44px,5.4vw,72px);line-height:1.02;margin:18px 0 18px;letter-spacing:-.01em;color:#fcfcf9;text-wrap:balance}
+.auth-hero h1{font-family:"Palatino Linotype","Book Antiqua",Palatino,"URW Palladio L",serif;font-weight:400;font-size:clamp(44px,5.4vw,72px);line-height:1.02;margin:18px 0 18px;letter-spacing:-.01em;color:#fcfcf9;text-wrap:balance}
 .auth-hero h1 em{font-style:italic;color:#9fdcd6}
 .auth-hero p{font-size:16px;line-height:1.6;color:#c9cfe0;max-width:46ch;margin:0}
 .auth-list{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:10px;font-size:14px;color:#dfe4f0}
@@ -206,7 +207,7 @@ tr.click-row:hover td{background:var(--panel-2)}
 .auth-panel{display:grid;place-items:center;padding:40px 24px;background:var(--paper)}
 .auth-card{width:100%;max-width:380px}
 .auth-card .brand-logo{height:64px;margin-bottom:34px}
-.auth-card h2{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:36px;line-height:1.1;margin:10px 0 8px;color:#0a1a3d}
+.auth-card h2{font-family:"Palatino Linotype","Book Antiqua",Palatino,"URW Palladio L",serif;font-weight:400;font-size:36px;line-height:1.1;margin:10px 0 8px;color:#0a1a3d}
 .auth-card p{color:#4f5b73;margin:0 0 28px;line-height:1.55}
 .ms-btn.navy{background:var(--navy);color:#fcfcf9;border-color:var(--navy);padding:13px;font-size:15px;border-radius:10px}
 .ms-btn.navy:hover{filter:brightness(1.25)}
@@ -505,7 +506,7 @@ let me = { email:"", name:"", role:null };
 const state = {
   view: "dashboard",
   cf: { q:"", status:"Active", who:"", cycle:"", svc:"", sel: new Set() },
-  vf: { mode:"month", month: curYM(), year: new Date().getFullYear(), q:"", who:"", show:"all" },
+  vf: { mode:"month", month: curYM(), year: new Date().getFullYear(), q:"", who:"", show:"all", cycle: null },
   af: { fy: String(new Date().getFullYear() - 1), q:"", who:"", show:"all" },
   mf: { svc:"Accounting", mode:"month", month: ymAdd(curYM(), -1) < MW_START ? MW_START : ymAdd(curYM(), -1), year: new Date().getFullYear(), q:"", who:"", show:"all" },
   tf: { fy: String(new Date().getFullYear() - 1), q:"", who:"", show:"all" },
@@ -642,10 +643,10 @@ function toast(msg, err){ const t = $("#toast"); t.innerHTML = `<div class="toas
 function renderBusy(){ let b = document.getElementById("busy"); if(state.busy && !b){ b = document.createElement("div"); b.id = "busy"; b.className = "busy"; document.body.appendChild(b); } if(!state.busy && b) b.remove(); }
 
 const NAV = [
-  ["dashboard", "Dashboard", "dash"], ["clients", "Clients", "clients"], ["vat", "VAT Tracker", "vat"], ["ct", "Corporate Tax", "ct"], ["mw", "Accounting & Consulting", "mw"], ["audit", "Audit Tracker", "audit"],
+  ["dashboard", "Dashboard", "dash"], ["clients", "Clients", "clients"], ["vat", "VAT Tracker", "vat"], ["ct", "Corporate Tax", "ct"], ["mw", "Accounting/Consultation", "mw"], ["audit", "Audit Tracker", "audit"],
   ["team", "Team", "team", () => isMgr()], ["activity", "Activity Log", "log"], ["admin", "Admin & Import", "admin", () => isAdmin()]
 ];
-const TITLES = { dashboard:"Dashboard", clients:"Client Master", vat:"VAT Return Tracker", ct:"Corporate Tax Tracker", mw:"Accounting & Consultancy", audit:"Audit Tracker", team:"Team & Assignments", activity:"Activity Log", admin:"Admin, Import & Export" };
+const TITLES = { dashboard:"Dashboard", clients:"Client Master", vat:"VAT Return Tracker", ct:"Corporate Tax Tracker", mw:"Accounting/Consultation", audit:"Audit Tracker", team:"Team & Assignments", activity:"Activity Log", admin:"Admin, Import & Export" };
 
 function render(){
   const app = $("#app");
@@ -702,6 +703,11 @@ function vatDueIn(clients, fromYm, toYm){ const out = []; const cur = curYM();
   for(const c of clients){ if(isDeact(c)) continue; for(const pe of periodsFor(c, ymAdd(cur, -24), ymAdd(cur, 6))){ const due = dueOf(pe, c); if(!inWin(due, fromYm, toYm)) continue;
     const st = vatStatus(c.id, pe); out.push({ c, pe, due, st, done: VAT_DONE.has(st), rec: vatRec(c.id, pe) }); } }
   return out.sort((a, b) => a.due.localeCompare(b.due)); }
+/* each client's current VAT return: the earliest period on its own cycle whose due date is today or later */
+function vatCurrent(clients){ const out = []; const cur = curYM(); const t = todayISO();
+  for(const c of clients){ if(isDeact(c)) continue; const pe = periodsFor(c, ymAdd(cur, -15), ymAdd(cur, 13)).find(p => dueOf(p, c) >= t); if(!pe) continue;
+    const st = vatStatus(c.id, pe); out.push({ c, pe, due: dueOf(pe, c), st, done: VAT_DONE.has(st), rec: vatRec(c.id, pe) }); }
+  return out.sort((a, b) => a.due.localeCompare(b.due) || a.c.Title.localeCompare(b.c.Title)); }
 function mwDueIn(clients, ym){ const out = []; const cur = curYM();
   for(const c of clients){ if(isDeact(c)) continue; for(const svc of MW_SERVICES){ if(!hasService(c, svc)) continue;
     for(const p of mwPeriods(c, svc, ymAdd(cur, -15), ymAdd(cur, 1))){ const due = mwDue(c, svc, p.ym, p.freq); if(due.slice(0, 7) !== ym) continue;
@@ -717,7 +723,7 @@ function dueTag(due){ const d = daysUntil(due); return d == null ? "" : d < 0 ? 
 VIEWS.dashboard = () => {
   const cl = visibleClients(); const active = cl.filter(c => !isDeact(c));
   const cur = curYM(); const yr = cur.slice(0, 4); const Q = qWin(); const fy = state.af.fy;
-  const vat = vatDueIn(cl, Q.from, Q.to), vatP = vat.filter(x => !x.done);
+  const vat = vatCurrent(cl), vatP = vat.filter(x => !x.done);
   const mw = mwDueIn(cl, cur), mwP = mw.filter(x => !x.done);
   const ct = ctDueIn(cl, yr), ctP = ct.filter(x => !x.done);
   const aud = auditDue(cl, fy), audP = aud.filter(x => !x.done);
@@ -732,8 +738,8 @@ VIEWS.dashboard = () => {
   ${unsetCycle ? `<div class="banner">${unsetCycle} active client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
   <div class="kpis">
     <button class="kpi" data-act="nav" data-v="clients"><div class="l">${isMgr() ? "Active clients" : "My active clients"}</div><div class="v">${active.length}</div><div class="s">${cl.length - active.length} deactivated</div></button>
-    ${tile("vat", `VAT due · this quarter (${Q.label})`, vatP.length, vat.length, "filed")}
-    ${tile("mw", `Accounting & consulting · ${ymLabel(cur)}`, mwP.length, mw.length, "completed")}
+    ${tile("vat", `VAT due · current cycle`, vatP.length, vat.length, "filed")}
+    ${tile("mw", `Accounting/Consultation · ${ymLabel(cur)}`, mwP.length, mw.length, "completed")}
     ${tile("ct", `Corporate tax due · ${yr}`, ctP.length, ct.length, "filed")}
     ${tile("audit", `Audits · FY${esc(fy)}`, audP.length, aud.length, "completed")}
     <button class="kpi" data-act="nav" data-v="clients"><div class="l">CR / licence expiring ≤30d</div><div class="v">${cr.length}</div><div class="s">renewals to follow up</div></button>
@@ -741,18 +747,18 @@ VIEWS.dashboard = () => {
   ${!state.loc && isMgr() ? locationCard(allowedClients()) : ""}
   <div class="grid2">
     <div>
-      <div class="card"><div class="card-h"><h3>VAT returns due this quarter · ${Q.label}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="vat">Open tracker</button></div></div>
-      ${vatP.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>
-        ${vatP.slice(0, 15).map(x => `<tr><td class="cname">${state.loc ? "" : locTag(x.c) + " "}${esc(x.c.Title)}</td><td class="nowrap">${periodLabel(x.c.VATCycle, x.pe)}</td>
+      <div class="card"><div class="card-h"><h3>VAT returns due · current cycle</h3><div class="right"><button class="btn sm" data-act="nav" data-v="vat">Open tracker</button></div></div>
+      ${vatP.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Cycle</th><th>Period</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>
+        ${vatP.slice(0, 15).map(x => `<tr><td class="cname">${state.loc ? "" : locTag(x.c) + " "}${esc(x.c.Title)}</td><td class="small muted nowrap">${esc(CYCLES[x.c.VATCycle].short)}</td><td class="nowrap">${periodLabel(x.c.VATCycle, x.pe)}</td>
           <td class="nowrap">${fmtDate(x.due)}<div class="small">${dueTag(x.due)}</div></td><td>${vatChip(x.st)}</td>
           <td><button class="btn sm" data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}">Update</button></td></tr>`).join("")}
-      </tbody></table></div>${vatP.length > 15 ? `<div class="card-b small muted">+ ${vatP.length - 15} more in the VAT tracker</div>` : ""}` : `<div class="empty">All ${vat.length} VAT returns due this quarter are filed.</div>`}
+      </tbody></table></div>${vatP.length > 15 ? `<div class="card-b small muted">+ ${vatP.length - 15} more in the VAT tracker</div>` : ""}` : `<div class="empty">All ${vat.length} VAT returns for the current cycle are filed.</div>`}
       </div>
       ${isMgr() ? teamWorkloadCard(cl) : ""}
     </div>
     <div>
-      <div class="card"><div class="card-h"><h3>Accounting & consulting · ${ymLabel(cur)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="mw">Open tracker</button></div></div>
-        ${mwP.length ? `<ul class="feed">${mwP.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}">${who(x)} <span style="float:right">${mwChip(x.st)}</span><div class="when">${esc(x.svc)} · ${esc(mwLabel(x.c, x.ym, x.freq))} · due ${fmtDate(x.due)} ${dueTag(x.due)}</div></li>`).join("")}</ul>${mwP.length > 8 ? `<div class="card-b small muted">+ ${mwP.length - 8} more in Accounting & Consulting</div>` : ""}` : `<div class="empty">Nothing pending for ${ymLabel(cur)}.</div>`}
+      <div class="card"><div class="card-h"><h3>Accounting/Consultation · ${ymLabel(cur)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="mw">Open tracker</button></div></div>
+        ${mwP.length ? `<ul class="feed">${mwP.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}">${who(x)} <span style="float:right">${mwChip(x.st)}</span><div class="when">${esc(x.svc)} · ${esc(mwLabel(x.c, x.ym, x.freq))} · due ${fmtDate(x.due)} ${dueTag(x.due)}</div></li>`).join("")}</ul>${mwP.length > 8 ? `<div class="card-b small muted">+ ${mwP.length - 8} more in Accounting/Consultation</div>` : ""}` : `<div class="empty">Nothing pending for ${ymLabel(cur)}.</div>`}
       </div>
       <div class="card"><div class="card-h"><h3>Corporate tax due · ${yr}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="ct">Open tracker</button></div></div>
         ${ctP.length ? `<ul class="feed">${ctP.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}">${who(x)} <span style="float:right">${ctChip(x.st)}</span><div class="when">FY${esc(x.fy)} · due ${fmtDate(x.due)} ${dueTag(x.due)}</div></li>`).join("")}</ul>` : `<div class="empty">No corporate tax returns pending for ${yr}.</div>`}
@@ -774,9 +780,9 @@ function locationCard(all){
   const rows = LOCATIONS.map(L => { const cl = all.filter(c => locOf(c) === L); const act = cl.filter(c => !isDeact(c));
     const cnt = a => `${a.filter(x => !x.done).length} <span class="faint">/ ${a.length}</span>`;
     const crA = act.filter(c => { const d = crInfo(c).d; return d != null && d <= 30; }).length;
-    return { L, n: act.length, vat: cnt(vatDueIn(cl, Q.from, Q.to)), mw: cnt(mwDueIn(cl, cur)), ct: cnt(ctDueIn(cl, yr)), aud: cnt(auditDue(cl, fy)), crA }; });
+    return { L, n: act.length, vat: cnt(vatCurrent(cl)), mw: cnt(mwDueIn(cl, cur)), ct: cnt(ctDueIn(cl, yr)), aud: cnt(auditDue(cl, fy)), crA }; });
   return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>By location</h3><div class="right small muted">Pending / total due · click a row to switch location</div></div>
-  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT · quarterly<br><span class="faint">${Q.label}</span></th><th class="num">Accounting &amp; consulting · monthly<br><span class="faint">${ymLabel(cur)}</span></th><th class="num">Corporate tax · annual<br><span class="faint">${yr}</span></th><th class="num">Audit · annual<br><span class="faint">FY${esc(fy)}</span></th><th class="num">CR / licence expiring ≤30d</th></tr></thead><tbody>
+  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT · current cycle<br><span class="faint">per client's VAT cycle</span></th><th class="num">Accounting/Consultation · monthly<br><span class="faint">${ymLabel(cur)}</span></th><th class="num">Corporate tax · annual<br><span class="faint">${yr}</span></th><th class="num">Audit · annual<br><span class="faint">FY${esc(fy)}</span></th><th class="num">CR / licence expiring ≤30d</th></tr></thead><tbody>
   ${rows.map(r => `<tr class="click-row" data-act="setloc" data-v="${r.L}"><td class="cname">${r.L === "UAE" ? "UAE (Dubai)" : "Bahrain"}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.mw}</td><td class="num">${r.ct}</td><td class="num">${r.aud}</td><td class="num">${r.crA}</td></tr>`).join("")}
   </tbody></table></div></div>`;
 }
@@ -784,9 +790,9 @@ function feedItem(a){ return `<li><b>${esc(a.UserName || a.UserEmail)}</b> · ${
 function teamWorkloadCard(cl){
   const cur = curYM(); const Q = qWin();
   const rows = activeEmployees().map(e => { const mine = cl.filter(c => !isDeact(c) && teamOf(c).includes(lc(e.Email)));
-    return { e, n: mine.length, vat: vatDueIn(mine, Q.from, Q.to).filter(x => !x.done).length, mw: mwDueIn(mine, cur).filter(x => !x.done).length }; });
+    return { e, n: mine.length, vat: vatCurrent(mine).filter(x => !x.done).length, mw: mwDueIn(mine, cur).filter(x => !x.done).length }; });
   return `<div class="card"><div class="card-h"><h3>Team workload</h3><div class="right"><button class="btn sm" data-act="nav" data-v="team">Manage</button></div></div>
-  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Employee</th><th>Role</th><th>Location</th><th class="num">Clients</th><th class="num">VAT pending · ${Q.label}</th><th class="num">Acc. &amp; consulting pending · ${ymLabel(cur)}</th></tr></thead><tbody>
+  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Employee</th><th>Role</th><th>Location</th><th class="num">Clients</th><th class="num">VAT pending · current cycle</th><th class="num">Accounting/Consultation pending · ${ymLabel(cur)}</th></tr></thead><tbody>
   ${rows.map(r => `<tr><td class="cname">${esc(r.e.Title)}</td><td class="muted">${esc(r.e.Role)}</td><td class="small muted">${esc(r.e.Location || "—")}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.mw}</td></tr>`).join("")}
   </tbody></table></div></div>`;
 }
@@ -836,16 +842,26 @@ VIEWS.vat = () => {
   const f = state.vf; const q = lc(f.q);
   const base = visibleClients().filter(c => c.Status !== "Deactivated" && (!q || lc(c.Title).includes(q)) && (!f.who || teamOf(c).includes(f.who)));
   const unset = base.filter(c => !c.VATCycle).length;
+  const regd = Object.keys(CYCLES).filter(k => CYCLES[k].n);
+  if(f.cycle == null){ const n = {}; base.forEach(c => { if(regd.includes(c.VATCycle)) n[c.VATCycle] = (n[c.VATCycle] || 0) + 1; }); f.cycle = Object.keys(n).sort((a, b) => n[b] - n[a])[0] || ""; }
+  const cur = curYM();
+  if(f.cycle && !isPeriodEnd(f.cycle, ymAdd(f.month, -1))){ let m = cur; while(!isPeriodEnd(f.cycle, ymAdd(m, -1))) m = ymAdd(m, 1); f.month = m; }
+  const dueOpts = f.cycle
+    ? Array.from({length:22}, (_, i) => ymAdd(cur, i - 16)).filter(m => m <= ymAdd(cur, CYCLES[f.cycle].n + 1) && isPeriodEnd(f.cycle, ymAdd(m, -1))).reverse().map(m => { const pe = ymAdd(m, -1); const now = m >= cur && ymAdd(m, -CYCLES[f.cycle].n) < cur;
+        return `<option value="${m}" ${f.month === m ? "selected" : ""}>${periodLabel(f.cycle, pe)} · Due ${ymLabel(m)}${now ? " (Current)" : ""}</option>`; }).join("")
+    : Array.from({length:19}, (_, i) => ymAdd(cur, i - 14)).reverse().map(m => `<option value="${m}" ${f.month === m ? "selected" : ""}>Due in ${ymLabel(m)}${m === cur ? " (this month)" : ""}</option>`).join("");
   const head = `<div class="toolbar">
     <div class="seg"><button class="${f.mode === "month" ? "on" : ""}" data-act="vmode" data-v="month">By filing month</button><button class="${f.mode === "year" ? "on" : ""}" data-act="vmode" data-v="year">Year overview</button></div>
-    ${f.mode === "month" ? `<select class="in" data-bind="vf.month">${Array.from({length:19}, (_, i) => ymAdd(curYM(), i - 14)).reverse().map(m => `<option value="${m}" ${f.month === m ? "selected" : ""}>Due in ${ymLabel(m)}${m === curYM() ? " (this month)" : ""}</option>`).join("")}</select>`
+    <select class="in" data-bind="vf.cycle" title="VAT cycle"><option value="">All VAT cycles</option>${regd.map(k => `<option value="${k}" ${f.cycle === k ? "selected" : ""}>${CYCLES[k].short}</option>`).join("")}</select>
+    ${f.mode === "month" ? `<select class="in" data-bind="vf.month" title="Due">${dueOpts}</select>`
       : `<select class="in" data-bind="vf.year">${[0,1,2,3].map(i => new Date().getFullYear() + 1 - i).map(y => `<option ${+f.year === y ? "selected" : ""}>${y}</option>`).join("")}</select>`}
     <input id="vf-q" class="in search" placeholder="Search client…" value="${esc(f.q)}" data-bind="vf.q">
     ${isMgr() ? `<select class="in" data-bind="vf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
     ${f.mode === "month" ? `<select class="in" data-bind="vf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>` : ""}
   </div>
   ${unset ? `<div class="banner">${unset} client${unset>1?"s have":" has"} no VAT cycle set and ${unset>1?"are":"is"} not shown. <button class="btn sm" data-act="gotoUnset">Set VAT cycles</button></div>` : ""}`;
-  return head + (f.mode === "month" ? vatMonthView(base) : vatYearView(base));
+  const shown = f.cycle ? base.filter(c => c.VATCycle === f.cycle) : base;
+  return head + (f.mode === "month" ? vatMonthView(shown) : vatYearView(shown));
 };
 function vatMonthView(base){
   const f = state.vf; const pe = ymAdd(f.month, -1);
@@ -856,7 +872,7 @@ function vatMonthView(base){
   const locsHere = LOCATIONS.filter(L => base.some(c => locOf(c) === L));
   const dueLine = locsHere.map(L => { const du = dueOf(pe, { Location: L }); const dd = daysUntil(du); return `${L} (${LOC[L].auth}) ${fmtDate(du)} · <span class="${dd < 0 && done < total ? "over" : dd <= 10 ? "soon" : ""}">${relDays(dd)}</span>`; }).join(" &nbsp;|&nbsp; ");
   return `<div class="card"><div class="card-b">
-    <div class="progress-row"><div><b>Returns for periods ending ${ymLabel(pe)}</b><div class="small muted">Due: ${dueLine}</div></div>
+    <div class="progress-row"><div><b>${state.vf.cycle ? `${esc(CYCLES[state.vf.cycle].short)} · ${periodLabel(state.vf.cycle, pe)}` : `Returns for periods ending ${ymLabel(pe)}`}</b><div class="small muted">Due: ${dueLine}</div></div>
     <div class="bar" title="${pct}% complete"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} filed (${pct}%)</span></div></div></div>
     <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Net VAT</th><th>Last update</th><th></th></tr></thead><tbody>
     ${rows.map(r => { const late = !VAT_DONE.has(r.st) && daysUntil(dueOf(pe, r.c)) < 0; return `<tr>
@@ -1085,8 +1101,8 @@ MODALS.client = ({ id }) => {
         [locOf(c) === "UAE" ? "VAT TRN" : "VAT account no", esc(c.VATNo)], ["Corporate tax TRN", esc(c.CTNo)], ["VAT cycle", esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].label : (c.VATCycle || "Not set"))], ["Financial year end", esc(fyEndLabel(c.FYEnd))], ["Services", serviceTags(c) + (otherServiceText(c) ? ` <span class="small muted">Others: ${esc(otherServiceText(c))}</span>` : "")],
         ["Reviewer / manager", esc(empName(c.Reviewer))], ...MW_SERVICES.filter(sv => hasService(c, sv)).map(sv => [sv + " frequency", esc(freqText(c, sv))])].map(([k, v]) => `<div><span>${k}</span><b>${v || '<span class="faint">—</span>'}</b></div>`).join("")}
     </div>
-    <div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:uppercase;letter-spacing:.3px">Assigned team</div><div style="margin-top:6px">${teamOf(c).length ? avatars(teamOf(c)) : '<span class="faint">Unassigned</span>'}</div></div>
-    ${c.Notes ? `<div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:uppercase;letter-spacing:.3px">Notes</div><div style="white-space:pre-wrap;margin-top:4px">${esc(c.Notes)}</div></div>` : ""}`;
+    <div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:capitalize">Assigned team</div><div style="margin-top:6px">${teamOf(c).length ? avatars(teamOf(c)) : '<span class="faint">Unassigned</span>'}</div></div>
+    ${c.Notes ? `<div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:capitalize">Notes</div><div style="white-space:pre-wrap;margin-top:4px">${esc(c.Notes)}</div></div>` : ""}`;
   if(tab === "logins"){ const cs = data.creds.filter(x => x.ClientId === id).sort((a,b) => PORTALS.indexOf(a.Title) - PORTALS.indexOf(b.Title));
     body = `<div class="toolbar"><span class="small muted">Viewing or copying a password is recorded in the activity log.</span><div class="right"><button class="btn sm pri" data-act="editCred" data-c="${id}">${I.plus} Add login</button></div></div>
     <div class="tw"><table class="tbl"><thead><tr><th>Portal</th><th>Username / ID</th><th>Password</th><th>Notes</th><th>Updated</th><th></th></tr></thead><tbody>
@@ -1586,7 +1602,7 @@ async function exportXlsx(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.creds.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), Portal: x.Title, Username: x.Username, Password: withPwd ? x.Pwd : (x.Pwd ? "(hidden)" : ""), URL: x.PortalURL, Notes: x.Notes }))), "Logins");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.vat.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Period: periodLabel(c.VATCycle, x.PeriodEnd), Location: locOf(c), "Due Date": dueOf(x.PeriodEnd, c), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Net VAT": x.Amount, Currency: curOf(c), Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "VAT Returns");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.ct.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Location: locOf(c), "CT TRN": c.CTNo, FY: x.FY, "Due Date": ctDue(c, x.FY), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Tax Payable": x.Amount, Currency: curOf(c), Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "Corporate Tax");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mw.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Location: locOf(c), Service: x.Service, Frequency: x.Freq || "Monthly", Period: mwLabel(c, x.Month, x.Freq || "Monthly"), "Due Date": mwDue(c, x.Service, x.Month, x.Freq || "Monthly"), Status: x.Status, "Assigned To": empName(x.AssignedTo), Reviewer: empName(x.Reviewer), "Completed On": x.CompletedDate, Hours: x.Hours, Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "Accounting & Consultancy");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mw.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Location: locOf(c), Service: x.Service, Frequency: x.Freq || "Monthly", Period: mwLabel(c, x.Month, x.Freq || "Monthly"), "Due Date": mwDue(c, x.Service, x.Month, x.Freq || "Monthly"), Status: x.Status, "Assigned To": empName(x.AssignedTo), Reviewer: empName(x.Reviewer), "Completed On": x.CompletedDate, Hours: x.Hours, Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "Accounting-Consultation");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.audits.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), FY: x.FY, Status: x.Status, Auditor: x.Auditor, "Assigned To": empName(x.AssignedTo), "Due Date": x.DueDate, "Completed On": x.CompletedDate, Notes: x.Notes, "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }))), "Audits");
   XLSX.writeFile(wb, `Vinpro-ClientDesk-Export-${todayISO()}.xlsx`);
   await logAct(withPwd ? "Export with passwords" : "Export", null, `${cl.length} clients`);
@@ -1680,7 +1696,7 @@ function loginScreen(msg){
       <div class="eyebrow">Vinpro Global — Est. 2014</div>
       <h1>Client Desk<br><em>for Bahrain &amp; UAE.</em></h1>
       <p>One place for the client master, portal logins and every compliance deadline your team tracks.</p>
-      <ul class="auth-list"><li>VAT returns — NBR &amp; FTA</li><li>Corporate tax &amp; DMTT</li><li>Accounting &amp; consulting</li><li>Statutory audits &amp; CR / licence renewals</li></ul>
+      <ul class="auth-list"><li>VAT returns — NBR &amp; FTA</li><li>Corporate tax &amp; DMTT</li><li>Accounting/Consultation</li><li>Statutory audits &amp; CR / licence renewals</li></ul>
     </div><div class="auth-foot">Internal tool of <a href="https://vinproglobal.com" target="_blank" rel="noopener">vinproglobal.com</a> · Global Advisory Partner</div></section>
     <section class="auth-panel"><div class="auth-card">
       ${logoImg()}
