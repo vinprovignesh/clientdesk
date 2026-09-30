@@ -612,6 +612,42 @@ function crInfo(c){
   if(d <= 30) return { cls:"amber", txt:`${fmtDate(c.CRExpiry)} · ${d}d`, d };
   return { cls:"outline", txt: fmtDate(c.CRExpiry), d };
 }
+/* ---------- CR expiry from Sijilat (Bahrain public CR search) ---------- */
+const SIJILAT_SEARCH = "https://www.sijilat.bh/public-search-cr/search-cr-2.aspx?cr_no=";
+const SIJILAT_ORIGINS = ["https://www.sijilat.bh", "https://sijilat.bh"];
+function crParts(no){ const m = /^\s*(\d+)(?:\s*[-\/]\s*(\d+))?/.exec(String(no || "")); return m ? { cr: m[1], br: m[2] || "" } : null; }
+function canCrUpdate(c){ return !!c && !isDeact(c) && canSee(c) && locOf(c) === "Bahrain" && !!crParts(c.CRNo); }
+function sijilatBookmarklet(){
+  const code = `(function(){try{var t=window.dtvars&&window.dtvars['#search_cr'];var d=t?t.data().toArray():[];if(!d.length){alert('Client Desk: the CR search has not finished on this page yet. Wait a moment and click again.');return;}if(!window.opener){alert('Client Desk: open this Sijilat page with the Update button in Client Desk, then click this bookmark.');return;}window.opener.postMessage({type:'vinpro-sijilat',rows:d.map(function(r){return{cr:String(r.CR_NO),br:String(r.BRANCH_NO),exp:r.EXPIRE_DATE,status:r.STATUS,name:r.CR_LNM};})},${JSON.stringify(location.origin)});window.close();}catch(e){alert('Client Desk: could not read the Sijilat result ('+e.message+')');}})();`;
+  return "javascript:" + encodeURIComponent(code); }
+function openSijilat(c){ const p = crParts(c.CRNo); window.open(SIJILAT_SEARCH + encodeURIComponent(p.cr), "sijilat"); }
+function sijDate(s){ const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s || "").trim()); return m ? `${m[3]}-${pad(+m[2])}-${pad(+m[1])}` : ""; }
+async function saveCrExpiry(c, iso, how, extra){
+  const old = c.CRExpiry || "";
+  if(old === iso){ await logAct("CR expiry checked", c, `${how}: unchanged (${iso})${extra ? " · " + extra : ""}`); closeModal(); render(); return toast(`CR expiry already up to date · ${fmtDate(iso)}`); }
+  await saveRec("clients", c.id, { CRExpiry: iso });
+  await logAct("CR expiry updated", c, `${how}: ${old ? fmtDate(old) : "not set"} → ${fmtDate(iso)}${extra ? " · " + extra : ""}`);
+  closeModal(); render(); toast(`CR expiry updated to ${fmtDate(iso)}`);
+}
+async function applySijilat(id, rows, pick){
+  const c = clientById(id); if(!c) return; const p = crParts(c.CRNo); const m = state.modals[state.modals.length - 1];
+  let hits = rows.filter(r => r.cr === p.cr); let row = null;
+  if(pick != null) row = hits[pick];
+  else if(p.br) row = hits.find(r => r.br === p.br);
+  else if(hits.length === 1) row = hits[0];
+  if(!row){ m.props.rows = hits; m.props.err = hits.length ? "" : `Sijilat returned no record for CR ${p.cr}. Check the CR number on the client.`; renderModals(); return; }
+  const iso = sijDate(row.exp); if(!iso){ m.props.rows = hits; m.props.err = `Sijilat shows no valid expiry date for CR ${row.cr}-${row.br} (${row.exp || "blank"}).`; renderModals(); return; }
+  await saveCrExpiry(c, iso, "From Sijilat", `CR ${row.cr}-${row.br} · ${row.status || ""}`);
+  if(row.status && !/^active$/i.test(row.status)) toast(`Note: Sijilat status for CR ${row.cr}-${row.br} is ${row.status}`, true);
+}
+window.addEventListener("message", e => {
+  if(!SIJILAT_ORIGINS.includes(e.origin)) return; const d = e.data;
+  if(!d || d.type !== "vinpro-sijilat" || !Array.isArray(d.rows)) return;
+  const m = state.modals[state.modals.length - 1];
+  if(!m || m.type !== "crUpdate") return toast("Sijilat result received — click Update on a client first", true);
+  const rows = d.rows.slice(0, 200).map(r => ({ cr: String(r.cr || ""), br: String(r.br || ""), exp: String(r.exp || ""), status: String(r.status || ""), name: String(r.name || "") }));
+  m.props.rows = null; m.props.err = ""; m.props.all = rows; applySijilat(m.props.id, rows).catch(() => {});
+});
 function updCell(r){ if(!r || !r.UpdatedOn) return ""; return `<span title="${esc(empName(r.UpdatedBy))} · ${fmtDT(r.UpdatedOn)}">${esc(empName(r.UpdatedBy).split(" ")[0])} · ${fmtDate(r.UpdatedOn.slice(0,10)).slice(0,6)}</span>`; }
 function chip(color, text, dot){ return `<span class="chip ${color}">${dot ? '<span class="dot"></span>' : ""}${text}</span>`; }
 function vatChip(st){ return chip(VAT_COLOR[st] || "grey", esc(st), true); }
@@ -828,7 +864,7 @@ VIEWS.clients = () => {
     ${list.map(c => { const cr = crInfo(c); return `<tr class="click" data-act="openClient" data-id="${c.id}">
       ${isMgr() ? `<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${c.id}" ${sel.has(c.id) ? "checked" : ""} aria-label="Select"></td>` : ""}
       <td><span class="cname">${esc(c.Title)}</span>${c.Status && c.Status !== "Active" ? ` ${chip("grey", esc(c.Status))}` : ""}</td>
-      <td>${locTag(c)}</td><td class="nowrap">${esc(c.CRNo)}</td><td>${chip(cr.cls, cr.txt)}</td>
+      <td>${locTag(c)}</td><td class="nowrap">${esc(c.CRNo)}</td><td data-stop="1" class="nowrap">${chip(cr.cls, cr.txt)}${canCrUpdate(c) ? `<div style="margin-top:5px"><button class="btn sm" data-act="crUpdate" data-id="${c.id}" title="Update CR expiry from Sijilat">${I.refresh} Update</button></div>` : ""}</td>
       <td class="small">${esc(c.ContactName)}${c.ContactNo ? `<div class="faint nowrap">${esc(phoneOf(c))}</div>` : ""}</td>
       <td>${serviceTags(c) || `<span class="soon small">Not set</span>`}</td>
       <td class="small nowrap">${c.VATCycle ? esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].short : c.VATCycle) : `<span class="soon">Not set</span>`}</td>
@@ -1097,7 +1133,7 @@ MODALS.client = ({ id }) => {
   const tabs = [["overview","Overview"],["logins",`Logins (${data.creds.filter(x => x.ClientId === id).length})`],["vat","VAT returns"],["ct","Corporate tax"],["mw","Monthly work"],["audit","Audit"],["activity","Activity"]];
   let body = "";
   if(tab === "overview") body = `<div class="kv">
-      ${[["Location", locTag(c) + " " + esc(locOf(c) === "UAE" ? "UAE (Dubai)" : "Bahrain")], [locOf(c) === "UAE" ? "Trade licence no" : "CR No", esc(c.CRNo)], ["Expiry", chip(cr.cls, cr.txt)], ["Status", esc(c.Status || "Active")], ["Contact person", esc(c.ContactName)], ["Contact no", esc(c.ContactNo)], ["Contact email", esc(c.ContactEmail)],
+      ${[["Location", locTag(c) + " " + esc(locOf(c) === "UAE" ? "UAE (Dubai)" : "Bahrain")], [locOf(c) === "UAE" ? "Trade licence no" : "CR No", esc(c.CRNo)], ["Expiry", chip(cr.cls, cr.txt) + (canCrUpdate(c) ? ` <button type="button" class="btn sm" data-act="crUpdate" data-id="${c.id}">${I.refresh} Update from Sijilat</button>` : "")], ["Status", esc(c.Status || "Active")], ["Contact person", esc(c.ContactName)], ["Contact no", esc(c.ContactNo)], ["Contact email", esc(c.ContactEmail)],
         [locOf(c) === "UAE" ? "VAT TRN" : "VAT account no", esc(c.VATNo)], ["Corporate tax TRN", esc(c.CTNo)], ["VAT cycle", esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].label : (c.VATCycle || "Not set"))], ["Financial year end", esc(fyEndLabel(c.FYEnd))], ["Services", serviceTags(c) + (otherServiceText(c) ? ` <span class="small muted">Others: ${esc(otherServiceText(c))}</span>` : "")],
         ["Reviewer / manager", esc(empName(c.Reviewer))], ...MW_SERVICES.filter(sv => hasService(c, sv)).map(sv => [sv + " frequency", esc(freqText(c, sv))])].map(([k, v]) => `<div><span>${k}</span><b>${v || '<span class="faint">—</span>'}</b></div>`).join("")}
     </div>
@@ -1266,6 +1302,23 @@ MODALS.empForm = ({ id }) => {
   </div></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
 
+MODALS.crUpdate = ({ id, rows, err }) => { const c = clientById(id); if(!c) return ""; const p = crParts(c.CRNo);
+  return `<form class="modal" data-form="crManual" data-id="${c.id}" style="max-width:620px">${mHead(`Update CR Expiry · ${esc(c.Title)}`)}
+  <div class="mb">
+    <div class="kv" style="margin-bottom:14px"><div><span>CR No</span>${esc(c.CRNo)}</div><div><span>Current Expiry</span>${c.CRExpiry ? fmtDate(c.CRExpiry) : "Not set"}</div></div>
+    ${err ? `<div class="banner">${esc(err)}</div>` : ""}
+    ${rows && rows.length ? `<div class="small muted" style="margin-bottom:6px">Sijilat returned ${rows.length} records for CR ${esc(p.cr)}. Pick the one for this client:</div>
+      <div class="tw"><table class="tbl"><thead><tr><th>CR</th><th>Name</th><th>Status</th><th>Expiry</th><th></th></tr></thead><tbody>
+      ${rows.map((r, i) => `<tr><td class="nowrap">${esc(r.cr)}-${esc(r.br)}</td><td class="small">${esc(r.name)}</td><td class="small">${esc(r.status)}</td><td class="nowrap">${esc(r.exp)}</td><td><button type="button" class="btn sm pri" data-act="crPick" data-i="${i}">Use</button></td></tr>`).join("")}</tbody></table></div>`
+    : `<ol class="small" style="margin:0 0 12px;padding-left:18px;line-height:1.7">
+      <li>Sijilat has opened in a new tab and is searching CR <b>${esc(p.cr)}</b>. <a href="#" data-act="crReopen" data-id="${c.id}">Open it again</a></li>
+      <li>When the result shows, click the <b>Send to Client Desk</b> bookmark. The expiry date is saved here automatically and the Sijilat tab closes.</li></ol>
+      <div class="card" style="padding:12px 14px;margin-bottom:12px;background:var(--panel-2)"><div class="small" style="margin-bottom:8px"><b>One-time setup:</b> drag this button to your browser's bookmarks bar (Ctrl+Shift+B on Windows, Cmd+Shift+B on Mac shows the bar).</div>
+      <a class="btn" style="text-decoration:none" href="${esc(sijilatBookmarklet())}" data-act="bmHint" draggable="true">⇪ Send to Client Desk</a></div>`}
+    <details class="small"><summary style="cursor:pointer">Or enter the date manually</summary><div class="form" style="margin-top:8px"><label>CR expiry date<input class="in" type="date" name="CRExpiry" required></label></div>
+    <div style="margin-top:8px"><button class="btn pri">Save date</button></div></details>
+  </div>
+  <div class="mf"><button type="button" class="btn" data-act="close">Close</button></div></form>`; };
 MODALS.bulk = () => `<form class="modal" data-form="bulk">${mHead(`Bulk update ${state.cf.sel.size} clients`)}
   <div class="mb"><div class="form">
     <label class="full">Location<select class="in" name="Location"><option value="">— no change —</option>${LOCATIONS.map(L => `<option>${L}</option>`).join("")}</select></label>
@@ -1327,6 +1380,7 @@ SUBMIT.client = async (form, o) => {
   await logAct(id ? "Client updated" : "Client added", id ? clientById(id) : r, changes ? "Changed: " + changes : "");
   closeModal(); if(!id){ state.clientTab = "overview"; openModal("client", { id: r.id }); } toast("Client saved");
 };
+SUBMIT.crManual = async (form, o) => { const c = clientById(form.dataset.id); if(!c || !/^\d{4}-\d{2}-\d{2}$/.test(o.CRExpiry || "")) return toast("Enter a valid date", true); await saveCrExpiry(c, o.CRExpiry, "Entered manually"); };
 SUBMIT.cred = async (form, o) => {
   const cid = form.dataset.c, id = form.dataset.id; const portal = o.Portal === "Other" ? (o.PortalOther.trim() || "Other") : o.Portal;
   const f = { Title: portal, ClientId: cid, Username: o.Username.trim(), Pwd: o.Pwd, PortalURL: o.PortalURL.trim(), Notes: o.Notes, UpdatedBy: me.email, UpdatedOn: nowISO() };
@@ -1620,6 +1674,10 @@ const ACT = {
   openClient: (d, e) => { if(e.target.closest("[data-stop]")) return; e.preventDefault(); state.clientTab = "overview"; openModal("client", { id: d.id }); },
   ctab: d => { state.clientTab = d.v; renderModals(); },
   close: () => closeModal(),
+  crUpdate: (d, e) => { if(e) e.preventDefault(); const c = clientById(d.id); if(!canCrUpdate(c)) return toast("CR update from Sijilat is available for active Bahrain clients with a CR number", true); openSijilat(c); openModal("crUpdate", { id: c.id }); },
+  crReopen: (d, e) => { if(e) e.preventDefault(); const c = clientById(d.id); if(c) openSijilat(c); },
+  crPick: d => { const m = state.modals[state.modals.length - 1]; if(m && m.props.rows){ const row = m.props.rows[+d.i]; const c = clientById(m.props.id); const iso = sijDate(row.exp); if(!iso) return toast("No valid expiry date on that record", true); saveCrExpiry(c, iso, "From Sijilat", `CR ${row.cr}-${row.br} · ${row.status}`).then(() => { if(row.status && !/^active$/i.test(row.status)) toast(`Note: Sijilat status for CR ${row.cr}-${row.br} is ${row.status}`, true); }).catch(() => {}); } },
+  bmHint: (d, e) => { e.preventDefault(); toast("Drag this button to your bookmarks bar — then click it on the Sijilat result page"); },
   editClient: d => { const c = clientById(d.id); if(c && isDeact(c) && !isAdmin()) return toast("This client is deactivated", true); openModal("clientForm", { id: d.id }); },
   editCred: d => { if(isDeact(clientById(d.c))) return toast("This client is deactivated — reactivate it to make changes", true); openModal("credForm", { cid: d.c, id: d.id }); },
   toggleDeact: (d, e) => { if(!isAdmin()) return; const c = clientById(d.id); if(!c) return; if(e && e.target && e.target.type === "checkbox") e.target.checked = isDeact(c);
