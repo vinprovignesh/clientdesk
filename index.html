@@ -307,8 +307,8 @@ const VAT_SHORT = {"Not started":"—","Data requested":"Req","Data received":"R
 const AUDIT_STATUSES = ["Not started","Engagement / Planning","Fieldwork","Draft FS issued","Management review","Signed","Filed with authority","Not applicable"];
 const AUDIT_DONE = new Set(["Filed with authority","Filed with MOIC (Sijilat)","Not applicable","Uploaded in Sijilat","Not Applicable"]);
 /* Bahrain clients use their own audit stages; older Bahrain records are read through this map */
-const AUDIT_STATUSES_BH = ["Not Started","Pre Audit Docs Signed","Fieldwork - Vinpro","Pending at Auditor end","Draft FS","Final Signed","Uploaded in Sijilat","Not Applicable"];
-const AUDIT_BH_MAP = {"Not started":"Not Started","Engagement / Planning":"Pre Audit Docs Signed","Fieldwork":"Fieldwork - Vinpro","Draft FS issued":"Draft FS","Management review":"Draft FS","Signed":"Final Signed","Filed with authority":"Uploaded in Sijilat","Filed with MOIC (Sijilat)":"Uploaded in Sijilat","Not applicable":"Not Applicable"};
+const AUDIT_STATUSES_BH = ["Not Started","Pre Audit Docs Signed","Fieldwork - Vinpro","Pending at Auditor end","Draft FS","Management Review","Final Signed","Uploaded in Sijilat","Not Applicable"];
+const AUDIT_BH_MAP = {"Not started":"Not Started","Engagement / Planning":"Pre Audit Docs Signed","Fieldwork":"Fieldwork - Vinpro","Draft FS issued":"Draft FS","Management review":"Management Review","Signed":"Final Signed","Filed with authority":"Uploaded in Sijilat","Filed with MOIC (Sijilat)":"Uploaded in Sijilat","Not applicable":"Not Applicable"};
 function auditStatuses(c){ return locOf(c) === "Bahrain" ? AUDIT_STATUSES_BH : AUDIT_STATUSES; }
 function auditSt(c, r){ const s = (r && r.Status) || ""; if(locOf(c) === "Bahrain") return AUDIT_BH_MAP[s] || s || "Not Started"; return s || "Not started"; }
 const MW_SERVICES = ["Accounting", "Consultancy"];
@@ -324,7 +324,7 @@ const FREQ_FIELD = { Accounting: "AcctFreq", Consultancy: "ConsFreq" };
 const CT_STATUSES = ["Not started","Data requested","Data received","Computation in progress","Under review","Filed","Paid / Closed","Not applicable"];
 const CT_DONE = new Set(["Filed","Paid / Closed","Not applicable"]);
 const CT_COLOR = {"Not started":"grey","Data requested":"amber","Data received":"blue","Computation in progress":"blue","Under review":"purple","Filed":"green","Paid / Closed":"green","Not applicable":"grey"};
-const AUDIT_COLOR = {"Not started":"grey","Engagement / Planning":"amber","Fieldwork":"blue","Draft FS issued":"blue","Management review":"purple","Signed":"green","Filed with authority":"green","Filed with MOIC (Sijilat)":"green","Not applicable":"grey","Not Started":"grey","Pre Audit Docs Signed":"amber","Fieldwork - Vinpro":"blue","Pending at Auditor end":"purple","Draft FS":"blue","Final Signed":"green","Uploaded in Sijilat":"green","Not Applicable":"grey"};
+const AUDIT_COLOR = {"Not started":"grey","Engagement / Planning":"amber","Fieldwork":"blue","Draft FS issued":"blue","Management review":"purple","Signed":"green","Filed with authority":"green","Filed with MOIC (Sijilat)":"green","Not applicable":"grey","Not Started":"grey","Pre Audit Docs Signed":"amber","Fieldwork - Vinpro":"blue","Pending at Auditor end":"purple","Draft FS":"blue","Management Review":"purple","Final Signed":"green","Uploaded in Sijilat":"green","Not Applicable":"grey"};
 
 /* ============================================================
    HELPERS
@@ -953,7 +953,7 @@ VIEWS.audit = () => {
   </div>
   <div class="card"><div class="card-b"><div class="progress-row"><div><b>FY${esc(f.fy)} audits</b><div class="small muted">Clients with the <b>Audit</b> service ticked</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>FY end</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Progress</th><th>Due</th><th>Completed</th><th>Last update</th><th></th></tr></thead><tbody>
-  ${rows.map(r => { const idx = auditStatuses(r.c).indexOf(r.st); const steps = 7; const d = daysUntil(r.rec && r.rec.DueDate); return `<tr>
+  ${rows.map(r => { const idx = auditStatuses(r.c).indexOf(r.st); const steps = auditStatuses(r.c).length - 1; const d = daysUntil(r.rec && r.rec.DueDate); return `<tr>
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
     <td class="small nowrap">${fmtDate(f.fy + "-" + (r.c.FYEnd || "12-31"))}</td><td class="small">${esc(r.rec && r.rec.Auditor)}</td>
     <td class="small">${esc(empName((r.rec && r.rec.AssignedTo) || teamOf(r.c)[0] || ""))}</td><td>${auditChip(r.st)}</td>
