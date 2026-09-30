@@ -736,76 +736,79 @@ function noAccessScreen(){
    ============================================================ */
 const VIEWS = {};
 
-/* ---------- period windows for the dashboard ---------- */
-function qWin(){ const cur = curYM(); const m = +cur.slice(5); const qs = Math.floor((m - 1) / 3) * 3 + 1; const y = cur.slice(0, 4);
-  const from = `${y}-${pad(qs)}`, to = `${y}-${pad(qs + 2)}`; return { from, to, label: `${MONTHS[qs-1]}–${MONTHS[qs+1]} ${y}` }; }
-function inWin(date, fromYm, toYm){ const ym = String(date || "").slice(0, 7); return ym >= fromYm && ym <= toYm; }
-function vatDueIn(clients, fromYm, toYm){ const out = []; const cur = curYM();
-  for(const c of clients){ if(isDeact(c)) continue; for(const pe of periodsFor(c, ymAdd(cur, -24), ymAdd(cur, 6))){ const due = dueOf(pe, c); if(!inWin(due, fromYm, toYm)) continue;
-    const st = vatStatus(c.id, pe); out.push({ c, pe, due, st, done: VAT_DONE.has(st), rec: vatRec(c.id, pe) }); } }
-  return out.sort((a, b) => a.due.localeCompare(b.due)); }
-/* each client's current VAT return: the earliest period on its own cycle whose due date is today or later */
-function vatCurrent(clients){ const out = []; const cur = curYM(); const t = todayISO();
-  for(const c of clients){ if(isDeact(c)) continue; const pe = periodsFor(c, ymAdd(cur, -15), ymAdd(cur, 13)).find(p => dueOf(p, c) >= t); if(!pe) continue;
-    const st = vatStatus(c.id, pe); out.push({ c, pe, due: dueOf(pe, c), st, done: VAT_DONE.has(st), rec: vatRec(c.id, pe) }); }
-  return out.sort((a, b) => a.due.localeCompare(b.due) || a.c.Title.localeCompare(b.c.Title)); }
-function mwDueIn(clients, ym){ const out = []; const cur = curYM();
+/* ---------- dashboard: work of the current period + anything still open from earlier periods ---------- */
+function vatWork(clients){ const out = []; const cur = curYM();
+  for(const c of clients){ if(isDeact(c)) continue; const ps = periodsFor(c, ymAdd(cur, -36), ymAdd(cur, 12)); const now = ps.find(p => p >= cur); if(!now) continue;
+    for(const pe of ps){ if(pe > now) break; const st = vatStatus(c.id, pe); const done = VAT_DONE.has(st); const isCur = pe === now; if(!isCur && done) continue;
+      const due = dueOf(pe, c); out.push({ c, pe, due, st, done, cur: isCur, prev: !isCur && !done, over: !isCur && !done && daysUntil(due) < 0, label: periodLabel(c.VATCycle, pe) }); } }
+  return out.sort((a, b) => (b.prev - a.prev) || a.pe.localeCompare(b.pe) || a.c.Title.localeCompare(b.c.Title)); }
+function mwWork(clients){ const out = []; const cur = curYM();
   for(const c of clients){ if(isDeact(c)) continue; for(const svc of MW_SERVICES){ if(!hasService(c, svc)) continue;
-    for(const p of mwPeriods(c, svc, ymAdd(cur, -15), ymAdd(cur, 1))){ const due = mwDue(c, svc, p.ym, p.freq); if(due.slice(0, 7) !== ym) continue;
-      const st = mwStatus(c.id, svc, p.ym, p.freq); out.push({ c, svc, ym: p.ym, freq: p.freq, due, st, done: MW_DONE.has(st) }); } } }
-  return out.sort((a, b) => a.due.localeCompare(b.due)); }
-function ctDueIn(clients, year){ const out = []; const y = +year;
-  for(const c of ctClients(clients)) for(const fy of [y - 2, y - 1, y].map(String)){ const due = ctDue(c, fy); if(due.slice(0, 4) !== String(year)) continue;
-    const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; out.push({ c, fy, due, st, done: CT_DONE.has(st) }); }
-  return out.sort((a, b) => a.due.localeCompare(b.due)); }
-function auditDue(clients, fy){ return auditClients(clients).map(c => { const r = auditRec(c.id, fy); const st = auditSt(c, r); return { c, st, done: AUDIT_DONE.has(st), due: (r && r.DueDate) || "" }; }); }
-function dueTag(due){ const d = daysUntil(due); return d == null ? "" : d < 0 ? "" : d === 0 ? `<span class="soon">today</span>` : d <= 7 ? `<span class="soon">in ${d} day${d === 1 ? "" : "s"}</span>` : ""; }
+    const ps = mwPeriods(c, svc, MW_START, ymAdd(cur, 12)); const nowA = (ps.find(p => p.freq === "Annually" && p.ym >= cur) || {}).ym;
+    for(const p of ps){ const isCur = p.freq === "Monthly" ? p.ym === cur : p.ym === nowA; const past = p.freq === "Monthly" ? p.ym < cur : p.ym < cur;
+      if(!isCur && !past) continue; const st = mwStatus(c.id, svc, p.ym, p.freq); const done = MW_DONE.has(st); if(!isCur && done) continue;
+      const due = mwDue(c, svc, p.ym, p.freq); out.push({ c, svc, ym: p.ym, freq: p.freq, due, st, done, cur: isCur, prev: !isCur && !done, over: !isCur && !done && daysUntil(due) < 0, label: mwLabel(c, p.ym, p.freq) }); } } }
+  return out.sort((a, b) => (b.prev - a.prev) || a.ym.localeCompare(b.ym) || a.c.Title.localeCompare(b.c.Title)); }
+/* corporate tax: the latest financial year that has ended; an earlier year shows only if it was started and is still open */
+function ctWork(clients){ const out = []; const t = todayISO(); const y = +t.slice(0, 4);
+  for(const c of ctClients(clients)){ if(isDeact(c)) continue; const ended = [y - 2, y - 1, y].map(String).filter(fy => `${fy}-${c.FYEnd || "12-31"}` < t); const now = ended[ended.length - 1]; if(!now) continue;
+    for(const fy of ended){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; const done = CT_DONE.has(st); const isCur = fy === now;
+      if(!isCur && (done || !r)) continue; out.push({ c, fy, due: ctDue(c, fy), st, done, cur: isCur, prev: !isCur && !done, over: !isCur && !done }); } }
+  return out.sort((a, b) => (b.prev - a.prev) || a.fy.localeCompare(b.fy) || a.c.Title.localeCompare(b.c.Title)); }
+/* audit: the financial year chosen in the Audit tracker; the year before shows only if it was started and is still open */
+function auditWork(clients, fy){ const out = []; const prev = String(+fy - 1);
+  for(const c of auditClients(clients)){ if(isDeact(c)) continue;
+    const rp = auditRec(c.id, prev); if(rp){ const st = auditSt(c, rp); if(!AUDIT_DONE.has(st)) out.push({ c, fy: prev, st, done: false, cur: false, prev: true, over: true, due: rp.DueDate || "" }); }
+    const r = auditRec(c.id, fy); const st = auditSt(c, r); const done = AUDIT_DONE.has(st); out.push({ c, fy, st, done, cur: true, prev: false, over: false, due: (r && r.DueDate) || "" }); }
+  return out.sort((a, b) => (b.prev - a.prev) || a.c.Title.localeCompare(b.c.Title)); }
+function workSum(items){ const now = items.filter(x => x.cur); return { total: now.length, doneN: now.filter(x => x.done).length, curP: now.filter(x => !x.done).length, prevN: items.filter(x => x.prev).length, over: items.filter(x => x.over).length, pending: items.filter(x => !x.done) }; }
+function prevChip(x, label){ return x.over ? chip("red", "Overdue · " + esc(label)) : x.prev ? chip("amber", "Previous period · " + esc(label)) : ""; }
+function dueTag(due){ const d = daysUntil(due); return d == null ? "" : d < 0 ? `<span class="over">past due</span>` : d === 0 ? `<span class="soon">today</span>` : d <= 7 ? `<span class="soon">in ${d} day${d === 1 ? "" : "s"}</span>` : ""; }
 
 VIEWS.dashboard = () => {
   const cl = visibleClients(); const active = cl.filter(c => !isDeact(c));
-  const cur = curYM(); const yr = cur.slice(0, 4); const Q = qWin(); const fy = state.af.fy;
-  const vat = vatCurrent(cl), vatP = vat.filter(x => !x.done);
-  const mw = mwDueIn(cl, cur), mwP = mw.filter(x => !x.done);
-  const ct = ctDueIn(cl, yr), ctP = ct.filter(x => !x.done);
-  const aud = auditDue(cl, fy), audP = aud.filter(x => !x.done);
+  const cur = curYM(); const fy = state.af.fy;
+  const vat = workSum(vatWork(cl)), mw = workSum(mwWork(cl)), ct = workSum(ctWork(cl)), aud = workSum(auditWork(cl, fy));
   const cr = active.map(c => ({ c, i: crInfo(c) })).filter(x => x.i.d != null && x.i.d <= 30).sort((a,b) => a.i.d - b.i.d);
   const unsetCycle = active.filter(c => !c.VATCycle).length;
   const hour = new Date().getHours(); const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const acts = data.activity.filter(a => isMgr() || !a.ClientId || cl.some(c => c.id === a.ClientId)).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 8);
-  const tile = (view, label, pending, total, doneWord) => `<button class="kpi" data-act="nav" data-v="${view}"><div class="l">${label}</div><div class="v">${pending}</div><div class="s">pending of ${total} · ${total - pending} ${doneWord}</div></button>`;
+  const tile = (view, label, w, doneWord) => `<button class="kpi" data-act="nav" data-v="${view}"><div class="l">${label}</div><div class="v">${w.pending.length}</div><div class="s">${w.curP} of ${w.total} pending this period · ${w.doneN} ${doneWord}</div>${w.prevN ? `<div class="s ${w.over ? "over" : ""}">+ ${w.prevN} from earlier period${w.prevN > 1 ? "s" : ""}${w.over ? ` (${w.over} overdue)` : ""}</div>` : ""}</button>`;
   const who = x => `${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b>`;
+  const more = (n, where) => n > 0 ? `<div class="card-b small muted">+ ${n} more in ${where}</div>` : "";
+  const vatP = vat.pending, mwP = mw.pending, ctP = ct.pending, audP = aud.pending;
   return `
   <div style="margin-bottom:16px"><b style="font-size:16px">${greet}, ${esc(me.name.split(" ")[0])}.</b> <span class="muted">${fmtDate(todayISO())}</span></div>
   ${unsetCycle ? `<div class="banner">${unsetCycle} active client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
   <div class="kpis">
     <button class="kpi" data-act="nav" data-v="clients"><div class="l">${isMgr() ? "Active clients" : "My active clients"}</div><div class="v">${active.length}</div><div class="s">${cl.length - active.length} deactivated</div></button>
-    ${tile("vat", `VAT due · current cycle`, vatP.length, vat.length, "filed")}
-    ${tile("mw", `Accounting/Consultation · ${ymLabel(cur)}`, mwP.length, mw.length, "completed")}
-    ${tile("ct", `Corporate tax due · ${yr}`, ctP.length, ct.length, "filed")}
-    ${tile("audit", `Audits · FY${esc(fy)}`, audP.length, aud.length, "completed")}
+    ${tile("vat", "VAT pending · current period", vat, "filed")}
+    ${tile("mw", `Accounting/Consultation pending · ${ymLabel(cur)}`, mw, "completed")}
+    ${tile("ct", "Corporate tax pending · latest year", ct, "filed")}
+    ${tile("audit", `Audits pending · FY${esc(fy)}`, aud, "completed")}
     <button class="kpi" data-act="nav" data-v="clients"><div class="l">CR / licence expiring ≤30d</div><div class="v">${cr.length}</div><div class="s">renewals to follow up</div></button>
   </div>
   ${!state.loc && isMgr() ? locationCard(allowedClients()) : ""}
   <div class="grid2">
     <div>
-      <div class="card"><div class="card-h"><h3>VAT returns due · current cycle</h3><div class="right"><button class="btn sm" data-act="nav" data-v="vat">Open tracker</button></div></div>
+      <div class="card"><div class="card-h"><h3>VAT pending · current period</h3><div class="right"><button class="btn sm" data-act="nav" data-v="vat">Open tracker</button></div></div>
       ${vatP.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Cycle</th><th>Period</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>
-        ${vatP.slice(0, 15).map(x => `<tr><td class="cname">${state.loc ? "" : locTag(x.c) + " "}${esc(x.c.Title)}</td><td class="small muted nowrap">${esc(CYCLES[x.c.VATCycle].short)}</td><td class="nowrap">${periodLabel(x.c.VATCycle, x.pe)}</td>
+        ${vatP.slice(0, 20).map(x => `<tr><td class="cname">${state.loc ? "" : locTag(x.c) + " "}${esc(x.c.Title)}</td><td class="small muted nowrap">${esc(CYCLES[x.c.VATCycle].short)}</td><td class="nowrap">${x.label}${x.prev ? `<div>${x.over ? chip("red", "Overdue") : chip("amber", "Previous period")}</div>` : ""}</td>
           <td class="nowrap">${fmtDate(x.due)}<div class="small">${dueTag(x.due)}</div></td><td>${vatChip(x.st)}</td>
           <td><button class="btn sm" data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}">Update</button></td></tr>`).join("")}
-      </tbody></table></div>${vatP.length > 15 ? `<div class="card-b small muted">+ ${vatP.length - 15} more in the VAT tracker</div>` : ""}` : `<div class="empty">All ${vat.length} VAT returns for the current cycle are filed.</div>`}
+      </tbody></table></div>${more(vatP.length - 20, "the VAT tracker")}` : `<div class="empty">All ${vat.total} VAT returns for the current period are filed.</div>`}
       </div>
       ${isMgr() ? teamWorkloadCard(cl) : ""}
     </div>
     <div>
-      <div class="card"><div class="card-h"><h3>Accounting/Consultation · ${ymLabel(cur)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="mw">Open tracker</button></div></div>
-        ${mwP.length ? `<ul class="feed">${mwP.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}">${who(x)} <span style="float:right">${mwChip(x.st)}</span><div class="when">${esc(x.svc)} · ${esc(mwLabel(x.c, x.ym, x.freq))} · due ${fmtDate(x.due)} ${dueTag(x.due)}</div></li>`).join("")}</ul>${mwP.length > 8 ? `<div class="card-b small muted">+ ${mwP.length - 8} more in Accounting/Consultation</div>` : ""}` : `<div class="empty">Nothing pending for ${ymLabel(cur)}.</div>`}
+      <div class="card"><div class="card-h"><h3>Accounting/Consultation pending · ${ymLabel(cur)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="mw">Open tracker</button></div></div>
+        ${mwP.length ? `<ul class="feed">${mwP.slice(0, 10).map(x => `<li style="cursor:pointer" data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}">${who(x)} <span style="float:right">${prevChip(x, x.label)} ${mwChip(x.st)}</span><div class="when">${esc(x.svc)} · ${esc(x.label)} · due ${fmtDate(x.due)} ${dueTag(x.due)}</div></li>`).join("")}</ul>${more(mwP.length - 10, "Accounting/Consultation")}` : `<div class="empty">Nothing pending for ${ymLabel(cur)}.</div>`}
       </div>
-      <div class="card"><div class="card-h"><h3>Corporate tax due · ${yr}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="ct">Open tracker</button></div></div>
-        ${ctP.length ? `<ul class="feed">${ctP.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}">${who(x)} <span style="float:right">${ctChip(x.st)}</span><div class="when">FY${esc(x.fy)} · due ${fmtDate(x.due)} ${dueTag(x.due)}</div></li>`).join("")}</ul>` : `<div class="empty">No corporate tax returns pending for ${yr}.</div>`}
+      <div class="card"><div class="card-h"><h3>Corporate tax pending</h3><div class="right"><button class="btn sm" data-act="nav" data-v="ct">Open tracker</button></div></div>
+        ${ctP.length ? `<ul class="feed">${ctP.slice(0, 10).map(x => `<li style="cursor:pointer" data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}">${who(x)} <span style="float:right">${prevChip(x, "FY" + x.fy)} ${ctChip(x.st)}</span><div class="when">FY${esc(x.fy)} · due ${fmtDate(x.due)} ${dueTag(x.due)}</div></li>`).join("")}</ul>${more(ctP.length - 10, "the Corporate Tax tracker")}` : `<div class="empty">No corporate tax returns pending.</div>`}
       </div>
-      <div class="card"><div class="card-h"><h3>Audits · FY${esc(fy)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="audit">Open tracker</button></div></div>
-        ${audP.length ? `<ul class="feed">${audP.slice(0, 8).map(x => `<li style="cursor:pointer" data-act="editAudit" data-c="${x.c.id}" data-fy="${esc(fy)}">${who(x)} <span style="float:right">${auditChip(x.st)}</span><div class="when">${x.due ? "target " + fmtDate(x.due) : "no target date set"}</div></li>`).join("")}</ul>${audP.length > 8 ? `<div class="card-b small muted">+ ${audP.length - 8} more in the Audit tracker</div>` : ""}` : `<div class="empty">All FY${esc(fy)} audits are complete.</div>`}
+      <div class="card"><div class="card-h"><h3>Audits pending · FY${esc(fy)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="audit">Open tracker</button></div></div>
+        ${audP.length ? `<ul class="feed">${audP.slice(0, 10).map(x => `<li style="cursor:pointer" data-act="editAudit" data-c="${x.c.id}" data-fy="${esc(x.fy)}">${who(x)} <span style="float:right">${prevChip(x, "FY" + x.fy)} ${auditChip(x.st)}</span><div class="when">FY${esc(x.fy)} · ${x.due ? "target " + fmtDate(x.due) : "no target date set"}</div></li>`).join("")}</ul>${more(audP.length - 10, "the Audit tracker")}` : `<div class="empty">All FY${esc(fy)} audits are complete.</div>`}
       </div>
       <div class="card"><div class="card-h"><h3>CR / trade licence expiry</h3></div>
         ${cr.length ? `<ul class="feed">${cr.map(x => `<li style="cursor:pointer" data-act="openClient" data-id="${x.c.id}">${who(x)} <span style="float:right">${chip(x.i.cls, x.i.d < 0 ? "Expired" : x.i.d + " days")}</span><div class="when">${locOf(x.c) === "UAE" ? "Licence" : "CR"} ${esc(x.c.CRNo)} · expiry ${fmtDate(x.c.CRExpiry)}</div></li>`).join("")}</ul>` : `<div class="empty">No CRs or licences expiring in the next 30 days.</div>`}
@@ -816,25 +819,25 @@ VIEWS.dashboard = () => {
     </div>
   </div>`;
 };
+function workCell(w){ return `${w.curP}<span class="faint"> / ${w.total}</span>${w.prevN ? `<div class="small ${w.over ? "over" : "soon"}">+ ${w.prevN} earlier${w.over ? ` (${w.over} overdue)` : ""}</div>` : ""}`; }
 function locationCard(all){
-  const fy = state.af.fy; const cur = curYM(); const yr = cur.slice(0, 4); const Q = qWin();
+  const fy = state.af.fy; const cur = curYM();
   const rows = LOCATIONS.map(L => { const cl = all.filter(c => locOf(c) === L); const act = cl.filter(c => !isDeact(c));
-    const cnt = a => `${a.filter(x => !x.done).length} <span class="faint">/ ${a.length}</span>`;
     const crA = act.filter(c => { const d = crInfo(c).d; return d != null && d <= 30; }).length;
-    return { L, n: act.length, vat: cnt(vatCurrent(cl)), mw: cnt(mwDueIn(cl, cur)), ct: cnt(ctDueIn(cl, yr)), aud: cnt(auditDue(cl, fy)), crA }; });
-  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>By location</h3><div class="right small muted">Pending / total due · click a row to switch location</div></div>
-  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT · current cycle<br><span class="faint">per client's VAT cycle</span></th><th class="num">Accounting/Consultation · monthly<br><span class="faint">${ymLabel(cur)}</span></th><th class="num">Corporate tax · annual<br><span class="faint">${yr}</span></th><th class="num">Audit · annual<br><span class="faint">FY${esc(fy)}</span></th><th class="num">CR / licence expiring ≤30d</th></tr></thead><tbody>
+    return { L, n: act.length, vat: workCell(workSum(vatWork(cl))), mw: workCell(workSum(mwWork(cl))), ct: workCell(workSum(ctWork(cl))), aud: workCell(workSum(auditWork(cl, fy))), crA }; });
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>By location</h3><div class="right small muted">Pending / total for this period, plus anything open from earlier · click a row to switch location</div></div>
+  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT<br><span class="faint">current period</span></th><th class="num">Accounting/Consultation<br><span class="faint">${ymLabel(cur)}</span></th><th class="num">Corporate tax<br><span class="faint">latest year</span></th><th class="num">Audit<br><span class="faint">FY${esc(fy)}</span></th><th class="num">CR / licence expiring ≤30d</th></tr></thead><tbody>
   ${rows.map(r => `<tr class="click-row" data-act="setloc" data-v="${r.L}"><td class="cname">${r.L === "UAE" ? "UAE (Dubai)" : "Bahrain"}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.mw}</td><td class="num">${r.ct}</td><td class="num">${r.aud}</td><td class="num">${r.crA}</td></tr>`).join("")}
   </tbody></table></div></div>`;
 }
 function feedItem(a){ return `<li><b>${esc(a.UserName || a.UserEmail)}</b> · ${esc(a.Title)}${a.ClientName ? ` — <span class="cname">${esc(a.ClientName)}</span>` : ""}${a.Details ? `<div class="small muted">${esc(a.Details)}</div>` : ""}<div class="when">${fmtDT(a.At)}</div></li>`; }
 function teamWorkloadCard(cl){
-  const cur = curYM(); const Q = qWin();
+  const cur = curYM(); const fy = state.af.fy;
   const rows = activeEmployees().map(e => { const mine = cl.filter(c => !isDeact(c) && teamOf(c).includes(lc(e.Email)));
-    return { e, n: mine.length, vat: vatCurrent(mine).filter(x => !x.done).length, mw: mwDueIn(mine, cur).filter(x => !x.done).length }; });
+    return { e, n: mine.length, vat: workCell(workSum(vatWork(mine))), mw: workCell(workSum(mwWork(mine))), aud: workCell(workSum(auditWork(mine, fy))) }; });
   return `<div class="card"><div class="card-h"><h3>Team workload</h3><div class="right"><button class="btn sm" data-act="nav" data-v="team">Manage</button></div></div>
-  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Employee</th><th>Role</th><th>Location</th><th class="num">Clients</th><th class="num">VAT pending · current cycle</th><th class="num">Accounting/Consultation pending · ${ymLabel(cur)}</th></tr></thead><tbody>
-  ${rows.map(r => `<tr><td class="cname">${esc(r.e.Title)}</td><td class="muted">${esc(r.e.Role)}</td><td class="small muted">${esc(r.e.Location || "—")}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.mw}</td></tr>`).join("")}
+  <div class="tw"><table class="tbl hwrap"><thead><tr><th>Employee</th><th>Role</th><th class="num">Clients</th><th class="num">VAT pending<br><span class="faint">current period</span></th><th class="num">Acc./Consultation pending<br><span class="faint">${ymLabel(cur)}</span></th><th class="num">Audit pending<br><span class="faint">FY${esc(fy)}</span></th></tr></thead><tbody>
+  ${rows.map(r => `<tr><td class="cname">${esc(r.e.Title)}<div class="small muted">${esc(r.e.Location || "")}</div></td><td class="muted">${esc(r.e.Role)}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.mw}</td><td class="num">${r.aud}</td></tr>`).join("")}
   </tbody></table></div></div>`;
 }
 
