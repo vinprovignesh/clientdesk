@@ -121,6 +121,52 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .av{display:inline-flex;align-items:center;gap:5px;font-size:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:1px 8px 1px 2px;white-space:nowrap}
 .av i{width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-style:normal;font-size:9.5px;font-weight:700;display:grid;place-items:center}
 .over{color:var(--bad);font-weight:600}
+/* ---------- management dashboard ---------- */
+.hero{position:relative;overflow:hidden;border-radius:16px;padding:22px 26px;margin-bottom:18px;color:#fcfcf9;background:linear-gradient(120deg,#050c42 0%,#0a1f5c 55%,#00756e 120%);display:flex;align-items:center;gap:24px;flex-wrap:wrap;box-shadow:var(--shadow)}
+.hero:after{content:"";position:absolute;right:-60px;top:-80px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(47,191,180,.35),transparent 70%)}
+.hero .hi{flex:1;min-width:220px;position:relative;z-index:1}
+.hero .hi h2{margin:0;font-weight:400;font-size:26px;line-height:1.15}
+.hero .hi .d{opacity:.75;font-size:13px;margin-top:4px}
+.hero .facts{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px}
+.hero .facts div{font-size:12px;opacity:.85}.hero .facts b{display:block;font-size:22px;font-weight:700;opacity:1;font-variant-numeric:tabular-nums}
+.hero .facts .red b{color:#ffb4ab}
+.ring{position:relative;z-index:1;display:flex;align-items:center;gap:12px}
+.ring svg{width:92px;height:92px;transform:rotate(-90deg)}
+.ring .rt{font-size:12px;opacity:.85;max-width:120px;line-height:1.35}
+.ring .rv{position:absolute;left:0;top:0;width:92px;height:92px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700}
+.kpi2{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px 13px;box-shadow:var(--shadow);cursor:pointer;text-align:left;transition:transform .12s,box-shadow .12s}
+.kpi2:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(16,24,40,.06),0 10px 24px rgba(16,24,40,.1)}
+.kpi2 .l{color:var(--muted);font-size:12.5px;font-weight:600;text-transform:capitalize}
+.kpi2 .v{font-size:30px;font-weight:700;margin:2px 0 8px;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi2 .v small{font-size:12px;font-weight:500;color:var(--faint);margin-left:4px}
+.segbar{display:flex;gap:2px;height:7px;border-radius:4px;overflow:hidden;background:var(--grey-bg)}
+.segbar i{display:block;height:100%}.segbar .ok{background:var(--ok)}.segbar .wa{background:var(--warn)}.segbar .ba{background:var(--bad)}
+.kpi2 .s{font-size:11.5px;color:var(--muted);margin-top:7px;display:flex;gap:10px;flex-wrap:wrap}
+.kpi2 .s .o{color:var(--bad);font-weight:600}
+.cal{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+.cal th{font-size:12px;font-weight:600;color:var(--muted);padding:9px 4px;text-align:center;border-bottom:1px solid var(--line);background:var(--panel-2);position:sticky;top:0;z-index:2}
+.cal th.rl{text-align:left;padding-left:16px;width:210px}
+.cal th.cur{color:var(--accent-ink);box-shadow:inset 0 -2px 0 var(--accent)}
+.cal td{padding:5px 4px;text-align:center;border-bottom:1px solid var(--line-2);height:42px}
+.cal td.rl{text-align:left;padding-left:16px;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal td.rl small{display:block;font-weight:400;color:var(--faint);font-size:11px}
+.cal td.nil{background:repeating-linear-gradient(135deg,transparent 0 6px,var(--line-2) 6px 7px)}
+.cal td.curc{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.cal tr:hover td.rl{color:var(--accent-ink)}
+.dl{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-width:46px;height:28px;padding:0 7px;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dl.ok{background:var(--ok-bg);color:var(--ok)}.dl.wa{background:var(--warn-bg);color:var(--warn);box-shadow:inset 0 0 0 1.5px var(--warn)}.dl.ba{background:var(--bad-bg);color:var(--bad);box-shadow:inset 0 0 0 1.5px var(--bad)}.dl.fu{background:var(--grey-bg);color:var(--grey)}
+.dl:hover{filter:brightness(.96);transform:scale(1.04)}
+.cgrid{max-height:540px;overflow:auto}
+.cgrid .dl{min-width:40px;height:24px;font-size:10.5px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:5px}.legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.yrnav{display:inline-flex;align-items:center;gap:6px}.yrnav b{font-size:14px;min-width:42px;text-align:center}
+details.dash-more{margin-top:6px}
+.mgr-row{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;margin-bottom:18px}
+.mgr-row .card{margin:0}
+details.dash-more>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:12px 16px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);font-weight:600;margin-bottom:14px;background:var(--panel)}
+details.dash-more>summary::-webkit-details-marker{display:none}
+details.dash-more[open]>summary{border-style:solid}
 .tbl tr.grp td{background:var(--panel-2);padding-top:7px;padding-bottom:7px}
 .soon{color:var(--warn);font-weight:600}
 .bar{height:6px;background:var(--line-2);border-radius:4px;overflow:hidden;min-width:80px}
@@ -513,6 +559,7 @@ const state = {
   view: "dashboard",
   cf: { q:"", status:"Active", who:"", cycle:"", svc:"", sel: new Set() },
   vf: { mode:"month", month: curYM(), year: new Date().getFullYear(), q:"", who:"", show:"all", cycle: null },
+  dg: { mode:"attention", svc:"" }, dashYear: new Date().getFullYear(), dashMore: false,
   af: { fy: String(new Date().getFullYear() - 1), q:"", who:"", show:"all" },
   mf: { svc:"Accounting", mode:"month", month: ymAdd(curYM(), -1) < MW_START ? MW_START : ymAdd(curYM(), -1), year: new Date().getFullYear(), q:"", who:"", show:"all" },
   tf: { fy: String(new Date().getFullYear() - 1), q:"", who:"", show:"all" },
@@ -768,6 +815,62 @@ function workSum(items){ const now = items.filter(x => x.cur); return { total: n
 function prevChip(x, label){ return x.over ? chip("red", "Overdue · " + esc(label)) : x.prev ? chip("amber", "Previous period · " + esc(label)) : ""; }
 function dueTag(due){ const d = daysUntil(due); return d == null ? "" : d < 0 ? `<span class="over">past due</span>` : d === 0 ? `<span class="soon">today</span>` : d <= 7 ? `<span class="soon">in ${d} day${d === 1 ? "" : "s"}</span>` : ""; }
 
+/* ---------- management view: every deadline of a calendar year, by service and by client ---------- */
+const SVC_ABBR = { VAT:"VAT", Accounting:"ACC", Consultancy:"CON", "Corporate Tax":"CT", Audit:"AUD", CR:"CR" };
+const DL_RANK = { over: 3, due: 2, future: 1, done: 0 };
+function deadlineItems(clients, year){ const Y = String(year); const out = []; const t = todayISO(); const cur = curYM(); const jan = `${Y}-01`;
+  const push = (c, svc, due, done, label, act) => { if(!due || String(due).slice(0, 4) !== Y) return; const ym = due.slice(0, 7);
+    out.push({ c, svc, due, ym, done, st: done ? "done" : due < t ? "over" : ym === cur ? "due" : "future", label, act }); };
+  for(const c of clients){ if(isDeact(c)) continue;
+    for(const pe of periodsFor(c, ymAdd(jan, -2), `${Y}-12`)){ const st = vatStatus(c.id, pe); push(c, "VAT", dueOf(pe, c), VAT_DONE.has(st), `VAT ${periodLabel(c.VATCycle, pe)} · ${st}`, `data-act="editVat" data-c="${c.id}" data-pe="${pe}"`); }
+    for(const svc of MW_SERVICES){ if(!hasService(c, svc)) continue;
+      for(const p of mwPeriods(c, svc, ymAdd(jan, -14), `${Y}-12`)){ const st = mwStatus(c.id, svc, p.ym, p.freq); push(c, svc, mwDue(c, svc, p.ym, p.freq), MW_DONE.has(st), `${svc} ${mwLabel(c, p.ym, p.freq)} · ${st}`, `data-act="editMw" data-c="${c.id}" data-s="${svc}" data-m="${p.ym}" data-f="${p.freq}"`); } }
+    if(hasService(c, "Corporate Tax")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; push(c, "Corporate Tax", ctDue(c, fy), CT_DONE.has(st), `Corporate tax FY${fy} · ${st}`, `data-act="editCt" data-c="${c.id}" data-fy="${fy}"`); }
+    if(hasService(c, "Audit")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = auditRec(c.id, fy); if(!r || !r.DueDate) continue; const st = auditSt(c, r); push(c, "Audit", r.DueDate, AUDIT_DONE.has(st), `Audit FY${fy} · ${st}`, `data-act="editAudit" data-c="${c.id}" data-fy="${fy}"`); }
+    if(/^\d{4}-\d{2}-\d{2}$/.test(c.CRExpiry || "")) push(c, "CR", c.CRExpiry, false, `${locOf(c) === "UAE" ? "Trade licence" : "CR"} expiry`, `data-act="openClient" data-id="${c.id}"`);
+  }
+  return out; }
+function dlChip(items, showCount){ const n = items.length; const d = items.filter(x => x.done).length; const o = items.filter(x => x.st === "over").length;
+  const worst = items.reduce((w, x) => DL_RANK[x.st] > DL_RANK[w] ? x.st : w, "done");
+  const cls = { over: "ba", due: "wa", future: "fu", done: "ok" }[worst];
+  const txt = showCount ? (o ? `! ${o} / ${n}` : d === n ? `✓ ${n}` : `${d} / ${n}`) : (worst === "over" ? "! " : worst === "done" ? "✓ " : "") + SVC_ABBR[items[0].svc] + (n > 1 ? `+${n - 1}` : "");
+  return { cls, txt, n, d, o }; }
+function calendarCard(items, Y){
+  const cur = curYM(); const months = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
+  const rows = [["VAT", "Bahrain · NBR", x => x.svc === "VAT" && locOf(x.c) === "Bahrain", "vat"], ["VAT", "UAE · FTA", x => x.svc === "VAT" && locOf(x.c) === "UAE", "vat"],
+    ["Accounting", "monthly / annual", x => x.svc === "Accounting", "mw"], ["Consultation", "monthly / annual", x => x.svc === "Consultancy", "mw"],
+    ["Corporate Tax", "annual", x => x.svc === "Corporate Tax", "ct"], ["Audit", "annual · target dates", x => x.svc === "Audit", "audit"], ["CR / Licence", "renewals", x => x.svc === "CR", "clients"]]
+    .filter(r => r[0] !== "VAT" || items.some(r[2]));
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Compliance calendar · ${Y}</h3>
+    <div class="right" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">${dlLegend()}<span class="yrnav"><button class="btn sm" data-act="dashYear" data-v="-1" aria-label="Previous year">‹</button><b>${Y}</b><button class="btn sm" data-act="dashYear" data-v="1" aria-label="Next year">›</button></span></div></div>
+    <div class="tw"><table class="cal"><thead><tr><th class="rl">Deadlines by month</th>${months.map(m => `<th class="${m === cur ? "cur" : ""}">${MONTHS[+m.slice(5) - 1]}</th>`).join("")}</tr></thead><tbody>
+    ${rows.map(([name, sub, f, view]) => { const its = items.filter(f); return `<tr><td class="rl">${esc(name)}<small>${esc(sub)} · ${its.length} in ${Y}</small></td>${months.map(m => { const a = its.filter(x => x.ym === m);
+      if(!a.length) return `<td class="nil ${m === cur ? "curc" : ""}"></td>`; const k = dlChip(a, true);
+      return `<td class="${m === cur ? "curc" : ""}"><button class="dl ${k.cls}" data-act="calGo" data-v="${view}" data-m="${m}" title="${esc(`${name} ${sub} · ${ymLabel(m)}: ${k.n} due · ${k.d} done${k.o ? ` · ${k.o} overdue` : ""}`)}">${k.txt}</button></td>`; }).join("")}</tr>`; }).join("")}
+    </tbody></table></div></div>`; }
+function dlLegend(){ return `<span class="legend"><span><i style="background:var(--ok)"></i>✓ Done</span><span><i style="background:var(--warn)"></i>Due this month</span><span><i style="background:var(--bad)"></i>! Overdue</span><span><i style="background:var(--grey-bg);border:1px solid var(--line)"></i>Upcoming</span></span>`; }
+function clientGridCard(items, Y){
+  const f = state.dg; const cur = curYM(); const nxt = ymAdd(cur, 1); const months = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
+  const its = items.filter(x => !f.svc || x.svc === f.svc || (f.svc === "MW" && MW_SERVICES.includes(x.svc)));
+  const by = new Map(); its.forEach(x => { if(!by.has(x.c.id)) by.set(x.c.id, []); by.get(x.c.id).push(x); });
+  let list = [...by.values()].map(a => ({ c: a[0].c, a, over: a.filter(x => x.st === "over").length, soon: a.filter(x => !x.done && (x.ym === cur || x.ym === nxt)).length }));
+  if(f.mode === "attention") list = list.filter(r => r.over || r.soon);
+  list.sort((p, q) => (q.over - p.over) || (q.soon - p.soon) || p.c.Title.localeCompare(q.c.Title));
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Client deadlines · ${Y}</h3>
+    <div class="right" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="seg"><button class="${f.mode === "attention" ? "on" : ""}" data-act="dgMode" data-v="attention">Needs attention</button><button class="${f.mode === "all" ? "on" : ""}" data-act="dgMode" data-v="all">All clients</button></div>
+      <select class="in" data-bind="dg.svc" style="width:auto"><option value="">All services</option>${[["VAT","VAT"],["MW","Accounting/Consultation"],["Corporate Tax","Corporate Tax"],["Audit","Audit"],["CR","CR / Licence"]].map(([v, l]) => `<option value="${v}" ${f.svc === v ? "selected" : ""}>${l}</option>`).join("")}</select></div></div>
+    <div class="tw cgrid"><table class="cal"><thead><tr><th class="rl">Client <span class="faint" style="font-weight:400">(${list.length})</span></th>${months.map(m => `<th class="${m === cur ? "cur" : ""}">${MONTHS[+m.slice(5) - 1]}</th>`).join("")}</tr></thead><tbody>
+    ${list.map(r => `<tr><td class="rl" title="${esc(r.c.Title)}"><a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a><small>${locOf(r.c) === "UAE" ? "UAE" : "Bahrain"}${r.over ? ` · <span class="over">${r.over} overdue</span>` : ""}</small></td>${months.map(m => { const a = r.a.filter(x => x.ym === m);
+      if(!a.length) return `<td class="nil ${m === cur ? "curc" : ""}"></td>`; const k = dlChip(a, false);
+      return `<td class="${m === cur ? "curc" : ""}"><button class="dl ${k.cls}" data-act="openClient" data-id="${r.c.id}" title="${esc(a.map(x => `${x.label} · due ${fmtDate(x.due)}`).join("\n"))}">${k.txt}</button></td>`; }).join("")}</tr>`).join("")}
+    </tbody></table>${list.length ? "" : `<div class="empty">${f.mode === "attention" ? "Nothing overdue and nothing due this month or next. 🎉" : "No deadlines in " + Y + "."}</div>`}</div></div>`; }
+function heroRing(pct){ const r = 38, L = 2 * Math.PI * r; return `<svg viewBox="0 0 92 92" aria-hidden="true"><circle cx="46" cy="46" r="${r}" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="9"/><circle cx="46" cy="46" r="${r}" fill="none" stroke="#2fbfb4" stroke-width="9" stroke-linecap="round" stroke-dasharray="${(L * pct / 100).toFixed(1)} ${L.toFixed(1)}"/></svg>`; }
+function kpi2(view, label, w, doneWord){ const done = w.doneN, over = w.pending.filter(x => x.over).length, pend = w.pending.length - over; const tot = done + pend + over || 1;
+  return `<button class="kpi2" data-act="nav" data-v="${view}"><div class="l">${label}</div><div class="v">${w.pending.length}<small>open</small></div>
+    <div class="segbar" title="${done} ${doneWord} · ${pend} pending · ${over} overdue">${done ? `<i class="ok" style="flex:${done}"></i>` : ""}${pend ? `<i class="wa" style="flex:${pend}"></i>` : ""}${over ? `<i class="ba" style="flex:${over}"></i>` : ""}${done + pend + over ? "" : `<i style="flex:1"></i>`}</div>
+    <div class="s"><span>✓ ${done} ${doneWord}</span><span>${pend} pending</span>${over ? `<span class="o">! ${over} overdue</span>` : ""}</div></button>`; }
+
 VIEWS.dashboard = () => {
   const cl = visibleClients(); const active = cl.filter(c => !isDeact(c));
   const cur = curYM(); const fy = state.af.fy;
@@ -780,18 +883,25 @@ VIEWS.dashboard = () => {
   const who = x => `${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b>`;
   const more = (n, where) => n > 0 ? `<div class="card-b small muted">+ ${n} more in ${where}</div>` : "";
   const vatP = vat.pending, mwP = mw.pending, ctP = ct.pending, audP = aud.pending;
+  const Y = state.dashYear; const yi = deadlineItems(cl, Y); const nowYi = Y === new Date().getFullYear() ? yi : deadlineItems(cl, new Date().getFullYear());
+  const pastDue = nowYi.filter(x => x.svc !== "CR" && x.due <= todayISO()); const health = pastDue.length ? Math.round(pastDue.filter(x => x.done).length / pastDue.length * 100) : 100;
+  const overN = nowYi.filter(x => x.svc !== "CR" && x.st === "over").length, dueN = nowYi.filter(x => x.svc !== "CR" && x.st === "due").length;
+  const n30 = nowYi.filter(x => x.svc !== "CR" && !x.done && daysUntil(x.due) >= 0 && daysUntil(x.due) <= 30).length;
   return `
-  <div style="margin-bottom:16px"><b style="font-size:16px">${greet}, ${esc(me.name.split(" ")[0])}.</b> <span class="muted">${fmtDate(todayISO())}</span></div>
+  <div class="hero"><div class="hi"><h2 class="serif">${greet}, ${esc(me.name.split(" ")[0])}</h2><div class="d">${fmtDate(todayISO())} · ${state.loc ? esc(state.loc === "UAE" ? "UAE (Dubai)" : "Bahrain") : "Bahrain & UAE"} · ${active.length} active clients</div>
+    <div class="facts"><div class="${overN ? "red" : ""}"><b>${overN}</b>overdue</div><div><b>${dueN}</b>open, due in ${ymLabel(cur)}</div><div><b>${n30}</b>due in next 30 days</div><div><b>${cr.length}</b>CR / licence ≤30d</div></div></div>
+    <div class="ring">${heroRing(health)}<div class="rv">${health}%</div><div class="rt"><b>On-time health</b><br>deadlines met so far in ${new Date().getFullYear()}</div></div></div>
   ${unsetCycle ? `<div class="banner">${unsetCycle} active client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
   <div class="kpis">
-    <button class="kpi" data-act="nav" data-v="clients"><div class="l">${isMgr() ? "Active clients" : "My active clients"}</div><div class="v">${active.length}</div><div class="s">${cl.length - active.length} deactivated</div></button>
-    ${tile("vat", `VAT returns due · ${ymLabel(cur)}`, vat, "filed")}
-    ${tile("mw", `Accounting/Consultation pending · ${ymLabel(cur)}`, mw, "completed")}
-    ${tile("ct", "Corporate tax pending · latest year", ct, "filed")}
-    ${tile("audit", `Audits pending · FY${esc(fy)}`, aud, "completed")}
-    <button class="kpi" data-act="nav" data-v="clients"><div class="l">CR / licence expiring ≤30d</div><div class="v">${cr.length}</div><div class="s">renewals to follow up</div></button>
+    ${kpi2("vat", `VAT returns · due ${ymLabel(cur)}`, vat, "filed")}
+    ${kpi2("mw", `Accounting/Consultation · ${ymLabel(cur)}`, mw, "done")}
+    ${kpi2("ct", "Corporate tax · latest year", ct, "filed")}
+    ${kpi2("audit", `Audits · FY${esc(fy)}`, aud, "done")}
   </div>
-  ${!state.loc && isMgr() ? locationCard(allowedClients()) : ""}
+  ${calendarCard(yi, Y)}
+  ${clientGridCard(yi, Y)}
+  ${isMgr() ? `<div class="mgr-row">${!state.loc ? locationCard(allowedClients()) : ""}${teamWorkloadCard(cl)}</div>` : ""}
+  <details class="dash-more" ${state.dashMore ? "open" : ""}><summary data-act="dashMore">${state.dashMore ? "▾" : "▸"} Detailed lists — VAT by deadline, accounting, corporate tax, audits, CR expiry, recent activity</summary>
   <div class="grid2">
     <div>
       <div class="card"><div class="card-h"><h3>VAT returns by deadline · ${ymLabel(cur)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="vat">Open tracker</button></div></div>
@@ -802,7 +912,6 @@ VIEWS.dashboard = () => {
       </tbody></table></div>${more(vatP.length - 25, "the VAT tracker")}` : `<div class="empty">${vat.total ? `All ${vat.total} VAT returns due in ${ymLabel(cur)} are filed.` : `No VAT returns fall due in ${ymLabel(cur)}.`}</div>`}
       ${(() => { const nx = ymAdd(cur, 1); const n = vatWork(cl, nx).filter(x => x.cur && !x.done); const ds = [...new Set(n.map(x => fmtDate(x.due)))]; return n.length ? `<div class="card-b small muted">Next: ${n.length} return${n.length > 1 ? "s" : ""} due in ${ymLabel(nx)} (${ds.join(", ")})</div>` : ""; })()}
       </div>
-      ${isMgr() ? teamWorkloadCard(cl) : ""}
     </div>
     <div>
       <div class="card"><div class="card-h"><h3>Accounting/Consultation pending · ${ymLabel(cur)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="mw">Open tracker</button></div></div>
@@ -821,15 +930,15 @@ VIEWS.dashboard = () => {
         ${acts.length ? `<ul class="feed">${acts.map(feedItem).join("")}</ul>` : `<div class="empty">No activity yet.</div>`}
       </div>
     </div>
-  </div>`;
+  </div></details>`;
 };
-function workCell(w){ return `${w.curP}<span class="faint"> / ${w.total}</span>${w.prevN ? `<div class="small ${w.over ? "over" : "soon"}">+ ${w.prevN} earlier${w.over ? ` (${w.over} overdue)` : ""}</div>` : ""}`; }
+function workCell(w){ return `<span class="nowrap">${w.curP}<span class="faint"> / ${w.total}</span>${w.prevN ? ` <span class="small ${w.over ? "over" : "soon"}" title="${w.prevN} open from earlier periods${w.over ? `, ${w.over} overdue` : ""}">+${w.prevN}${w.over ? " !" : ""}</span>` : ""}</span>`; }
 function locationCard(all){
   const fy = state.af.fy; const cur = curYM();
   const rows = LOCATIONS.map(L => { const cl = all.filter(c => locOf(c) === L); const act = cl.filter(c => !isDeact(c));
     const crA = act.filter(c => { const d = crInfo(c).d; return d != null && d <= 30; }).length;
     return { L, n: act.length, vat: workCell(workSum(vatWork(cl))), mw: workCell(workSum(mwWork(cl))), ct: workCell(workSum(ctWork(cl))), aud: workCell(workSum(auditWork(cl, fy))), crA }; });
-  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>By location</h3><div class="right small muted">Pending / total for this period, plus anything open from earlier · click a row to switch location</div></div>
+  return `<div class="card"><div class="card-h"><h3>By location</h3><div class="right small muted">Pending / total this period · +n = open from earlier (! = overdue) · click a row to switch location</div></div>
   <div class="tw"><table class="tbl hwrap"><thead><tr><th>Location</th><th class="num">Active clients</th><th class="num">VAT due<br><span class="faint">${ymLabel(cur)}</span></th><th class="num">Accounting/Consultation<br><span class="faint">${ymLabel(cur)}</span></th><th class="num">Corporate tax<br><span class="faint">latest year</span></th><th class="num">Audit<br><span class="faint">FY${esc(fy)}</span></th><th class="num">CR / licence expiring ≤30d</th></tr></thead><tbody>
   ${rows.map(r => `<tr class="click-row" data-act="setloc" data-v="${r.L}"><td class="cname">${r.L === "UAE" ? "UAE (Dubai)" : "Bahrain"}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.mw}</td><td class="num">${r.ct}</td><td class="num">${r.aud}</td><td class="num">${r.crA}</td></tr>`).join("")}
   </tbody></table></div></div>`;
@@ -1686,6 +1795,10 @@ const ACT = {
   openClient: (d, e) => { if(e.target.closest("[data-stop]")) return; e.preventDefault(); state.clientTab = "overview"; openModal("client", { id: d.id }); },
   ctab: d => { state.clientTab = d.v; renderModals(); },
   close: () => closeModal(),
+  dashYear: d => { state.dashYear += +d.v; render(); },
+  dgMode: d => { state.dg.mode = d.v; render(); },
+  dashMore: (d, e) => { e.preventDefault(); state.dashMore = !state.dashMore; render(); },
+  calGo: d => { if(d.v === "vat"){ Object.assign(state.vf, { mode: "month", cycle: "", month: d.m }); } else if(d.v === "mw"){ state.mf.mode = "month"; } state.view = d.v; render(); window.scrollTo(0, 0); },
   crUpdate: (d, e) => { if(e) e.preventDefault(); const c = clientById(d.id); if(!canCrUpdate(c)) return toast("CR update from Sijilat is available for active Bahrain clients with a CR number", true); openSijilat(c); openModal("crUpdate", { id: c.id }); },
   crReopen: (d, e) => { if(e) e.preventDefault(); const c = clientById(d.id); if(c) openSijilat(c); },
   crPick: d => { const m = state.modals[state.modals.length - 1]; if(m && m.props.rows){ const row = m.props.rows[+d.i]; const c = clientById(m.props.id); const iso = sijDate(row.exp); if(!iso) return toast("No valid expiry date on that record", true); saveCrExpiry(c, iso, "From Sijilat", `CR ${row.cr}-${row.br} · ${row.status}`).then(() => { if(row.status && !/^active$/i.test(row.status)) toast(`Note: Sijilat status for CR ${row.cr}-${row.br} is ${row.status}`, true); }).catch(() => {}); } },
