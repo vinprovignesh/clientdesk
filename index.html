@@ -359,6 +359,7 @@ body{background:radial-gradient(1200px 500px at 100% -10%,color-mix(in srgb,var(
 .strip .st span{font-size:12px;color:var(--muted)}
 .strip .ba .ic{background:var(--bad-bg);color:var(--bad)}.strip .wa .ic{background:var(--warn-bg);color:var(--warn)}.strip .ok .ic{background:var(--ok-bg);color:var(--ok)}.strip .fu .ic{background:var(--info-bg);color:var(--info)}
 .side .me *{color:rgba(233,237,247,.75)!important}.side .me b{color:#fff!important}
+.tbl th.sortable{cursor:pointer;user-select:none}.tbl th.sortable:hover{color:var(--ink)}.tbl th .sarr{margin-left:5px;font-size:10px;opacity:.45}.tbl th.sorted{color:var(--accent-ink)}.tbl th.sorted .sarr{opacity:1}
 .steps{min-width:96px}.steps i{min-width:9px}
 .tbl td.cname{min-width:190px}
 @media (max-width:760px){.side{background:linear-gradient(90deg,#050c42,#0a1a52)}.side .nav.on{box-shadow:inset 0 -3px 0 #2fbfb4}.top{position:static}}
@@ -627,7 +628,7 @@ let data = { employees:[], clients:[], creds:[], vat:[], audits:[], ct:[], mw:[]
 let me = { email:"", name:"", role:null };
 const state = {
   view: "dashboard",
-  cf: { q:"", status:"Active", who:"", cycle:"", svc:"", sel: new Set() },
+  cf: { q:"", status:"Active", who:"", cycle:"", svc:"", crMonth:"", sk:"Title", sd:1, sel: new Set() },
   vf: { mode:"month", month: curYM(), year: new Date().getFullYear(), q:"", who:"", show:"all", cycle: null },
   dg: { mode:"attention", svc:"" }, dashYear: new Date().getFullYear(), dashMore: false,
   af: { fy: String(new Date().getFullYear() - 1), q:"", who:"", show:"all" },
@@ -995,8 +996,14 @@ VIEWS.clients = () => {
     (!f.who || (f.who === "__none" ? !teamOf(c).length : teamOf(c).includes(f.who))) &&
     (!f.cycle || (f.cycle === "__unset" ? !c.VATCycle : c.VATCycle === f.cycle)) &&
     (!f.svc || (f.svc === "__none" ? !servicesOf(c).length : hasService(c, f.svc))) &&
+    (!f.crMonth || String(c.CRExpiry || "").slice(0, 7) === f.crMonth) &&
     (!q || [c.Title, c.CRNo, c.ContactName, c.ContactNo, c.VATNo, c.CTNo].some(v => lc(v).includes(q))));
   const credsBy = {}; data.creds.forEach(x => (credsBy[x.ClientId] = credsBy[x.ClientId] || []).push(x.Title));
+  const SK = { Title: c => lc(c.Title), Location: c => locOf(c), CRNo: c => { const m = /\d+/.exec(c.CRNo || ""); return m ? m[0].padStart(12, "0") + lc(c.CRNo) : "~"; }, CRExpiry: c => c.CRExpiry || "9999", Contact: c => lc(c.ContactName) || "~",
+    Services: c => servicesOf(c).length ? servicesOf(c).join(", ") : "~", VATCycle: c => c.VATCycle ? (CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].short : c.VATCycle) : "~",
+    Team: c => teamOf(c).map(e => lc(empName(e))).join(", ") || "~", Logins: c => (credsBy[c.id] || []).length, Deact: c => isDeact(c) ? 1 : 0 };
+  const kf = SK[f.sk] || SK.Title; list = list.slice().sort((a, b) => { const x = kf(a), y = kf(b); return (x < y ? -1 : x > y ? 1 : lc(a.Title).localeCompare(lc(b.Title))) * f.sd; });
+  const th = (k, label, extra) => `<th class="sortable ${f.sk === k ? "sorted" : ""}" data-act="csort" data-v="${k}" ${extra || ""}>${label}<span class="sarr">${f.sk === k ? (f.sd > 0 ? "▲" : "▼") : "↕"}</span></th>`;
   const sel = f.sel; const allSel = list.length && list.every(c => sel.has(c.id));
   return `
   <div class="toolbar">
@@ -1013,9 +1020,10 @@ VIEWS.clients = () => {
       ${isMgr() ? `<button class="btn pri" data-act="editClient">${I.plus} Add client</button>` : ""}
     </div>
   </div>
+  ${f.crMonth ? `<div class="banner info"><b>CR / licence expiring in ${ymLabel(f.crMonth)}</b> — ${list.length} client${list.length === 1 ? "" : "s"} <button class="btn sm" data-act="clearCrMonth" style="margin-left:auto">✕ Show all clients</button></div>` : ""}
   <div class="card"><div class="tw"><table class="tbl"><thead><tr>
     ${isMgr() ? `<th style="width:30px"><input type="checkbox" data-act="selAll" ${allSel ? "checked" : ""} aria-label="Select all"></th>` : ""}
-    <th>Client</th><th>Location</th><th>CR / Licence</th><th>Expiry</th><th>Contact</th><th>Services</th><th>VAT cycle</th><th>Team</th><th>Logins</th>${isAdmin() ? `<th title="Admin only">Deactivated</th>` : ""}</tr></thead><tbody>
+    ${th("Title", "Client")}${th("Location", "Location")}${th("CRNo", "CR / Licence")}${th("CRExpiry", "Expiry")}${th("Contact", "Contact")}${th("Services", "Services")}${th("VATCycle", "VAT cycle")}${th("Team", "Team")}${th("Logins", "Logins")}${isAdmin() ? th("Deact", "Deactivated", 'title="Admin only"') : ""}</tr></thead><tbody>
     ${list.map(c => { const cr = crInfo(c); return `<tr class="click" data-act="openClient" data-id="${c.id}">
       ${isMgr() ? `<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${c.id}" ${sel.has(c.id) ? "checked" : ""} aria-label="Select"></td>` : ""}
       <td><span class="cname">${esc(c.Title)}</span>${c.Status && c.Status !== "Active" ? ` ${chip("grey", esc(c.Status))}` : ""}</td>
@@ -1820,7 +1828,7 @@ function clientStrip(){ const cl = visibleClients(); const act = cl.filter(c => 
   wrap("clients", clientStrip); })();
 
 const ACT = {
-  nav: d => { state.view = d.v; render(); window.scrollTo(0, 0); },
+  nav: d => { if(d.v === "clients") state.cf.crMonth = ""; state.view = d.v; render(); window.scrollTo(0, 0); },
   reload: () => reload(),
   signout: () => msalApp.logoutRedirect({ account }),
   gotoUnset: () => { state.view = "clients"; Object.assign(state.cf, { cycle:"__unset", status:"Active", q:"", who:"" }); render(); },
@@ -1830,7 +1838,9 @@ const ACT = {
   dashYear: d => { state.dashYear += +d.v; render(); },
   dgMode: d => { state.dg.mode = d.v; render(); },
   dashMore: (d, e) => { e.preventDefault(); state.dashMore = !state.dashMore; render(); },
-  calGo: d => { if(d.v === "vat"){ Object.assign(state.vf, { mode: "month", cycle: "", month: d.m }); } else if(d.v === "mw"){ state.mf.mode = "month"; } state.view = d.v; render(); window.scrollTo(0, 0); },
+  csort: d => { const f = state.cf; if(f.sk === d.v) f.sd = -f.sd; else { f.sk = d.v; f.sd = 1; } render(); },
+  clearCrMonth: () => { state.cf.crMonth = ""; render(); },
+  calGo: d => { if(d.v === "clients"){ Object.assign(state.cf, { crMonth: d.m, q: "", status: "Active", who: "", cycle: "", svc: "", sk: "CRExpiry", sd: 1 }); } if(d.v === "vat"){ Object.assign(state.vf, { mode: "month", cycle: "", month: d.m }); } else if(d.v === "mw"){ state.mf.mode = "month"; } state.view = d.v; render(); window.scrollTo(0, 0); },
   editClient: d => { const c = clientById(d.id); if(c && isDeact(c) && !isAdmin()) return toast("This client is deactivated", true); openModal("clientForm", { id: d.id }); },
   editCred: d => { if(isDeact(clientById(d.c))) return toast("This client is deactivated — reactivate it to make changes", true); openModal("credForm", { cid: d.c, id: d.id }); },
   toggleDeact: (d, e) => { if(!isAdmin()) return; const c = clientById(d.id); if(!c) return; if(e && e.target && e.target.type === "checkbox") e.target.checked = isDeact(c);
