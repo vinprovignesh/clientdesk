@@ -292,6 +292,76 @@ tr.click-row:hover td{background:var(--panel-2)}
   .search{min-width:0;flex:1}
   .kpi .v{font-size:24px}
 }
+
+/* =================== THEME REFRESH (whole tool) =================== */
+body{background:radial-gradient(1200px 500px at 100% -10%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 60%),var(--bg)}
+/* sidebar */
+.side{background:linear-gradient(180deg,#050c42 0%,#0a1a52 60%,#08304f 100%);border-right:0;color:#e9edf7;padding:20px 14px}
+.side .brand{border-bottom:1px solid rgba(255,255,255,.1)}
+.side .brand-logo{background:#fff;border-radius:12px;padding:6px 10px;height:46px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.side .brand b{color:#fff}.side .brand small{color:#5fd6cc}
+.side .wordmark{color:#fff}
+.side .nav{color:rgba(233,237,247,.72);border-radius:10px;padding:10px 12px;position:relative;transition:background .15s,color .15s}
+.side .nav:hover{background:rgba(255,255,255,.07);color:#fff}
+.side .nav.on{background:linear-gradient(90deg,rgba(47,191,180,.28),rgba(47,191,180,.08));color:#fff;font-weight:600;box-shadow:inset 3px 0 0 #2fbfb4}
+.side .nav.on svg{color:#5fd6cc}
+.side .me{border-top:1px solid rgba(255,255,255,.1);color:rgba(233,237,247,.7)}.side .me b{color:#fff}
+.side .me a,.side .me .btn{color:#fff}
+/* top bar */
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--panel) 82%,transparent);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line-2)}
+.top h1{font-size:29px}
+/* surfaces */
+.card{border-radius:16px;border-color:var(--line-2);box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06)}
+.card-h{padding:14px 18px}.card-h h3{font-size:15.5px;font-weight:700;letter-spacing:.1px}
+.card-b{padding:16px 18px}
+/* tables */
+.tbl th{background:color-mix(in srgb,var(--panel-2) 80%,var(--brand-soft));font-size:12px;color:var(--muted);padding:10px 14px}
+.tbl td{padding:11px 14px}
+.tbl tbody tr{transition:background .12s}
+.tbl tbody tr:hover td{background:color-mix(in srgb,var(--accent) 5%,var(--panel))}
+.tbl tbody tr:last-child td{border-bottom:0}
+/* controls */
+.btn{border-radius:10px;padding:8px 14px;transition:transform .12s,box-shadow .12s,border-color .12s}
+.btn:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(16,24,40,.08)}
+.btn.pri{background:linear-gradient(135deg,#050c42,#0b2a6b);border-color:transparent;color:#fff;box-shadow:0 4px 14px rgba(5,12,66,.25)}
+.btn.pri:hover{transform:translateY(-1px);filter:none;box-shadow:0 8px 20px rgba(5,12,66,.3)}
+.btn.sm{border-radius:8px;padding:5px 10px}
+.in, select.in, textarea.in{border-radius:10px;padding:8px 12px;border-color:var(--line);transition:border-color .12s,box-shadow .12s}
+.in:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.seg{border-radius:12px;padding:3px;gap:2px;background:var(--panel-2);border-color:var(--line-2)}
+.seg button{border-radius:9px;padding:6px 14px}
+.seg button.on{background:linear-gradient(135deg,#050c42,#0b2a6b);color:#fff;box-shadow:0 2px 8px rgba(5,12,66,.25)}
+.chip{border-radius:999px;padding:3px 10px}
+.tag{border-radius:6px;padding:2px 7px}
+.banner{border-radius:12px;border-left-width:5px}
+.bar{height:8px;border-radius:6px}.bar i{background:linear-gradient(90deg,var(--accent),var(--ok));border-radius:6px}
+.steps i{height:6px;border-radius:4px}.steps i.on{background:linear-gradient(90deg,var(--accent),var(--ok))}
+/* year grids in every tracker: same deadline chips as the dashboard */
+.ygrid td.cell{padding:6px 4px}
+.ygrid .yc{min-width:48px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:11px;font-weight:700;transition:transform .12s}
+.ygrid .yc:hover{transform:scale(1.06)}
+.ygrid .yc.overdue{background:var(--bad-bg)!important;color:var(--bad)!important;border-color:transparent;box-shadow:inset 0 0 0 1.5px var(--bad)}
+.ygrid .yc.overdue:before{content:"! "}
+.ygrid .yc.future{opacity:1;background:var(--grey-bg)!important;color:var(--grey)!important}
+.ygrid td.off{background:repeating-linear-gradient(135deg,transparent 0 6px,var(--line-2) 6px 7px)}
+/* modals */
+.mwrap{background:rgba(5,12,40,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.modal{border-radius:20px;border-color:var(--line-2);box-shadow:0 30px 80px rgba(5,12,40,.35);overflow:hidden}
+.modal .mh{background:linear-gradient(120deg,color-mix(in srgb,var(--brand-soft) 70%,var(--panel)),var(--panel));padding:18px 22px}
+.modal .mh h2{font-size:18px;font-weight:700}
+.modal .mf{border-radius:0}
+.tabs button{border-radius:8px 8px 0 0}.tabs button.on{color:var(--accent-ink);border-bottom-color:var(--accent)}
+/* tracker headline strip */
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.strip .st{background:var(--panel);border:1px solid var(--line-2);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 18px rgba(16,24,40,.05)}
+.strip .st .ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex:none}
+.strip .st b{display:block;font-size:22px;line-height:1.05;font-variant-numeric:tabular-nums}
+.strip .st span{font-size:12px;color:var(--muted)}
+.strip .ba .ic{background:var(--bad-bg);color:var(--bad)}.strip .wa .ic{background:var(--warn-bg);color:var(--warn)}.strip .ok .ic{background:var(--ok-bg);color:var(--ok)}.strip .fu .ic{background:var(--info-bg);color:var(--info)}
+.side .me *{color:rgba(233,237,247,.75)!important}.side .me b{color:#fff!important}
+.steps{min-width:96px}.steps i{min-width:9px}
+.tbl td.cname{min-width:190px}
+@media (max-width:760px){.side{background:linear-gradient(90deg,#050c42,#0a1a52)}.side .nav.on{box-shadow:inset 0 -3px 0 #2fbfb4}.top{position:static}}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
@@ -1733,6 +1803,22 @@ async function exportXlsx(){
    EVENTS
    ============================================================ */
 async function copyText(t){ try { await navigator.clipboard.writeText(t); } catch(e){ const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); } }
+/* ---------- headline strip on top of each tracker ---------- */
+function deadlineStrip(filter, words){ const Y = new Date().getFullYear(); const its = deadlineItems(visibleClients(), Y).filter(filter); const t = todayISO();
+  const over = its.filter(x => x.st === "over").length, due = its.filter(x => x.st === "due").length, done = its.filter(x => x.done).length;
+  const soon = its.filter(x => !x.done && x.due >= t && daysUntil(x.due) <= 30).length;
+  const w = Object.assign({ done: "done" }, words || {});
+  return `<div class="strip"><div class="st ba"><div class="ic">!</div><div><b>${over}</b><span>overdue</span></div></div><div class="st wa"><div class="ic">●</div><div><b>${due}</b><span>open, due in ${ymLabel(curYM())}</span></div></div><div class="st fu"><div class="ic">→</div><div><b>${soon}</b><span>due in next 30 days</span></div></div><div class="st ok"><div class="ic">✓</div><div><b>${done}</b><span>${w.done} in ${Y}</span></div></div></div>`; }
+function clientStrip(){ const cl = visibleClients(); const act = cl.filter(c => !isDeact(c)); const bh = act.filter(c => locOf(c) === "Bahrain").length;
+  const noSvc = act.filter(c => !servicesOf(c).length).length; const cr = act.filter(c => { const d = crInfo(c).d; return d != null && d <= 30; }).length;
+  return `<div class="strip"><div class="st ok"><div class="ic">${act.length}</div><div><b>${act.length}</b><span>active clients · ${cl.length - act.length} deactivated</span></div></div><div class="st fu"><div class="ic">BH</div><div><b>${bh} <span style="font-size:13px">/ ${act.length - bh}</span></b><span>Bahrain / UAE</span></div></div><div class="st wa"><div class="ic">?</div><div><b>${noSvc}</b><span>no services ticked</span></div></div><div class="st ba"><div class="ic">!</div><div><b>${cr}</b><span>CR / licence expiring ≤30d</span></div></div></div>`; }
+(() => { const wrap = (k, f) => { const v = VIEWS[k]; VIEWS[k] = () => f() + v(); };
+  wrap("vat", () => deadlineStrip(x => x.svc === "VAT", { done: "returns filed" }));
+  wrap("ct", () => deadlineStrip(x => x.svc === "Corporate Tax", { done: "returns filed" }));
+  wrap("mw", () => deadlineStrip(x => MW_SERVICES.includes(x.svc), { done: "closed" }));
+  wrap("audit", () => deadlineStrip(x => x.svc === "Audit", { done: "completed" }));
+  wrap("clients", clientStrip); })();
+
 const ACT = {
   nav: d => { state.view = d.v; render(); window.scrollTo(0, 0); },
   reload: () => reload(),
