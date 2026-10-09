@@ -802,7 +802,36 @@ function render(){
     </main>
   </div>`;
   if(fid){ const el = document.getElementById(fid); if(el){ el.focus(); try { if(pos != null) el.setSelectionRange(pos, pos); } catch(e){} } }
+  applySorts($("#app"), "v:" + state.view);
 }
+/* ---------- click-to-sort on every table (the Clients list sorts itself) ---------- */
+const MON_N = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Oct:10, Nov:11, Dec:12 };
+let ST_ORDER = null;
+function stOrder(){ if(ST_ORDER) return ST_ORDER; ST_ORDER = {}; [VAT_STATUSES, AUDIT_STATUSES, AUDIT_STATUSES_BH, MW_STATUSES, CT_STATUSES].forEach(a => a.forEach((x, i) => { const k = x.toLowerCase(); if(!(k in ST_ORDER)) ST_ORDER[k] = i; })); return ST_ORDER; }
+function sortVal(td){ let t = String(td.dataset.sv != null ? td.dataset.sv : td.innerText).trim().split("\n")[0].trim().replace(/^(BH|UAE)\s+/, "");
+  if(!t || /^[—–-]$/.test(t)) return { e: 1 };
+  const so = stOrder()[t.toLowerCase()]; if(so != null && td.querySelector(".chip")) return { n: so };
+  let m = /(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* (\d{4})/.exec(t); if(m) return { n: +m[3] * 10000 + MON_N[m[2]] * 100 + +m[1] };
+  m = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*(?: (\d{4}))?(?:\s*[–-]\s*\w+)? ?(\d{4})?/.exec(t); if(m && (m[2] || m[3])) return { n: +(m[2] || m[3]) * 10000 + MON_N[m[1]] * 100 };
+  m = /^FY\s?(\d{4})/.exec(t); if(m) return { n: +m[1] };
+  const num = t.replace(/,/g, ""); m = /^[+-]?\d+(\.\d+)?/.exec(num); if(m) return { n: parseFloat(m[0]) };
+  return { s: t.toLowerCase() }; }
+function sortCmp(a, b){ if(a.n != null && b.n != null) return a.n - b.n; if(a.n != null) return -1; if(b.n != null) return 1; return a.s.localeCompare(b.s); }
+function applySorts(root, scope){ if(!root) return; state.tsort = state.tsort || {};
+  root.querySelectorAll("table").forEach((tb, i) => {
+    if(tb.classList.contains("nosort") || tb.querySelector("th[data-act=csort]")) return;
+    const head = tb.tHead && tb.tHead.rows[tb.tHead.rows.length - 1]; const body = tb.tBodies[0]; if(!head || !body) return;
+    const key = scope + ":" + i; const ncol = head.cells.length; const isGrid = tb.classList.contains("cal") || tb.classList.contains("ygrid");
+    [...head.cells].forEach((th, j) => { if(!th.innerText.trim() || th.querySelector("input,button,select") || (isGrid && j > 1) || th.classList.contains("m")) return;
+      th.classList.add("sortable"); th.dataset.act = "tsort"; th.dataset.k = key; th.dataset.c = j;
+      const cur = state.tsort[key]; const on = cur && cur.c === j; if(on) th.classList.add("sorted");
+      th.insertAdjacentHTML("beforeend", `<span class="sarr">${on ? (cur.d > 0 ? "▲" : "▼") : "↕"}</span>`); });
+    const cur = state.tsort[key]; if(!cur) return;
+    const rows = [...body.rows]; const dataRows = rows.filter(r => !r.classList.contains("grp") && r.cells.length === ncol); if(dataRows.length < 2) return;
+    rows.filter(r => r.classList.contains("grp")).forEach(r => r.style.display = "none");
+    const keyed = dataRows.map((r, k) => ({ r, k, v: sortVal(r.cells[cur.c]) }));
+    keyed.sort((a, b) => (a.v.e || 0) - (b.v.e || 0) || (a.v.e ? 0 : sortCmp(a.v, b.v) * cur.d) || a.k - b.k);
+    keyed.forEach(x => body.appendChild(x.r)); }); }
 function demoBar(){
   return `<div class="demo-bar"><b>Demo mode</b> — sample data, nothing is saved to SharePoint. View as:
     <select data-act="demouser">${data.employees.filter(e => e.Active !== "No").map(e => `<option value="${esc(e.Email)}" ${lc(e.Email) === lc(me.email) ? "selected" : ""}>${esc(e.Title)} — ${esc(e.Role)}</option>`).join("")}</select>
@@ -878,7 +907,7 @@ function calendarCard(items, Y){
     .filter(r => r[0] !== "VAT" || items.some(r[2]));
   return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Compliance calendar · ${Y}</h3>
     <div class="right" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">${dlLegend()}<span class="yrnav"><button class="btn sm" data-act="dashYear" data-v="-1" aria-label="Previous year">‹</button><b>${Y}</b><button class="btn sm" data-act="dashYear" data-v="1" aria-label="Next year">›</button></span></div></div>
-    <div class="tw"><table class="cal"><thead><tr><th class="rl">Deadlines by month</th>${months.map(m => `<th class="${m === cur ? "cur" : ""}">${MONTHS[+m.slice(5) - 1]}</th>`).join("")}</tr></thead><tbody>
+    <div class="tw"><table class="cal nosort"><thead><tr><th class="rl">Deadlines by month</th>${months.map(m => `<th class="${m === cur ? "cur" : ""}">${MONTHS[+m.slice(5) - 1]}</th>`).join("")}</tr></thead><tbody>
     ${rows.map(([name, sub, f, view]) => { const its = items.filter(f); return `<tr><td class="rl">${esc(name)}<small>${esc(sub)} · ${its.length} in ${Y}</small></td>${months.map(m => { const a = its.filter(x => x.ym === m);
       if(!a.length) return `<td class="nil ${m === cur ? "curc" : ""}"></td>`; const k = dlChip(a, true);
       return `<td class="${m === cur ? "curc" : ""}"><button class="dl ${k.cls}" data-act="calGo" data-v="${view}" data-m="${m}" title="${esc(`${name} ${sub} · ${ymLabel(m)}: ${k.n} due · ${k.d} done${k.o ? ` · ${k.o} overdue` : ""}`)}">${k.txt}</button></td>`; }).join("")}</tr>`; }).join("")}
@@ -1283,6 +1312,7 @@ function closeModal(){ state.modals.pop(); renderModals(); }
 function renderModals(){
   $("#modals").innerHTML = state.modals.map((m, i) => `<div class="mwrap" data-mi="${i}" style="z-index:${50 + i}">${MODALS[m.type](m.props)}</div>`).join("");
   document.body.style.overflow = state.modals.length ? "hidden" : "";
+  const top = state.modals[state.modals.length - 1]; if(top) applySorts($("#modals"), "m:" + top.type + ":" + (state.clientTab || ""));
 }
 const MODALS = {};
 function mHead(title, extra){ return `<div class="mh"><h2>${title}</h2>${extra || ""}<button type="button" class="icon-btn x" data-act="close" aria-label="Close">${I.x}</button></div>`; }
@@ -1838,6 +1868,7 @@ const ACT = {
   dashYear: d => { state.dashYear += +d.v; render(); },
   dgMode: d => { state.dg.mode = d.v; render(); },
   dashMore: (d, e) => { e.preventDefault(); state.dashMore = !state.dashMore; render(); },
+  tsort: d => { state.tsort = state.tsort || {}; const c = +d.c, cur = state.tsort[d.k]; state.tsort[d.k] = cur && cur.c === c ? { c, d: -cur.d } : { c, d: 1 }; if(d.k.startsWith("m:")) renderModals(); else render(); },
   csort: d => { const f = state.cf; if(f.sk === d.v) f.sd = -f.sd; else { f.sk = d.v; f.sd = 1; } render(); },
   clearCrMonth: () => { state.cf.crMonth = ""; render(); },
   calGo: d => { if(d.v === "clients"){ Object.assign(state.cf, { crMonth: d.m, q: "", status: "Active", who: "", cycle: "", svc: "", sk: "CRExpiry", sd: 1 }); } if(d.v === "vat"){ Object.assign(state.vf, { mode: "month", cycle: "", month: d.m }); } else if(d.v === "mw"){ state.mf.mode = "month"; } state.view = d.v; render(); window.scrollTo(0, 0); },
