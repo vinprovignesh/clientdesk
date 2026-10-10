@@ -1832,15 +1832,16 @@ async function runImport(){
 /* ---------- Bulk upload / export of the client master ---------- */
 const BULK_COLS = [
   ["Client ID", "id", 12], ["Client Name *", "Title", 32], ["Location", "Location", 10], ["CR / Licence No", "CRNo", 16], ["CR / Licence Expiry", "CRExpiry", 16],
-  ["Status", "Status", 12], ["Financial Year End", "FYEnd", 14], ["Services", "Services", 36], ["Other Service Details", "OtherSvc", 22], ["Accounting Frequency", "AcctFreqX", 14], ["Consultancy Frequency", "ConsFreqX", 14],
+  ["Status", "Status", 12], ["Financial Year End", "FYEnd", 14], ...SERVICES.map(sv => [sv, "Svc:" + sv, Math.max(11, sv.length + 3)]), ["Other Service Details", "OtherSvc", 26], ["Accounting Frequency", "AcctFreqX", 14], ["Consultancy Frequency", "ConsFreqX", 14],
   ["Contact Person", "ContactName", 18], ["Contact Country Code", "ContactCode", 12], ["Contact No", "ContactNo", 14], ["Contact Email", "ContactEmail", 24], ["VAT No / TRN", "VATNo", 18], ["Corporate Tax TRN", "CTNo", 18],
   ["VAT Cycle", "VATCycle", 26], ["Track VAT From", "VATFrom", 14], ["Team (emails)", "AssignedTo", 34], ["Reviewer (email)", "Reviewer", 26], ["Notes", "Notes", 30]
 ];
+const TICK_YES = "☑ Yes", TICK_NO = "☐ No";
 const CYCLE_TEXT = { "Q-Mar":"Quarterly Mar/Jun/Sep/Dec", "Q-Jan":"Quarterly Jan/Apr/Jul/Oct", "Q-Feb":"Quarterly Feb/May/Aug/Nov", "Monthly":"Monthly", "Not registered":"Not registered" };
 function bulkRowOf(c){
   const svc = servicesOf(c);
   return { id: c.id, Title: c.Title, Location: locOf(c), CRNo: c.CRNo, CRExpiry: c.CRExpiry, Status: c.Status || "Active", FYEnd: fyEndLabel(c.FYEnd || "12-31"),
-    Services: svc.join("; "), OtherSvc: otherServiceText(c), AcctFreqX: curFreq(c, "Accounting"), ConsFreqX: curFreq(c, "Consultancy"), ContactName: c.ContactName, ContactCode: dialOf(c), ContactNo: c.ContactNo, ContactEmail: c.ContactEmail, VATNo: c.VATNo, CTNo: c.CTNo,
+    ...Object.fromEntries(SERVICES.map(sv => ["Svc:" + sv, svc.includes(sv) ? TICK_YES : TICK_NO])), OtherSvc: otherServiceText(c), AcctFreqX: curFreq(c, "Accounting"), ConsFreqX: curFreq(c, "Consultancy"), ContactName: c.ContactName, ContactCode: dialOf(c), ContactNo: c.ContactNo, ContactEmail: c.ContactEmail, VATNo: c.VATNo, CTNo: c.CTNo,
     VATCycle: CYCLE_TEXT[c.VATCycle] || c.VATCycle || "", VATFrom: c.VATFrom, AssignedTo: teamOf(c).join("; "), Reviewer: lc(c.Reviewer), Notes: c.Notes };
 }
 function bulkInstructions(){
@@ -1849,30 +1850,77 @@ function bulkInstructions(){
     ["• Leave 'Client ID' blank for new clients. Rows are matched to existing clients by Client ID, then CR / licence no, then client name."],
     ["• A blank cell keeps the existing value. Type a single - (hyphen) to clear a field."], ["• Portal logins and passwords are not uploaded in bulk; add them on the client's Logins tab."], [],
     ["Column", "Allowed values / format"],
-    ["Client Name *", "Required for new clients"], ["Location", "Bahrain or UAE (Dubai)"], ["CR / Licence Expiry", "Date, e.g. 2026-11-08 or 08/11/2026"],
-    ["Status", "Active or Dormant. Deactivated can be set (or removed) by Admins only"], ["Contact Country Code", "e.g. +973, +971, +91 — blank uses +973 for Bahrain / +971 for UAE"], ["Financial Year End", "e.g. 31 Dec, 31 Mar, 30 Jun"],
-    ["Services", "Separate with ; — " + SERVICES.join("; ")], ["Other Service Details", "Description when Services includes Others"], ["Accounting / Consultancy Frequency", "Monthly or Annually. A change on an existing client takes effect from the current month and is kept in the history"],
-    ["VAT Cycle", Object.values(CYCLE_TEXT).join("; ")], ["Track VAT From", "Month the first tracked VAT period ends, e.g. 2026-03"],
-    ["Team (emails)", "Microsoft login emails of employees, separated by ; — must already exist under Team"], ["Reviewer (email)", "One employee email"], [],
+    ["Client Name *", "Required for new clients"], ["Location", "Pick from the drop-down: Bahrain or UAE"], ["CR / Licence Expiry", "A date — type e.g. 08/11/2026 or 8-Nov-2026; anything that isn't a date is rejected by Excel"],
+    ["Status", "Drop-down: Active or Dormant. Deactivated can be set (or removed) by Admins only"], ["Contact Country Code", "Drop-down of country codes (you can also type one) — blank uses +973 for Bahrain / +971 for UAE"], ["Financial Year End", "Drop-down: 31 Dec, 31 Mar, 30 Jun …"],
+    ["Service columns", `One column per service (${SERVICES.join(", ")}). Pick ${TICK_YES} or ${TICK_NO} in each. Leave all of them blank to keep a client's services unchanged`], ["Other Service Details", "What the 'Others' work is, e.g. Company formation, PRO services — each item is added to the Other Services tracker"], ["Accounting / Consultancy Frequency", "Drop-down: Monthly or Annually. A change on an existing client takes effect from the current month and is kept in the history"],
+    ["VAT Cycle", "Drop-down: " + Object.values(CYCLE_TEXT).join("; ")], ["Track VAT From", "A date in the month the first tracked VAT period ends, e.g. 31/03/2026 (shown as Mar-2026)"],
+    ["Team (emails)", "Microsoft login emails of employees, separated by ; — must already exist under Team"], ["Reviewer (email)", "Drop-down of employee emails"], [],
     ["Current employees"], ...activeEmployees().map(e => [e.Email, `${e.Title} (${e.Role}${e.Location ? ", " + e.Location : ""})`])];
 }
+const isoSerial = iso => { const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(iso || ""); return m ? (Date.UTC(+m[1], +m[2] - 1, +(m[3] || 1)) - Date.UTC(1899, 11, 30)) / 86400000 : null; };
+const colLetter = n => { let s = ""; n++; while(n){ const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };
+function bulkLists(){ const fye = Array.from({ length: 12 }, (_, i) => { const m = pad(i + 1); const d = new Date(Date.UTC(2025, i + 1, 0)).getUTCDate(); return fyEndLabel(`${m}-${pad(d)}`); });
+  return { "Country code": DIAL_CODES.map(d => d[0]), "Financial year end": fye, "Employee email": activeEmployees().map(e => lc(e.Email)) }; }
 function bulkWorkbook(rows){
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([BULK_COLS.map(c => c[0]), ...rows.map(r => BULK_COLS.map(c => r[c[1]] == null ? "" : String(r[c[1]])))]);
+  rows.forEach((r, i) => { for(const [k, fmt] of [["CRExpiry", "dd-mmm-yyyy"], ["VATFrom", "mmm-yyyy"]]){ const ci = BULK_COLS.findIndex(c => c[1] === k); const v = isoSerial(r[k]); if(v != null) ws[XLSX.utils.encode_cell({ r: i + 1, c: ci })] = { t: "n", v, z: fmt }; } });
   ws["!cols"] = BULK_COLS.map(c => ({ wch: c[2] }));
   XLSX.utils.book_append_sheet(wb, ws, "Clients");
   const wi = XLSX.utils.aoa_to_sheet(bulkInstructions()); wi["!cols"] = [{ wch: 26 }, { wch: 90 }];
   XLSX.utils.book_append_sheet(wb, wi, "Instructions");
-  return wb;
+  const L = bulkLists(); const names = Object.keys(L); const len = Math.max(...names.map(n => L[n].length));
+  const wl = XLSX.utils.aoa_to_sheet([names, ...Array.from({ length: len }, (_, i) => names.map(n => L[n][i] == null ? "" : L[n][i]))]); wl["!cols"] = names.map(() => ({ wch: 26 }));
+  XLSX.utils.book_append_sheet(wb, wl, "Lists");
+  wb.Workbook = { Sheets: [{}, {}, { Hidden: 1 }] };
+  return { wb, lists: L, names };
 }
-function bulkTemplate(){
+function loadScript(src){ return new Promise((res, rej) => { if([...document.scripts].some(x => x.src === src)) return res(); const el = document.createElement("script"); el.src = src; el.onload = res; el.onerror = () => rej(new Error("Couldn't load " + src)); document.head.appendChild(el); }); }
+async function saveBulkXlsx(rows, fileName){
+  const { wb, lists, names } = bulkWorkbook(rows);
+  const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  let blob;
+  try {
+    if(!window.JSZip) await loadScript("https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js");
+    const zip = await JSZip.loadAsync(out); const path = "xl/worksheets/sheet1.xml"; let xml = await zip.file(path).async("string");
+    const N = 1000; const col = k => colLetter(BULK_COLS.findIndex(c => c[1] === k)); const rng = k => `${col(k)}2:${col(k)}${N}`;
+    const listRef = name => { const i = names.indexOf(name); const L = colLetter(i); return `Lists!$${L}$2:$${L}$${lists[name].length + 1}`; };
+    const esc2 = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const dv = (k, f1, opt = {}) => `<dataValidation type="${opt.type || "list"}" ${opt.op ? `operator="${opt.op}" ` : ""}allowBlank="1" showInputMessage="1" showErrorMessage="${opt.soft ? 0 : 1}" errorTitle="${esc2(opt.et || "Pick from the list")}" error="${esc2(opt.err || "Choose a value from the drop-down.")}" promptTitle="${esc2(opt.pt || "")}" prompt="${esc2(opt.p || "")}" sqref="${rng(k)}"><formula1>${f1}</formula1></dataValidation>`;
+    const inl = a => `"${a.join(",")}"`;
+    const v = [
+      dv("Location", inl(["Bahrain", "UAE"]), { pt: "Location", p: "Bahrain or UAE" }),
+      dv("CRExpiry", "36526", { type: "date", op: "greaterThan", et: "Date needed", err: "Enter a date, e.g. 08/11/2026", pt: "CR / licence expiry", p: "Enter a date" }),
+      dv("Status", inl(isAdmin() ? ["Active", "Dormant", "Deactivated"] : ["Active", "Dormant"]), { pt: "Status", p: "Active or Dormant" + (isAdmin() ? " (Deactivated: Admin)" : "") }),
+      dv("FYEnd", listRef("Financial year end"), { pt: "Financial year end", p: "Pick the year-end date" }),
+      ...SERVICES.map(sv => dv("Svc:" + sv, inl([TICK_YES, TICK_NO]), { pt: sv, p: `${TICK_YES} if Vinpro provides ${sv}` })),
+      dv("AcctFreqX", inl(["Monthly", "Annually"]), { pt: "Accounting frequency", p: "Monthly or Annually" }),
+      dv("ConsFreqX", inl(["Monthly", "Annually"]), { pt: "Consultancy frequency", p: "Monthly or Annually" }),
+      dv("ContactCode", listRef("Country code"), { soft: true, pt: "Country code", p: "Pick or type, e.g. +973" }),
+      dv("VATCycle", inl(Object.values(CYCLE_TEXT)), { pt: "VAT cycle", p: "Pick the filing cycle" }),
+      dv("VATFrom", "36526", { type: "date", op: "greaterThan", et: "Date needed", err: "Enter a date in the first tracked period-end month, e.g. 31/03/2026", pt: "Track VAT from", p: "A date in the first period-end month" }),
+      ...(lists["Employee email"].length ? [dv("Reviewer", listRef("Employee email"), { pt: "Reviewer", p: "One employee email" })] : [])
+    ];
+    const dvXml = `<dataValidations count="${v.length}">${v.join("")}</dataValidations>`;
+    const lastCol = colLetter(BULK_COLS.length - 1);
+    const pane = `<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>`;
+    if(/<sheetView\b[^>]*\/>/.test(xml)) xml = xml.replace(/<sheetView\b([^>]*?)\s*\/>/, `<sheetView$1>${pane}</sheetView>`);
+    else if(!/<sheetViews>/.test(xml)) xml = xml.replace(/(<dimension[^>]*\/>)/, `$1<sheetViews><sheetView workbookViewId="0">${pane}</sheetView></sheetViews>`);
+    xml = xml.replace("</sheetData>", `</sheetData><autoFilter ref="A1:${lastCol}${Math.max(2, rows.length + 1)}"/>`);
+    xml = /<pageMargins/.test(xml) ? xml.replace(/<pageMargins/, dvXml + "<pageMargins") : xml.replace("</worksheet>", dvXml + "</worksheet>");
+    zip.file(path, xml);
+    blob = await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  } catch(e){ console.warn("Drop-downs could not be added", e); toast("Saved without drop-downs (helper didn't load)", true); blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fileName; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+async function bulkTemplate(){
   if(!window.XLSX) return toast("Excel library still loading — try again in a moment", true);
-  XLSX.writeFile(bulkWorkbook([]), "Vinpro-ClientDesk-Bulk-Upload-Template.xlsx");
+  await withBusy(() => saveBulkXlsx([], "Vinpro-ClientDesk-Bulk-Upload-Template.xlsx"));
 }
 async function bulkExport(){
   if(!isAdmin()) return;
   if(!window.XLSX) return toast("Excel library still loading — try again in a moment", true);
-  const cl = visibleClients(); XLSX.writeFile(bulkWorkbook(cl.map(bulkRowOf)), `Vinpro-ClientDesk-Clients-${state.loc || "All"}-${todayISO()}.xlsx`);
+  const cl = visibleClients(); await withBusy(() => saveBulkXlsx(cl.map(bulkRowOf), `Vinpro-ClientDesk-Clients-${state.loc || "All"}-${todayISO()}.xlsx`));
   await logAct("Bulk export", null, `${cl.length} clients (${state.loc || "all locations"})`);
 }
 const MONTH_IX = n => MONTHS.findIndex(m => lc(String(n)).startsWith(lc(m)));
@@ -1896,6 +1944,7 @@ const SVC_ALIAS = [[/^(vat)$/i, "VAT"], [/corporate|^ct$|^cit$/i, "Corporate Tax
 function bParseServices(v){ if(v == null || v === "") return null; const out = [];
   for(const t of String(v).split(/[;,]/).map(x => x.trim()).filter(Boolean)){ const m = SERVICES.find(sv => lc(sv) === lc(t)) || (SVC_ALIAS.find(([re]) => re.test(t)) || [])[1]; if(!m) throw "Unknown service: " + t; if(!out.includes(m)) out.push(m); }
   return out; }
+function bTick(v){ const s = lc(String(v == null ? "" : v)).trim(); if(!s) return null; if(/☑|✓|✔|^x$|^y(es)?\b|yes|^true$|^1$/.test(s)) return true; if(/☐|^n(o)?\b|^no|^false$|^0$|^-$/.test(s)) return false; throw `Service tick must be ${TICK_YES} or ${TICK_NO}: ${v}`; }
 function bParseEmails(v, single){ if(v == null || v === "") return null; const list = String(v).split(/[;,\s]+/).map(lc).filter(Boolean);
   const bad = list.filter(e => !data.employees.some(x => lc(x.Email) === e)); if(bad.length) throw "Not an employee in Team: " + bad.join(", ");
   if(single && list.length > 1) throw "Reviewer must be a single email"; return list; }
@@ -1905,7 +1954,7 @@ function bulkParse(buf, fileName){
   const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, raw: true, defval: null });
   const hi = rows.findIndex(r => r && r.some(v => /client\s*name/i.test(String(v || "")))); if(hi < 0) throw 'No header row with "Client Name" found on the Clients sheet';
   const norm = h => normH(String(h || "").replace(/\*/g, "")); const colIx = {};
-  rows[hi].forEach((h, i) => { const col = BULK_COLS.find(c => norm(c[0]) === norm(h)) || (norm(h) === "client name" ? BULK_COLS[1] : null); if(col && !(col[1] in colIx)) colIx[col[1]] = i; });
+  rows[hi].forEach((h, i) => { const col = BULK_COLS.find(c => norm(c[0]) === norm(h)) || (norm(h) === "client name" ? BULK_COLS[1] : null) || (norm(h) === "services" ? ["Services", "Services"] : null); if(col && !(col[1] in colIx)) colIx[col[1]] = i; });
   if(!("Title" in colIx)) throw "Client Name column missing";
   const seen = new Set(); const out = [];
   rows.slice(hi + 1).forEach((r, k) => {
@@ -1928,14 +1977,17 @@ function bulkParse(buf, fileName){
     for(const [sv, key] of [["Accounting", "AcctFreqX"], ["Consultancy", "ConsFreqX"]]){ const raw = txt(key); if(!raw) continue; const fr = /^ann|^year|^yearly/i.test(raw) ? "Annually" : /^month/i.test(raw) ? "Monthly" : null;
       if(!fr){ row.errors.push(`${sv} frequency must be Monthly or Annually`); continue; }
       if(c){ if(fr !== curFreq(c, sv)) { f[FREQ_FIELD[sv]] = freqWith(c, sv, curYM(), fr); } } else if(fr === "Annually") f[FREQ_FIELD[sv]] = ":Annually"; }
-    try { const sv = txt("Services") === "-" ? [] : bParseServices(cell("Services")); if(sv){ const other = txt("OtherSvc") === "-" ? "" : (txt("OtherSvc") || (c ? otherServiceText(c) : "")); f.Services = buildServices({ Svc: sv, OtherSvc: other }); } } catch(e){ row.errors.push(String(e)); }
+    try { let sv = null; const tickCols = SERVICES.filter(x => ("Svc:" + x) in colIx);
+      if(tickCols.some(x => txt("Svc:" + x))){ sv = (c ? servicesOf(c).filter(x => !tickCols.includes(x)) : []); for(const x of tickCols){ const t = bTick(cell("Svc:" + x)); if(t === true || (t === null && c && hasService(c, x))) sv.push(x); } }
+      else sv = txt("Services") === "-" ? [] : bParseServices(cell("Services"));
+      if(sv){ const other = txt("OtherSvc") === "-" ? "" : (txt("OtherSvc") || (c ? otherServiceText(c) : "")); f.Services = buildServices({ Svc: sv, OtherSvc: other }); } } catch(e){ row.errors.push(String(e)); }
     if(f.Location === "") delete f.Location; if(f.Status === "") delete f.Status;
     if(f.Status && !isAdmin() && ((f.Status === "Deactivated") !== isDeact(c))) { row.errors.push("Only an Admin can deactivate or reactivate a client"); delete f.Status; }
     if(f.Status === "Deactivated" && !isDeact(c)) { f.DeactivatedOn = todayISO(); f.DeactivatedBy = me.email; }
     if(f.Status && f.Status !== "Deactivated" && isDeact(c)) { f.DeactivatedOn = ""; f.DeactivatedBy = ""; } if(f.Title === "") { row.errors.push("Client name can't be cleared"); delete f.Title; }
     row.loc = f.Location || (c ? locOf(c) : (state.loc || DEFAULT_LOC));
     if(c){
-      for(const [k2, v] of Object.entries(f)){ const cur = k2 === "Location" ? locOf(c) : k2 === "ContactCode" ? dialOf(c) : String(c[k2] || ""); if(String(v) !== cur) { row.fields[k2] = v; const col = BULK_COLS.find(x => x[1] === k2 || (k2 === "AcctFreq" && x[1] === "AcctFreqX") || (k2 === "ConsFreq" && x[1] === "ConsFreqX")); if(col) row.changes.push(col[0].replace(" *", "")); } }
+      for(const [k2, v] of Object.entries(f)){ const cur = k2 === "Location" ? locOf(c) : k2 === "ContactCode" ? dialOf(c) : String(c[k2] || ""); if(String(v) !== cur) { row.fields[k2] = v; const col = BULK_COLS.find(x => x[1] === k2 || (k2 === "AcctFreq" && x[1] === "AcctFreqX") || (k2 === "ConsFreq" && x[1] === "ConsFreqX")); if(col) row.changes.push(col[0].replace(" *", "")); else if(k2 === "Services") row.changes.push("Services"); } }
       if(!isMgr() && ("AssignedTo" in row.fields) && !splitEmails(row.fields.AssignedTo).includes(lc(me.email)) && lc(row.fields.Reviewer || c.Reviewer) !== lc(me.email)) row.errors.push("You can't remove yourself from this client's team");
       row.action = row.errors.length ? "Error" : Object.keys(row.fields).length ? "Update" : "No change";
     } else {
