@@ -405,7 +405,7 @@ const SCHEMA = {
   audits:    { list: "Audits", fields: { Title:"text", ClientId:"text", FY:"text", Auditor:"text", AssignedTo:"text", Status:"text", DueDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   mw:        { list: "MonthlyWork", fields: { Title:"text", ClientId:"text", Service:"text", Freq:"text", Month:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", CompletedDate:"text", Hours:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   ct:        { list: "CorporateTax", fields: { Title:"text", ClientId:"text", FY:"text", Status:"text", Preparer:"text", Reviewer:"text", DueDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  other:     { list: "OtherWork", fields: { Title:"text", ClientId:"text", Service:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", FollowUp:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  other:     { list: "OtherWork", fields: { Title:"text", ClientId:"text", Service:"text", Year:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", FollowUp:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   activity:  { list: "ActivityLog", fields: { Title:"text", ClientId:"text", ClientName:"text", UserEmail:"text", UserName:"text", Details:"note", At:"text" } }
 };
 
@@ -630,7 +630,8 @@ function demoSeed(){
     }
   });
   const activity = [{ id: uid(), Title:"Demo data created", ClientId:"", ClientName:"", UserEmail:"vignesh@vinproglobal.com", UserName:"Vignesh SG", Details:"Sample clients, logins, VAT and audit records", At: nowISO() }];
-  const other = clients.filter((c, i) => i % 8 === 1).map((c, i) => ({ id: uid(), Title: c.id + "|" + otherNames(c)[0], ClientId: c.id, Service: otherNames(c)[0], Status: ["In progress","Awaiting client","Not started"][i % 3], AssignedTo: staff[i % 2], Reviewer: "priya@demo.vinpro", DueDate: ymAdd(cur, i % 2 ? 1 : -1) + "-20", FollowUp: ymAdd(cur, 0) + "-" + pad(5 + i * 4), CompletedDate: "", Notes: "", UpdatedBy: staff[i % 2], UpdatedOn: nowISO() }));
+  const Y0 = cur.slice(0, 4); const other = [];
+  clients.forEach((c, i) => { otherNamesText(c).forEach((nm, j) => other.push({ id: uid(), Title: `${c.id}|${Y0}|${nm}`, ClientId: c.id, Service: nm, Year: Y0, Status: ["In progress","Awaiting client","Not started","Completed"][(i + j) % 4], AssignedTo: staff[i % 2], Reviewer: "priya@demo.vinpro", DueDate: j ? "" : ymAdd(cur, i % 2 ? 1 : -1) + "-20", FollowUp: j ? "" : ymAdd(cur, 0) + "-" + pad(5 + (i % 3) * 4), CompletedDate: "", Notes: "", UpdatedBy: staff[i % 2], UpdatedOn: nowISO() })); if(i % 8 === 1) other.push({ id: uid(), Title: `${c.id}|${+Y0 - 1}|Company formation`, ClientId: c.id, Service: "Company formation", Year: String(+Y0 - 1), Status: "Completed", AssignedTo: staff[0], Reviewer: "", DueDate: "", FollowUp: "", CompletedDate: (+Y0 - 1) + "-11-30", Notes: "", UpdatedBy: staff[0], UpdatedOn: nowISO() }); });
   return { v: 3, employees, clients, creds, vat, audits, ct, mw, activity, other };
 }
 
@@ -644,7 +645,7 @@ const state = {
   view: "dashboard",
   cf: { q:"", status:"Active", who:"", cycle:"", svc:"", crMonth:"", sk:"Title", sd:1, sel: new Set() },
   vf: { mode:"month", month: curYM(), year: new Date().getFullYear(), q:"", who:"", show:"all", cycle: null },
-  of: { q:"", svc:"", who:"", show:"pending" },
+  of: { q:"", svc:"", who:"", show:"pending", year: String(new Date().getFullYear()) },
   dg: { mode:"attention", svc:"" }, dashYear: new Date().getFullYear(), dashMore: false,
   af: { fy: String(new Date().getFullYear() - 1), q:"", who:"", show:"all" },
   mf: { svc:"Accounting", mode:"month", month: ymAdd(curYM(), -1) < MW_START ? MW_START : ymAdd(curYM(), -1), year: new Date().getFullYear(), q:"", who:"", show:"all" },
@@ -906,7 +907,7 @@ function deadlineItems(clients, year){ const Y = String(year); const out = []; c
       for(const p of mwPeriods(c, svc, ymAdd(jan, -14), `${Y}-12`)){ const st = mwStatus(c.id, svc, p.ym, p.freq); push(c, svc, mwDue(c, svc, p.ym, p.freq), MW_DONE.has(st), `${svc} ${mwLabel(c, p.ym, p.freq)} · ${st}`, `data-act="editMw" data-c="${c.id}" data-s="${svc}" data-m="${p.ym}" data-f="${p.freq}"`); } }
     if(hasService(c, "Corporate Tax")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; push(c, "Corporate Tax", ctDue(c, fy), CT_DONE.has(st), `Corporate tax FY${fy} · ${st}`, `data-act="editCt" data-c="${c.id}" data-fy="${fy}"`); }
     if(hasService(c, "Audit")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = auditRec(c.id, fy); if(!r || !r.DueDate) continue; const st = auditSt(c, r); push(c, "Audit", r.DueDate, AUDIT_DONE.has(st), `Audit FY${fy} · ${st}`, `data-act="editAudit" data-c="${c.id}" data-fy="${fy}"`); }
-    if(hasService(c, "Others") || data.other.some(x => x.ClientId === c.id)) for(const x of otherItems([c])) if(x.due) push(c, "Other", x.due, x.done, `${x.name} · ${x.st}`, `data-act="editOther" data-c="${c.id}" data-s="${esc(x.name)}"`);
+    for(const x of otherItems([c], Y)) if(x.due) push(c, "Other", x.due, x.done, `${x.name} · ${x.st}`, `data-act="editOther" data-id="${x.rec.id}"`);
     if(/^\d{4}-\d{2}-\d{2}$/.test(c.CRExpiry || "")) push(c, "CR", c.CRExpiry, false, `${locOf(c) === "UAE" ? "Trade licence" : "CR"} expiry`, `data-act="openClient" data-id="${c.id}"`);
   }
   return out; }
@@ -977,7 +978,7 @@ VIEWS.dashboard = () => {
     ${kpi2("mw", `Accounting/Consultation · ${ymLabel(cur)}`, mw, "done")}
     ${kpi2("ct", "Corporate tax · latest year", ct, "filed")}
     ${kpi2("audit", `Audits · FY${esc(fy)}`, aud, "done")}
-    ${otherItems(cl).length ? kpi2("other", "Other services", othWork(cl), "done") : ""}
+    ${otherItems(cl).length ? kpi2("other", `Other services · ${curYear()}`, othWork(cl), "done") : ""}
   </div>
   ${calendarCard(yi, Y)}
   ${clientGridCard(yi, Y)}
@@ -1263,41 +1264,51 @@ const OTH_STATUSES = ["Not started","In progress","Awaiting client","Under revie
 const OTH_DONE = new Set(["Completed","Not applicable"]);
 const OTH_COLOR = {"Not started":"grey","In progress":"blue","Awaiting client":"amber","Under review":"purple","On hold":"amber","Completed":"green","Not applicable":"grey"};
 function othChip(st){ return chip(OTH_COLOR[st] || "grey", esc(st), true); }
-function otherNames(c){ const t = otherServiceText(c); const a = t.split(/[,;\/\n]+/).map(x => x.trim()).filter(Boolean); return a.length ? a : (hasService(c, "Others") ? ["Others"] : []); }
-function othRec(cid, name){ return data.other.find(x => x.ClientId === cid && lc(x.Service) === lc(name)); }
-function otherItems(clients){ const out = []; const t = todayISO();
-  for(const c of clients){ if(isDeact(c)) continue; const names = hasService(c, "Others") ? otherNames(c) : [];
-    const extra = data.other.filter(x => x.ClientId === c.id && !names.some(n => lc(n) === lc(x.Service)) && !OTH_DONE.has(x.Status || "Not started")).map(x => x.Service);
-    for(const name of [...names, ...extra]){ const r = othRec(c.id, name); const st = (r && r.Status) || "Not started"; const done = OTH_DONE.has(st);
-      out.push({ c, name, rec: r, st, done, due: (r && r.DueDate) || "", fu: (r && r.FollowUp) || "", over: !done && !!(r && r.DueDate) && r.DueDate < t, fuOver: !done && !!(r && r.FollowUp) && r.FollowUp <= t, dropped: !names.some(n => lc(n) === lc(name)) }); } }
+function otherNamesText(c){ return otherServiceText(c).split(/[,;\/\n]+/).map(x => x.trim()).filter(Boolean); }
+const curYear = () => String(new Date().getFullYear());
+function othYear(x){ return x.Year || String(x.UpdatedOn || "").slice(0, 4) || curYear(); }
+function othFind(cid, name, year){ return data.other.find(x => x.ClientId === cid && lc(x.Service) === lc(name) && (year == null || othYear(x) === String(year))); }
+/* client "Others" text only creates tracker items; editing or clearing it later never removes them */
+async function syncOthers(c, anyYear){ if(!c || isDeact(c) || !data.other) return 0; let n = 0; const Y = curYear();
+  for(const name of otherNamesText(c)){ if(othFind(c.id, name, anyYear ? null : Y)) continue;
+    const r = await store.create("other", { Title: `${c.id}|${Y}|${name}`, ClientId: c.id, Service: name, Year: Y, Status: "Not started", AssignedTo: teamOf(c)[0] || "", Reviewer: c.Reviewer || "", UpdatedBy: me.email, UpdatedOn: nowISO() });
+    data.other.push(r); n++; }
+  if(n) await logAct("Other services added", c, otherNamesText(c).join(", ") + ` · tracked for ${Y}`); return n; }
+function otherItems(clients, year){ const out = []; const t = todayISO(); const ids = new Map(clients.filter(c => !isDeact(c)).map(c => [c.id, c])); const Y = String(year || curYear());
+  for(const r of data.other){ const c = ids.get(r.ClientId); if(!c || othYear(r) !== Y) continue; const st = r.Status || "Not started"; const done = OTH_DONE.has(st);
+    out.push({ c, name: r.Service, year: Y, rec: r, st, done, due: r.DueDate || "", fu: r.FollowUp || "", over: !done && !!r.DueDate && r.DueDate < t, fuOver: !done && !!r.FollowUp && r.FollowUp <= t }); }
   return out; }
 function othWork(clients){ const its = otherItems(clients); return { total: its.length, doneN: its.filter(x => x.done).length, curP: its.filter(x => !x.done).length, prevN: 0, over: its.filter(x => x.over).length, pending: its.filter(x => !x.done) }; }
 function fuCell(x){ if(!x.fu) return `<span class="faint small">—</span>`; const d = daysUntil(x.fu); return `${fmtDate(x.fu)}${x.done ? "" : `<div class="small ${d < 0 ? "over" : d <= 2 ? "soon" : "faint"}">${d < 0 ? `follow-up ${-d}d overdue` : d === 0 ? "follow up today" : "in " + d + "d"}</div>`}`; }
 VIEWS.other = () => {
-  const f = state.of; const q = lc(f.q);
-  const all = otherItems(visibleClients()); const names = [...new Set(all.map(x => x.name))].sort((a, b) => a.localeCompare(b));
-  let rows = all.filter(x => (!q || lc(x.c.Title).includes(q) || lc(x.name).includes(q)) && (!f.svc || x.name === f.svc) && (!f.who || lc((x.rec && x.rec.AssignedTo) || teamOf(x.c)[0] || "") === f.who || teamOf(x.c).includes(f.who)));
+  const f = state.of; const q = lc(f.q); const Y = String(f.year || curYear());
+  const all = otherItems(visibleClients(), Y); const names = [...new Set(all.map(x => x.name))].sort((a, b) => a.localeCompare(b));
+  const prevAll = otherItems(visibleClients(), +Y - 1).filter(x => x.st !== "Not applicable" && !othFind(x.c.id, x.name, Y));
+  let rows = all.filter(x => (!q || lc(x.c.Title).includes(q) || lc(x.name).includes(q)) && (!f.svc || x.name === f.svc) && (!f.who || lc(x.rec.AssignedTo || teamOf(x.c)[0] || "") === f.who || teamOf(x.c).includes(f.who)));
   const total = rows.length, done = rows.filter(x => x.done).length; const pct = total ? Math.round(done / total * 100) : 0;
   if(f.show === "pending") rows = rows.filter(x => !x.done); if(f.show === "done") rows = rows.filter(x => x.done); if(f.show === "fu") rows = rows.filter(x => x.fuOver);
   rows.sort((a, b) => (b.over - a.over) || (b.fuOver - a.fuOver) || (a.done - b.done) || (a.due || "9999").localeCompare(b.due || "9999") || a.c.Title.localeCompare(b.c.Title));
+  const yrs = [...new Set([curYear(), String(+curYear() + 1), ...data.other.map(othYear)])].sort().reverse();
   return `<div class="toolbar">
+    <select class="in" data-bind="of.year" title="Year">${yrs.map(y => `<option value="${y}" ${Y === y ? "selected" : ""}>Year ${y}</option>`).join("")}</select>
     <input id="of-q" class="in search" placeholder="Search client or service…" value="${esc(f.q)}" data-bind="of.q">
     <select class="in" data-bind="of.svc"><option value="">All other services</option>${names.map(n => `<option ${f.svc === n ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
     ${isMgr() ? `<select class="in" data-bind="of.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
     <select class="in" data-bind="of.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="fu" ${f.show === "fu" ? "selected" : ""}>Follow-up due</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>
+    <div class="right">${isMgr() && prevAll.length ? `<button class="btn" data-act="othCarry" data-v="${Y}" title="Copy ${+Y - 1} services that aren't yet tracked in ${Y}">↻ Carry forward ${prevAll.length} from ${+Y - 1}</button>` : ""}<button class="btn pri" data-act="addOther" data-v="${Y}">${I.plus} Add other service</button></div>
   </div>
-  <div class="card"><div class="card-b"><div class="progress-row"><div><b>Other services</b><div class="small muted">Each service listed under <b>Others</b> on a client · follow up by date</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
+  <div class="card"><div class="card-b"><div class="progress-row"><div><b>Other services · ${Y}</b><div class="small muted">One line per client, service and year · follow up by date</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Service</th><th>Status</th><th>Assigned</th><th>Due</th><th>Next follow-up</th><th>Latest note</th><th>Last update</th><th></th></tr></thead><tbody>
   ${rows.map(x => { const d = daysUntil(x.due); return `<tr>
     <td class="cname">${state.loc ? "" : locTag(x.c) + " "}<a href="#" data-act="openClient" data-id="${x.c.id}" style="color:inherit;text-decoration:none">${esc(x.c.Title)}</a></td>
-    <td><b>${esc(x.name)}</b>${x.dropped ? `<div class="small faint">no longer listed on client</div>` : ""}</td><td>${othChip(x.st)}</td>
-    <td class="small">${esc(empName((x.rec && x.rec.AssignedTo) || teamOf(x.c)[0] || ""))}</td>
+    <td><b>${esc(x.name)}</b></td><td>${othChip(x.st)}</td>
+    <td class="small">${esc(empName(x.rec.AssignedTo || teamOf(x.c)[0] || ""))}</td>
     <td class="small nowrap">${x.due ? fmtDate(x.due) : `<span class="faint">not set</span>`}${x.due && !x.done ? `<div class="${d < 0 ? "over" : d <= 10 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
     <td class="small nowrap">${fuCell(x)}</td>
     <td class="small muted" style="max-width:240px">${esc(wlLast(x.rec).slice(0, 90))}</td>
     <td class="small faint nowrap">${updCell(x.rec)}</td>
-    <td><button class="btn sm" data-act="editOther" data-c="${x.c.id}" data-s="${esc(x.name)}">Update</button></td></tr>`; }).join("")}
-  </tbody></table>${rows.length ? "" : `<div class="empty">${all.length ? "Nothing matches these filters." : "No client has the <b>Others</b> service ticked yet. Tick <b>Others</b> on a client and describe the work (e.g. “Company formation, PRO services”) — each one appears here automatically."}</div>`}</div></div>`;
+    <td><button class="btn sm" data-act="editOther" data-id="${x.rec.id}">Update</button></td></tr>`; }).join("")}
+  </tbody></table>${rows.length ? "" : `<div class="empty">${all.length ? "Nothing matches these filters." : `No other services tracked for ${Y}. Click <b>Add other service</b>, or tick <b>Others</b> on a client and type the work (e.g. “Company formation, PRO services”) — each one is added here automatically.`}</div>`}</div></div>`;
 };
 
 VIEWS.team = () => {
@@ -1399,7 +1410,7 @@ MODALS.client = ({ id }) => {
   const c = clientById(id); if(!c) return "";
   const tab = state.clientTab || "overview"; const cr = crInfo(c);
   const canEdit = isDeact(c) ? isAdmin() : isMgr();
-  const tabs = [["overview","Overview"],["logins",`Logins (${data.creds.filter(x => x.ClientId === id).length})`],["vat","VAT returns"],["ct","Corporate tax"],["mw","Monthly work"],["audit","Audit"],...(hasService(c, "Others") || data.other.some(x => x.ClientId === id) ? [["other","Other services"]] : []),["activity","Activity"]];
+  const tabs = [["overview","Overview"],["logins",`Logins (${data.creds.filter(x => x.ClientId === id).length})`],["vat","VAT returns"],["ct","Corporate tax"],["mw","Monthly work"],["audit","Audit"],["other",`Other services (${data.other.filter(x => x.ClientId === id).length})`],["activity","Activity"]];
   let body = "";
   if(tab === "overview") body = `<div class="kv">
       ${[["Location", locTag(c) + " " + esc(locOf(c) === "UAE" ? "UAE (Dubai)" : "Bahrain")], [locOf(c) === "UAE" ? "Trade licence no" : "CR No", esc(c.CRNo)], ["Expiry", chip(cr.cls, cr.txt)], ["Status", esc(c.Status || "Active")], ["Contact person", esc(c.ContactName)], ["Contact no", esc(c.ContactNo)], ["Contact email", esc(c.ContactEmail)],
@@ -1443,8 +1454,9 @@ MODALS.client = ({ id }) => {
     `<div class="tw"><table class="tbl"><thead><tr><th>FY</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Due</th><th>Completed</th><th>Notes</th><th></th></tr></thead><tbody>
     ${[0,1,2,3].map(i => String(y - i)).map(fy => { const r = auditRec(id, fy); return `<tr><td><b>FY${fy}</b></td><td class="small">${esc(r && r.Auditor)}</td><td class="small">${esc(empName(r && r.AssignedTo))}</td><td>${auditChip(auditSt(c, r))}</td>
       <td class="small nowrap">${fmtDate(r && r.DueDate)}</td><td class="small nowrap">${fmtDate(r && r.CompletedDate)}</td><td class="small muted">${esc(wlLast(r).slice(0, 90))}</td><td><button class="btn sm" data-act="editAudit" data-c="${id}" data-fy="${fy}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
-  if(tab === "other"){ const its = otherItems([c]); body = its.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Service</th><th>Status</th><th>Assigned</th><th>Due</th><th>Next follow-up</th><th>Latest note</th><th></th></tr></thead><tbody>
-    ${its.map(x => `<tr><td><b>${esc(x.name)}</b></td><td>${othChip(x.st)}</td><td class="small">${esc(empName((x.rec && x.rec.AssignedTo) || teamOf(c)[0] || ""))}</td><td class="small nowrap">${fmtDate(x.due)}</td><td class="small nowrap">${fuCell(x)}</td><td class="small muted">${esc(wlLast(x.rec).slice(0, 90))}</td><td><button class="btn sm" data-act="editOther" data-c="${c.id}" data-s="${esc(x.name)}">Update</button></td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">No other services listed.</div>`; }
+  if(tab === "other"){ const its = data.other.filter(x => x.ClientId === c.id).sort((a, b) => othYear(b).localeCompare(othYear(a)) || a.Service.localeCompare(b.Service));
+    body = `<div style="display:flex;justify-content:flex-end;margin-bottom:10px">${isDeact(c) ? "" : `<button class="btn sm pri" data-act="addOther" data-c="${c.id}">${I.plus} Add other service</button>`}</div>` + (its.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Year</th><th>Service</th><th>Status</th><th>Assigned</th><th>Due</th><th>Next follow-up</th><th>Latest note</th><th></th></tr></thead><tbody>
+    ${its.map(r => { const st = r.Status || "Not started"; const x = { fu: r.FollowUp, done: OTH_DONE.has(st) }; return `<tr><td><b>${esc(othYear(r))}</b></td><td><b>${esc(r.Service)}</b></td><td>${othChip(st)}</td><td class="small">${esc(empName(r.AssignedTo || teamOf(c)[0] || ""))}</td><td class="small nowrap">${fmtDate(r.DueDate)}</td><td class="small nowrap">${fuCell(x)}</td><td class="small muted">${esc(wlLast(r).slice(0, 90))}</td><td><button class="btn sm" data-act="editOther" data-id="${r.id}">Update</button></td></tr>`; }).join("")}</tbody></table></div>` : `<div class="empty">No other services tracked for this client yet.</div>`); }
   if(tab === "activity"){ const acts = data.activity.filter(a => a.ClientId === id).sort((a,b) => b.At.localeCompare(a.At));
     body = acts.length ? `<ul class="feed">${acts.map(feedItem).join("")}</ul>` : `<div class="empty">No activity yet.</div>`; }
   return `<div class="modal wide ${isDeact(c) ? "ro" : ""}">${mHead(locTag(c) + " " + esc(c.Title), `${c.Status && c.Status !== "Active" ? chip(isDeact(c) ? "red" : "grey", esc(c.Status)) : ""}${canEdit && !isDeact(c) ? `<button class="btn sm" style="margin-left:8px" data-act="editClient" data-id="${id}">${I.edit} Edit client</button>` : ""}`)}
@@ -1573,19 +1585,25 @@ MODALS.empForm = ({ id }) => {
   </div></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
 
-MODALS.otherForm = ({ cid, name }) => {
-  const c = clientById(cid); const r = othRec(cid, name) || {};
-  return `<form class="modal" data-form="other" data-c="${cid}" data-s="${esc(name)}">${mHead(`${esc(name)} — ${esc(c.Title)}`)}
+MODALS.otherForm = ({ id, cid, year, name }) => {
+  const r = id ? (data.other.find(x => x.id === id) || {}) : {}; const c = clientById(r.ClientId || cid);
+  const known = [...new Set(data.other.map(x => x.Service))].sort((a, b) => a.localeCompare(b));
+  const cl = visibleClients().filter(x => !isDeact(x)).sort((a, b) => a.Title.localeCompare(b.Title));
+  const yrs = [String(+curYear() - 1), curYear(), String(+curYear() + 1)];
+  return `<form class="modal" data-form="other" data-id="${id || ""}">${mHead(id ? `${esc(r.Service)} · ${esc(othYear(r))} — ${esc(c ? c.Title : "")}` : "Add other service")}
   <div class="mb"><div class="form">
+    ${id ? "" : `<label class="full">Client<select class="in" name="ClientId" required><option value="">— Select client —</option>${cl.map(x => `<option value="${x.id}" ${c && c.id === x.id ? "selected" : ""}>${esc(x.Title)} (${locOf(x)})</option>`).join("")}</select></label>
+    <label>Service<input class="in" name="Service" list="othNames" required placeholder="e.g. Company formation" value="${esc(name || "")}"><datalist id="othNames">${known.map(n => `<option value="${esc(n)}">`).join("")}</datalist></label>
+    <label>Year<select class="in" name="Year">${yrs.map(y => `<option ${String(year || curYear()) === y ? "selected" : ""}>${y}</option>`).join("")}</select></label>`}
     <label class="full">Status<select class="in" name="Status">${opt(OTH_STATUSES, r.Status || "Not started")}</select></label>
-    <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || teamOf(c)[0])}</select></label>
-    <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || c.Reviewer)}</select></label>
+    <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || (c ? teamOf(c)[0] : ""))}</select></label>
+    <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || (c ? c.Reviewer : ""))}</select></label>
     <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate)}"></label>
     <label>Next follow-up<input class="in" type="date" name="FollowUp" value="${esc(r.FollowUp)}"></label>
     <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
     ${wlBlock(r, "Add a note — e.g. documents received, called client, next step")}
   </div>${r.UpdatedOn ? `<p class="small faint">Last updated by ${esc(empName(r.UpdatedBy))} on ${fmtDT(r.UpdatedOn)}</p>` : ""}</div>
-  <div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
+  <div class="mf">${id && isAdmin() ? `<button type="button" class="btn danger" data-act="delOther" data-id="${id}" style="margin-right:auto">Delete</button>` : ""}<button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
 MODALS.bulk = () => `<form class="modal" data-form="bulk">${mHead(`Bulk update ${state.cf.sel.size} clients`)}
   <div class="mb"><div class="form">
@@ -1646,6 +1664,7 @@ SUBMIT.client = async (form, o) => {
   for(const line of freqLog) await logAct("Frequency changed", clientById(id), line);
   const changes = before ? Object.keys(f).filter(k => String(before[k] || "") !== String(f[k] || "")).join(", ") : "";
   await logAct(id ? "Client updated" : "Client added", id ? clientById(id) : r, changes ? "Changed: " + changes : "");
+  try { const n = await syncOthers(clientById(id || r.id)); if(n) toast(`${n} other service${n > 1 ? "s" : ""} added to the Other Services tracker`); } catch(e){ console.warn("other sync", e); }
   closeModal(); if(!id){ state.clientTab = "overview"; openModal("client", { id: r.id }); } toast("Client saved");
 };
 SUBMIT.cred = async (form, o) => {
@@ -1694,12 +1713,18 @@ SUBMIT.audit = async (form, o) => {
   closeModal(); render(); toast("Audit updated");
 };
 SUBMIT.other = async (form, o) => {
-  const cid = form.dataset.c, name = form.dataset.s; const c = clientById(cid); const r = othRec(cid, name); const PREVX = (r && r.Status) || "Not started";
+  const id = form.dataset.id; let r = id ? data.other.find(x => x.id === id) : null;
+  if(!r){ const m = state.modals[state.modals.length - 1]; if(m) Object.assign(m.props, { cid: o.ClientId, name: o.Service, year: o.Year }); }
+  const cid = r ? r.ClientId : o.ClientId; const c = clientById(cid); if(!c) return toast("Choose a client", true);
+  const name = r ? r.Service : String(o.Service || "").trim(); const Y = r ? othYear(r) : String(o.Year || curYear());
+  if(!name) return toast("Enter the service name", true);
+  if(!r && othFind(cid, name, Y)) return toast(`${name} is already tracked for ${c.Title} in ${Y}`, true);
+  const PREVX = (r && r.Status) || "Not started";
   if(OTH_DONE.has(o.Status) && o.Status !== "Not applicable" && !o.CompletedDate) o.CompletedDate = todayISO();
-  const f = { Title: cid + "|" + name, ClientId: cid, Service: name, Status: o.Status, AssignedTo: o.AssignedTo, Reviewer: o.Reviewer, DueDate: o.DueDate, FollowUp: OTH_DONE.has(o.Status) ? "" : o.FollowUp, CompletedDate: o.CompletedDate, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const f = { Title: `${cid}|${Y}|${name}`, ClientId: cid, Service: name, Year: Y, Status: o.Status, AssignedTo: o.AssignedTo, Reviewer: o.Reviewer, DueDate: o.DueDate, FollowUp: OTH_DONE.has(o.Status) ? "" : o.FollowUp, CompletedDate: o.CompletedDate, Notes: wlNotes(r, o, r ? PREVX : ""), UpdatedBy: me.email, UpdatedOn: nowISO() };
   await saveRec("other", r ? r.id : null, f);
-  await logAct("Other service updated", c, `${name}: ${PREVX} → ${o.Status}${o.FollowUp && !OTH_DONE.has(o.Status) ? " · follow up " + fmtDate(o.FollowUp) : ""}${noteTag(o)}`);
-  closeModal(); render(); toast(`${name} updated`);
+  await logAct(r ? "Other service updated" : "Other service added", c, `${name} (${Y}): ${r ? PREVX + " → " : ""}${o.Status}${o.FollowUp && !OTH_DONE.has(o.Status) ? " · follow up " + fmtDate(o.FollowUp) : ""}${noteTag(o)}`);
+  closeModal(); render(); renderModals(); toast(`${name} ${r ? "updated" : "added"}`);
 };
 SUBMIT.emp = async (form, o) => {
   const id = form.dataset.id; const email = lc(o.Email);
@@ -1914,7 +1939,7 @@ async function bulkApply(){
   await withBusy(async () => {
     for(const x of todo){
       if(x.action === "New"){ const rec = await store.create("clients", x.fields); data.clients.push(rec); await logAct("Client added (bulk upload)", rec, ""); added++; }
-      else { await store.update("clients", x.client.id, x.fields); Object.assign(x.client, cleanFields("clients", x.fields)); await logAct("Client updated (bulk upload)", x.client, "Changed: " + x.changes.join(", ")); updated++; }
+      else { await store.update("clients", x.client.id, x.fields); Object.assign(x.client, cleanFields("clients", x.fields)); await logAct("Client updated (bulk upload)", x.client, "Changed: " + x.changes.join(", ")); try { await syncOthers(x.client); } catch(e){} updated++; }
       n++; if(prog()) prog().textContent = `Saving ${n} of ${todo.length}…`;
     }
   });
@@ -1933,7 +1958,7 @@ async function exportXlsx(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.vat.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Period: periodLabel(c.VATCycle, x.PeriodEnd), Location: locOf(c), "Due Date": dueOf(x.PeriodEnd, c), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Net VAT": x.Amount, Currency: curOf(c), "Work Log": wlText(x), "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "VAT Returns");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.ct.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Location: locOf(c), "CT TRN": c.CTNo, FY: x.FY, "Due Date": ctDue(c, x.FY), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Tax Payable": x.Amount, Currency: curOf(c), "Work Log": wlText(x), "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "Corporate Tax");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mw.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Location: locOf(c), Service: x.Service, Frequency: x.Freq || "Monthly", Period: mwLabel(c, x.Month, x.Freq || "Monthly"), "Due Date": mwDue(c, x.Service, x.Month, x.Freq || "Monthly"), Status: x.Status, "Assigned To": empName(x.AssignedTo), Reviewer: empName(x.Reviewer), "Completed On": x.CompletedDate, Hours: x.Hours, "Work Log": wlText(x), "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "Accounting-Consultation");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.other.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), Service: x.Service, Status: x.Status || "Not started", "Assigned To": empName(x.AssignedTo), Reviewer: empName(x.Reviewer), "Due Date": x.DueDate, "Next Follow-up": x.FollowUp, "Completed On": x.CompletedDate, "Work Log": wlText(x), "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }))), "Other Services");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.other.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), Year: othYear(x), Service: x.Service, Status: x.Status || "Not started", "Assigned To": empName(x.AssignedTo), Reviewer: empName(x.Reviewer), "Due Date": x.DueDate, "Next Follow-up": x.FollowUp, "Completed On": x.CompletedDate, "Work Log": wlText(x), "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }))), "Other Services");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.audits.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), FY: x.FY, Status: auditSt(clientById(x.ClientId) || {}, x), Auditor: x.Auditor, "Assigned To": empName(x.AssignedTo), "Due Date": x.DueDate, "Completed On": x.CompletedDate, "Work Log": wlText(x), "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }))), "Audits");
   XLSX.writeFile(wb, `Vinpro-ClientDesk-Export-${todayISO()}.xlsx`);
   await logAct(withPwd ? "Export with passwords" : "Export", null, `${cl.length} clients`);
@@ -1957,7 +1982,7 @@ function clientStrip(){ const cl = visibleClients(); const act = cl.filter(c => 
   wrap("ct", () => deadlineStrip(x => x.svc === "Corporate Tax", { done: "returns filed" }));
   wrap("mw", () => deadlineStrip(x => MW_SERVICES.includes(x.svc), { done: "closed" }));
   wrap("audit", () => deadlineStrip(x => x.svc === "Audit", { done: "completed" }));
-  wrap("other", () => { const its = otherItems(visibleClients()); const fu = its.filter(x => x.fuOver).length, over = its.filter(x => x.over).length, open = its.filter(x => !x.done).length, done = its.filter(x => x.done).length;
+  wrap("other", () => { const its = otherItems(visibleClients(), state.of.year || curYear()); const fu = its.filter(x => x.fuOver).length, over = its.filter(x => x.over).length, open = its.filter(x => !x.done).length, done = its.filter(x => x.done).length;
     return `<div class="strip"><div class="st ba"><div class="ic">!</div><div><b>${over}</b><span>past due date</span></div></div><div class="st wa"><div class="ic">☎</div><div><b>${fu}</b><span>follow-ups due today or overdue</span></div></div><div class="st fu"><div class="ic">●</div><div><b>${open}</b><span>open items</span></div></div><div class="st ok"><div class="ic">✓</div><div><b>${done}</b><span>completed</span></div></div></div>`; });
   wrap("clients", clientStrip); })();
 
@@ -1969,7 +1994,14 @@ const ACT = {
   openClient: (d, e) => { if(e.target.closest("[data-stop]")) return; e.preventDefault(); state.clientTab = "overview"; openModal("client", { id: d.id }); },
   ctab: d => { state.clientTab = d.v; renderModals(); },
   close: () => closeModal(),
-  editOther: d => { const c = clientById(d.c); if(!c || !canSee(c) || isDeact(c)) return; openModal("otherForm", { cid: d.c, name: d.s }); },
+  editOther: d => { const r = data.other.find(x => x.id === d.id); const c = r && clientById(r.ClientId); if(!c || !canSee(c) || isDeact(c)) return; openModal("otherForm", { id: d.id }); },
+  addOther: d => openModal("otherForm", { cid: d.c || "", year: d.v || state.of.year }),
+  delOther: d => { const r = data.other.find(x => x.id === d.id); if(!r || !isAdmin()) return; const c = clientById(r.ClientId);
+    openModal("confirm", { text: `Delete <b>${esc(r.Service)}</b> (${esc(othYear(r))}) for <b>${esc(c ? c.Title : "")}</b>, including its work log? This can't be undone.`, onYes: async () => { await removeRec("other", r.id); await logAct("Other service deleted", c, `${r.Service} (${othYear(r)})`); closeModal(); render(); toast("Deleted"); } }); },
+  othCarry: d => { const Y = String(d.v); const src = otherItems(visibleClients(), +Y - 1).filter(x => x.st !== "Not applicable" && !othFind(x.c.id, x.name, Y));
+    openModal("confirm", { text: `Start tracking <b>${src.length}</b> service${src.length === 1 ? "" : "s"} from ${+Y - 1} again for <b>${Y}</b>?<br><br><span class="small muted">${esc(src.slice(0, 12).map(x => x.c.Title + " — " + x.name).join("; "))}${src.length > 12 ? "…" : ""}</span>`, onYes: async () => {
+      await withBusy(async () => { for(const x of src){ const r = await store.create("other", { Title: `${x.c.id}|${Y}|${x.name}`, ClientId: x.c.id, Service: x.name, Year: Y, Status: "Not started", AssignedTo: x.rec.AssignedTo || teamOf(x.c)[0] || "", Reviewer: x.rec.Reviewer || "", UpdatedBy: me.email, UpdatedOn: nowISO() }); data.other.push(r); } });
+      await logAct("Other services carried forward", null, `${src.length} from ${+Y - 1} to ${Y}`); render(); toast(`${src.length} carried forward to ${Y}`); } }); },
   dashYear: d => { state.dashYear += +d.v; render(); },
   dgMode: d => { state.dg.mode = d.v; render(); },
   dashMore: (d, e) => { e.preventDefault(); state.dashMore = !state.dashMore; render(); },
@@ -2105,6 +2137,7 @@ async function start(){
       const r = await store.create("employees", { Title: me.name, Email: me.email, Role: "Admin", Active: "Yes" }); data.employees.push(r);
     }
     render();
+    if(me.role && store.listIds && store.listIds.other){ (async () => { let n = 0; for(const c of data.clients) if(canSee(c)) { try { n += await syncOthers(c, true); } catch(e){ break; } } if(n){ render(); } })(); }
   } catch(e){ console.error(e); errorScreen("Couldn't load data", e.message); }
 }
 start().catch(e => { console.error(e); errorScreen("Something went wrong", e.message || String(e)); });
