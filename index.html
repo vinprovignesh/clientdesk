@@ -888,7 +888,7 @@ function ctWork(clients){ const out = []; const t = todayISO(); const y = +t.sli
 /* audit: the financial year chosen in the Audit tracker; the year before shows only if it was started and is still open */
 function auditWork(clients, fy){ const out = []; const prev = String(+fy - 1);
   for(const c of auditClients(clients)){ if(isDeact(c)) continue;
-    const rp = auditRec(c.id, prev); if(rp){ const st = auditSt(c, rp); if(!AUDIT_DONE.has(st)) out.push({ c, fy: prev, st, done: false, cur: false, prev: true, over: true, due: rp.DueDate || "" }); }
+    for(let k = 4; k >= 1; k--){ const pf = String(+fy - k); const rp = auditRec(c.id, pf); if(rp){ const st = auditSt(c, rp); if(!AUDIT_DONE.has(st)) out.push({ c, fy: pf, st, done: false, cur: false, prev: true, over: true, due: rp.DueDate || "" }); } }
     const r = auditRec(c.id, fy); const st = auditSt(c, r); const done = AUDIT_DONE.has(st); out.push({ c, fy, st, done, cur: true, prev: false, over: false, due: (r && r.DueDate) || "" }); }
   return out.sort((a, b) => (b.prev - a.prev) || a.c.Title.localeCompare(b.c.Title)); }
 function workSum(items){ const now = items.filter(x => x.cur); return { total: now.length, doneN: now.filter(x => x.done).length, curP: now.filter(x => !x.done).length, prevN: items.filter(x => x.prev).length, over: items.filter(x => x.over).length, pending: items.filter(x => !x.done) }; }
@@ -1146,9 +1146,15 @@ function vatYearView(base){
 VIEWS.audit = () => {
   const f = state.af; const q = lc(f.q); const y = new Date().getFullYear();
   let rows = auditClients(visibleClients()).filter(c => (!q || lc(c.Title).includes(q)) && (!f.who || teamOf(c).includes(f.who) || lc((auditRec(c.id, f.fy) || {}).AssignedTo) === f.who))
-    .map(c => ({ c, rec: auditRec(c.id, f.fy), st: auditSt(c, auditRec(c.id, f.fy)) }));
+    .map(c => ({ c, fy: f.fy, rec: auditRec(c.id, f.fy), st: auditSt(c, auditRec(c.id, f.fy)) }));
   const total = rows.length, done = rows.filter(r => AUDIT_DONE.has(r.st)).length;
+  /* audits of earlier financial years that were started but not completed stay in view */
+  const carried = []; const base = auditClients(visibleClients()).filter(c => !isDeact(c) && (!q || lc(c.Title).includes(q)));
+  for(const c of base) for(let k = 1; k <= 4; k++){ const fy = String(+f.fy - k); const r = auditRec(c.id, fy); if(!r) continue; const st = auditSt(c, r);
+    if(AUDIT_DONE.has(st)) continue; if(f.who && !(teamOf(c).includes(f.who) || lc(r.AssignedTo) === f.who)) continue; carried.push({ c, fy, rec: r, st, carried: true }); }
+  carried.sort((a, b) => a.fy.localeCompare(b.fy) || a.c.Title.localeCompare(b.c.Title));
   if(f.show === "pending") rows = rows.filter(r => !AUDIT_DONE.has(r.st)); if(f.show === "done") rows = rows.filter(r => AUDIT_DONE.has(r.st));
+  if(f.show !== "done") rows = carried.concat(rows);
   const pct = total ? Math.round(done / total * 100) : 0;
   return `<div class="toolbar">
     <select class="in" data-bind="af.fy">${[0,1,2,3,4].map(i => String(y - i)).map(v => `<option value="${v}" ${f.fy === v ? "selected" : ""}>Financial year ${v}</option>`).join("")}</select>
@@ -1156,17 +1162,17 @@ VIEWS.audit = () => {
     ${isMgr() ? `<select class="in" data-bind="af.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
     <select class="in" data-bind="af.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>
   </div>
-  <div class="card"><div class="card-b"><div class="progress-row"><div><b>FY${esc(f.fy)} audits</b><div class="small muted">Clients with the <b>Audit</b> service ticked</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
+  <div class="card"><div class="card-b"><div class="progress-row"><div><b>FY${esc(f.fy)} audits</b><div class="small muted">Clients with the <b>Audit</b> service ticked${carried.length ? ` · <span class="over">+ ${carried.length} pending from earlier years shown first</span>` : ""}</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>FY end</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Progress</th><th>Due</th><th>Completed</th><th>Last update</th><th></th></tr></thead><tbody>
   ${rows.map(r => { const idx = auditStatuses(r.c).indexOf(r.st); const steps = auditStatuses(r.c).length - 1; const d = daysUntil(r.rec && r.rec.DueDate); return `<tr>
-    <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
-    <td class="small nowrap">${fmtDate(f.fy + "-" + (r.c.FYEnd || "12-31"))}</td><td class="small">${esc(r.rec && r.rec.Auditor)}</td>
+    <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a>${r.carried ? ` ${chip("red", "Carried · FY" + esc(r.fy))}` : ""}</td>
+    <td class="small nowrap">${fmtDate(r.fy + "-" + (r.c.FYEnd || "12-31"))}</td><td class="small">${esc(r.rec && r.rec.Auditor)}</td>
     <td class="small">${esc(empName((r.rec && r.rec.AssignedTo) || teamOf(r.c)[0] || ""))}</td><td>${auditChip(r.st)}</td>
     <td style="min-width:80px"><div class="steps" title="${esc(r.st)}">${Array.from({length:steps - 1}, (_, i) => `<i class="${/^not applicable$/i.test(r.st) || i < idx ? "on" : ""}"></i>`).join("")}</div></td>
     <td class="small nowrap">${fmtDate(r.rec && r.rec.DueDate)}${d != null && !AUDIT_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
     <td class="small nowrap">${fmtDate(r.rec && r.rec.CompletedDate)}</td>
     <td class="small faint nowrap">${updCell(r.rec)}</td>
-    <td><button class="btn sm" data-act="editAudit" data-c="${r.c.id}" data-fy="${esc(f.fy)}">Update</button></td></tr>`; }).join("")}
+    <td><button class="btn sm" data-act="editAudit" data-c="${r.c.id}" data-fy="${esc(r.fy)}">Update</button></td></tr>`; }).join("")}
   </tbody></table>${rows.length ? "" : `<div class="empty">No clients to show.</div>`}</div></div>`;
 };
 
@@ -1205,11 +1211,19 @@ function mwMonthView(base){
   const annualCount = base.filter(c => freqAt(c, f.svc, ym) === "Annually").length;
   let rows = base.filter(c => freqAt(c, f.svc, ym) === "Monthly").map(c => ({ c, ym, freq: "Monthly", rec: mwRec(c.id, f.svc, ym), st: mwStatus(c.id, f.svc, ym), due: mwDue(c, f.svc, ym) }));
   const total = rows.length, done = rows.filter(r => MW_DONE.has(r.st)).length; rows = mwFilterShow(rows);
+  const carried = f.show === "done" ? [] : mwCarried(base, f.svc, ym);
   const pct = total ? Math.round(done / total * 100) : 0; const dd = daysUntil(mwDefaultDue(f.svc, ym));
   return `<div class="card"><div class="card-b"><div class="progress-row"><div><b>${esc(f.svc)} · ${ymLabel(ym)} · monthly clients</b><div class="small muted">Default due ${fmtDate(mwDefaultDue(f.svc, ym))} · <span class="${dd < 0 && done < total ? "over" : dd <= 5 ? "soon" : ""}">${relDays(dd)}</span>${annualCount ? ` · ${annualCount} annual client${annualCount > 1 ? "s" : ""} not shown — see <a href="#" data-act="mwmode" data-v="annual">Annual clients</a>` : ""}</div></div>
     <div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} completed (${pct}%)</span></div></div></div>
-  ${mwTable(rows, f.svc, false)}</div>`;
+  ${mwTable(rows, f.svc, false)}</div>${mwCarriedCard(carried, f.svc, `before ${ymLabel(ym)}`)}`;
 }
+/* earlier periods (any frequency) still not completed — kept in view until closed */
+function mwCarried(base, svc, beforeYm){ const out = [];
+  for(const c of base) for(const p of mwPeriods(c, svc, MW_START, ymAdd(beforeYm, -1))){ const st = mwStatus(c.id, svc, p.ym, p.freq); if(MW_DONE.has(st)) continue;
+    out.push({ c, ym: p.ym, freq: p.freq, rec: mwRec(c.id, svc, p.ym, p.freq), st, due: mwDue(c, svc, p.ym, p.freq) }); }
+  return out.sort((a, b) => a.ym.localeCompare(b.ym) || a.c.Title.localeCompare(b.c.Title)); }
+function mwCarriedCard(rows, svc, when){ if(!rows.length) return "";
+  return `<div class="card" style="margin-top:18px;border-left:4px solid var(--bad)"><div class="card-h"><h3>Carried forward · ${rows.length} pending from periods ${esc(when)}</h3><div class="right small muted">Not completed — stays here until closed</div></div>${mwTable(rows, svc, true)}</div>`; }
 function mwAnnualView(base){
   const f = state.mf; const fy = String(f.year);
   let rows = base.map(c => { const ym = `${fy}-${fyEndMM(c)}`; return { c, ym }; }).filter(x => x.ym >= MW_START && freqAt(x.c, f.svc, x.ym) === "Annually")
@@ -1218,12 +1232,13 @@ function mwAnnualView(base){
   const pct = total ? Math.round(done / total * 100) : 0;
   return `<div class="card"><div class="card-b"><div class="progress-row"><div><b>${esc(f.svc)} · annual clients · financial years ending in ${esc(fy)}</b><div class="small muted">One engagement per financial year · default due ${f.svc === "Accounting" ? `${ANNUAL_ACCT_MONTHS} months after year end` : "at year end"}</div></div>
     <div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} completed (${pct}%)</span></div></div></div>
-  ${total ? mwTable(rows, f.svc, true) : `<div class="empty">No clients on an <b>annual</b> ${esc(f.svc)} frequency for financial years ending in ${esc(fy)}${fy + "-12" < MW_START ? ` (tracking starts ${ymLabel(MW_START)})` : ""}.</div>`}</div>`;
+  ${total ? mwTable(rows, f.svc, true) : `<div class="empty">No clients on an <b>annual</b> ${esc(f.svc)} frequency for financial years ending in ${esc(fy)}${fy + "-12" < MW_START ? ` (tracking starts ${ymLabel(MW_START)})` : ""}.</div>`}</div>${f.show === "done" ? "" : mwCarriedCard(mwCarried(base, f.svc, `${fy}-01`).filter(r => r.freq === "Annually"), f.svc, `of financial years ending before ${fy}`)}`;
 }
 function mwYearView(base){
   const f = state.mf; const y = +f.year; const months = Array.from({length:12}, (_, i) => `${y}-${pad(i+1)}`); const cur = curYM();
   const rows = base.filter(c => months.some(m => m >= MW_START && m <= cur && freqAt(c, f.svc, m) === "Monthly"));
-  return `<div class="card"><div class="card-b small muted">${esc(f.svc)} status for monthly clients. Click a cell to update. Red outline = past due and not completed. Grey "Annual" = months when the client was on annual frequency.</div>
+  const prevPend = mwCarried(base, f.svc, `${y}-01`);
+  return `${prevPend.length ? `<div class="banner bad"><b>${prevPend.length} ${esc(f.svc.toLowerCase())} item${prevPend.length > 1 ? "s" : ""} from before ${y} still pending.</b> <span class="small">${esc(prevPend.slice(0, 6).map(r => r.c.Title + " · " + mwLabel(r.c, r.ym, r.freq)).join("; "))}${prevPend.length > 6 ? "…" : ""}</span> <button class="btn sm" data-act="mwmode" data-v="month">Open in month view</button></div>` : ""}<div class="card"><div class="card-b small muted">${esc(f.svc)} status for monthly clients. Click a cell to update. Red outline = past due and not completed. Grey "Annual" = months when the client was on annual frequency.</div>
   <div class="tw"><table class="tbl ygrid"><thead><tr><th>Client</th>${months.map(m => `<th class="m">${MONTHS[+m.slice(5)-1]}</th>`).join("")}</tr></thead><tbody>
   ${rows.map(c => `<tr><td class="cname nowrap">${state.loc ? "" : locTag(c) + " "}${esc(c.Title)}</td>
     ${months.map(m => { if(m < MW_START || m > cur) return `<td class="cell off"></td>`; if(freqAt(c, f.svc, m) !== "Monthly") return `<td class="cell"><span class="faint small">Annual</span></td>`;
