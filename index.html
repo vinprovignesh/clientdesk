@@ -369,6 +369,27 @@ body{background:radial-gradient(1200px 500px at 100% -10%,color-mix(in srgb,var(
 .wl-h{font-size:12px;color:var(--faint)}.wl-h b{color:var(--ink);font-weight:650}
 .wl-t{white-space:pre-wrap;font-size:13.5px;color:var(--ink);margin-top:2px;overflow-wrap:anywhere}
 .wl-e.sys .wl-t{color:var(--muted);font-size:12.5px}
+.donuts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px}
+.donut-card{background:var(--panel);border:1px solid var(--line-2);border-radius:16px;padding:14px 16px 12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;transition:transform .12s,box-shadow .12s}
+.donut-card:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(16,24,40,.06),0 12px 28px rgba(16,24,40,.1)}
+.dc-h b{display:block;font-size:14px}.dc-h span{font-size:12px;color:var(--faint)}
+.dc-ring{position:relative;align-self:center;width:112px;height:112px;margin:4px 0}
+.dc-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}.dc-c b{font-size:22px;font-variant-numeric:tabular-nums}.dc-c span{font-size:11px;color:var(--faint)}
+.dc-cap{font-size:12px;color:var(--muted);text-align:center;min-height:16px}.dc-cap.bad{color:var(--bad);font-weight:600}.dc-cap.ok{color:var(--ok);font-weight:600}
+.chart-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18px;margin-bottom:18px;align-items:start}.chart-row>.card{margin:0}
+.chart-row:has(> :only-child){grid-template-columns:minmax(0,1fr)}
+.ch-svg{width:100%;height:auto;display:block}.ch-grid{stroke:var(--line-2);stroke-width:1}.ch-ax{font-size:11px;fill:var(--faint)}.ch-ax.cur{fill:var(--accent-ink);font-weight:700}.ch-val{font-size:10.5px;fill:var(--muted);font-weight:600}
+.mbar{cursor:pointer}.mbar:hover rect:not([fill=transparent]){filter:brightness(1.08)}
+.ch-cap{font-size:12.5px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px dashed var(--line-2)}
+.ch-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}.ch-legend span{display:inline-flex;align-items:center;gap:5px}.ch-legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.ch-sub{font-size:11.5px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.hb{display:grid;grid-template-columns:110px minmax(0,1fr) 54px;gap:10px;align-items:center;margin:7px 0}
+.hb-l{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hb-t{display:flex;gap:2px;height:12px;background:var(--panel-2);border-radius:6px;overflow:hidden}.hb-t i{display:block;height:100%}
+.hb-v{font-size:12.5px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.mixbar{display:flex;gap:2px;height:14px;border-radius:7px;overflow:hidden;margin-bottom:8px}.mixbar i{display:block}
+ul.att{list-style:none;margin:0;padding:6px 0}ul.att li{display:flex;gap:12px;align-items:center;padding:9px 18px;cursor:pointer;border-bottom:1px solid var(--line-2)}ul.att li:last-child{border-bottom:0}ul.att li:hover{background:color-mix(in srgb,var(--bad) 5%,var(--panel))}
+.att-d{min-width:46px;height:30px;border-radius:9px;background:var(--bad-bg);color:var(--bad);font-weight:800;font-size:12px;display:grid;place-items:center}
+@media (max-width:1000px){.chart-row{grid-template-columns:minmax(0,1fr)}}
 .steps{min-width:96px}.steps i{min-width:9px}
 .tbl td.cname{min-width:190px}
 @media (max-width:760px){.side{background:linear-gradient(90deg,#050c42,#0a1a52)}.side .nav.on{box-shadow:inset 0 -3px 0 #2fbfb4}.top{position:static}}
@@ -952,6 +973,60 @@ function kpi2(view, label, w, doneWord){ const done = w.doneN, over = w.pending.
     <div class="segbar" title="${done} ${doneWord} · ${pend} pending · ${over} overdue">${done ? `<i class="ok" style="flex:${done}"></i>` : ""}${pend ? `<i class="wa" style="flex:${pend}"></i>` : ""}${over ? `<i class="ba" style="flex:${over}"></i>` : ""}${done + pend + over ? "" : `<i style="flex:1"></i>`}</div>
     <div class="s"><span>✓ ${done} ${doneWord}</span><span>${pend} pending</span>${over ? `<span class="o">! ${over} overdue</span>` : ""}</div></button>`; }
 
+/* ---------- dashboard charts (inline SVG, status colours + labels) ---------- */
+const ST_CLR = { done: "var(--ok)", pend: "var(--warn)", over: "var(--bad)", fut: "var(--line)" };
+function chartLegend(items){ return `<div class="ch-legend">${items.map(([l, c]) => `<span><i style="background:${c}"></i>${l}</span>`).join("")}</div>`; }
+function donutSvg(parts, size = 112, th = 13){ const tot = parts.reduce((a, p) => a + p.v, 0); const r = (size - th) / 2, C = 2 * Math.PI * r; let off = 0;
+  if(!tot) return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${th}"/></svg>`;
+  const gap = parts.filter(p => p.v).length > 1 ? 2 : 0;
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="transform:rotate(-90deg)">${parts.filter(p => p.v).map(p => { const len = C * p.v / tot; const seg = `<circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${p.c}" stroke-width="${th}" stroke-dasharray="${Math.max(0, len - gap).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}"><title>${esc(p.l)}: ${p.v}</title></circle>`; off += len; return seg; }).join("")}</svg>`; }
+function donutCard(view, title, sub, w, doneWord){ const over = w.pending.filter(x => x.over).length, pend = w.pending.length - over, done = w.doneN; const tot = done + pend + over;
+  const pct = tot ? Math.round(done / tot * 100) : 0;
+  const cap = !tot ? "Nothing due in this period" : over ? `${over} overdue — needs action` : pend ? `${pct}% ${doneWord} · ${pend} to go` : `All ${tot} ${doneWord} ✓`;
+  return `<button class="donut-card" data-act="nav" data-v="${view}"><div class="dc-h"><b>${esc(title)}</b><span>${esc(sub)}</span></div>
+    <div class="dc-ring">${donutSvg([{ v: done, c: ST_CLR.done, l: doneWord }, { v: pend, c: ST_CLR.pend, l: "pending" }, { v: over, c: ST_CLR.over, l: "overdue" }])}<div class="dc-c"><b>${pct}%</b><span>${tot ? `${done}/${tot}` : "—"}</span></div></div>
+    <div class="dc-cap ${over ? "bad" : !pend && tot ? "ok" : ""}">${cap}</div></button>`; }
+function openItemsAll(cl, w){ const L = [];
+  w.vat.pending.forEach(x => L.push({ c: x.c, svc: "VAT", label: x.label, due: x.due, over: x.over, act: `data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}"` }));
+  w.mw.pending.forEach(x => L.push({ c: x.c, svc: x.svc === "Consultancy" ? "Consultation" : "Accounting", label: x.label, due: x.due, over: x.over, act: `data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}"` }));
+  w.ct.pending.forEach(x => L.push({ c: x.c, svc: "Corporate tax", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}"` }));
+  w.aud.pending.forEach(x => L.push({ c: x.c, svc: "Audit", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editAudit" data-c="${x.c.id}" data-fy="${x.fy}"` }));
+  w.oth.pending.forEach(x => L.push({ c: x.c, svc: x.name, label: x.year, due: x.due, over: x.over, act: `data-act="editOther" data-id="${x.rec.id}"` }));
+  return L; }
+function monthChart(items, Y){ const cur = curYM(); const months = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
+  const data = months.map(m => { const a = items.filter(x => x.ym === m); return { m, done: a.filter(x => x.done).length, over: a.filter(x => x.st === "over").length, pend: a.filter(x => x.st === "due").length, fut: a.filter(x => x.st === "future").length }; });
+  const max = Math.max(1, ...data.map(d => d.done + d.over + d.pend + d.fut)); const W = 640, H = 220, pl = 28, pb = 26, pt = 20, bw = (W - pl) / 12;
+  const y = v => pt + (H - pt - pb) * (1 - v / max); const ticks = [0, Math.ceil(max / 2), max];
+  const bars = data.map((d, i) => { let base = 0; const x = pl + i * bw + bw * 0.22, w = bw * 0.56;
+    const segs = [["done", d.done], ["over", d.over], ["pend", d.pend], ["fut", d.fut]].filter(s => s[1]).map(([k, v], j, arr) => { const y1 = y(base + v), y0 = y(base); base += v; const top = j === arr.length - 1;
+      return `<rect x="${x.toFixed(1)}" y="${(y1 + (j ? 1 : 0)).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0, y0 - y1 - (j ? 1 : 0)).toFixed(1)}" fill="${ST_CLR[k]}" ${top ? `rx="4"` : ""}/>`; }).join("");
+    const tot = d.done + d.over + d.pend + d.fut;
+    return `<g class="mbar" data-act="calGo" data-v="vat" data-m="${d.m}"><rect x="${pl + i * bw}" y="${pt}" width="${bw}" height="${H - pt - pb}" fill="transparent"/>${segs}<title>${ymLabel(d.m)}: ${tot} deadline${tot === 1 ? "" : "s"} · ${d.done} done · ${d.over} overdue · ${d.pend} due now · ${d.fut} upcoming</title>${tot ? `<text x="${pl + i * bw + bw / 2}" y="${y(tot) - 4}" text-anchor="middle" class="ch-val">${tot}</text>` : ""}<text x="${pl + i * bw + bw / 2}" y="${H - 8}" text-anchor="middle" class="ch-ax ${d.m === cur ? "cur" : ""}">${MONTHS[i]}</text></g>`; }).join("");
+  const grid = ticks.map(t => `<line x1="${pl}" x2="${W}" y1="${y(t)}" y2="${y(t)}" class="ch-grid"/><text x="${pl - 6}" y="${y(t) + 4}" text-anchor="end" class="ch-ax">${t}</text>`).join("");
+  const overAll = data.reduce((a, d) => a + d.over, 0); const nowD = data.find(d => d.m === cur) || { pend: 0 }; const nxt = data.find(d => d.m === ymAdd(cur, 1));
+  const cap = `${overAll ? `<b class="over">${overAll} overdue</b> this year` : "Nothing overdue this year"} · <b>${nowD.pend}</b> open in ${ymLabel(cur)}${nxt ? ` · <b>${nxt.done + nxt.over + nxt.pend + nxt.fut}</b> due in ${ymLabel(nxt.m)}` : ""}`;
+  return `<div class="card ch-card ch-wide"><div class="card-h"><h3>Deadlines by month · ${Y}</h3><div class="right">${chartLegend([["Done", ST_CLR.done], ["Overdue", ST_CLR.over], ["Due this month", ST_CLR.pend], ["Upcoming", ST_CLR.fut]])}</div></div>
+    <div class="card-b"><svg viewBox="0 0 ${W} ${H}" class="ch-svg" role="img" aria-label="Deadlines by month">${grid}${bars}</svg><div class="ch-cap">${cap}</div></div></div>`; }
+function hbars(rows, maxV){ const max = Math.max(1, maxV || Math.max(...rows.map(r => r.over + r.pend)));
+  return rows.map(r => `<div class="hb"><div class="hb-l" title="${esc(r.name)}">${esc(r.name)}</div><div class="hb-t">${r.over ? `<i style="width:${(r.over / max * 100).toFixed(1)}%;background:${ST_CLR.over}" title="${r.over} overdue"></i>` : ""}${r.pend ? `<i style="width:${(r.pend / max * 100).toFixed(1)}%;background:${ST_CLR.pend}" title="${r.pend} pending"></i>` : ""}</div><div class="hb-v">${r.over + r.pend}${r.over ? ` <span class="over">(${r.over}!)</span>` : ""}</div></div>`).join(""); }
+function locChart(pend){ const rows = LOCATIONS.map(L => { const a = pend.filter(x => locOf(x.c) === L); return { name: L === "UAE" ? "UAE (Dubai)" : "Bahrain", L, over: a.filter(x => x.over).length, pend: a.filter(x => !x.over).length }; }).filter(r => !state.loc || r.L === state.loc);
+  const tot = rows.reduce((a, r) => a + r.over + r.pend, 0); const top = rows.slice().sort((a, b) => (b.over + b.pend) - (a.over + a.pend))[0];
+  const svcMix = {}; pend.forEach(x => { const k = ["VAT", "Accounting", "Consultation", "Corporate tax", "Audit"].includes(x.svc) ? x.svc : "Other"; svcMix[k] = (svcMix[k] || 0) + 1; });
+  const mix = Object.entries(svcMix).sort((a, b) => b[1] - a[1]); const mixC = ["#3b66d6", "#13a89e", "#8a6fdc", "#e0a85c", "#d9668a", "#8a93a3"];
+  return `<div class="card ch-card"><div class="card-h"><h3>Open work</h3><div class="right small muted">${tot} items</div></div><div class="card-b">
+    <div class="ch-sub">By location</div>${hbars(rows)}
+    <div class="ch-sub" style="margin-top:14px">By service</div><div class="mixbar">${mix.map(([k, v], i) => `<i style="flex:${v};background:${mixC[i % mixC.length]}" title="${esc(k)}: ${v}"></i>`).join("")}</div>
+    ${chartLegend(mix.map(([k, v], i) => [`${k} ${v}`, mixC[i % mixC.length]]))}
+    <div class="ch-cap">${tot ? `${esc(top.name)} carries ${Math.round((top.over + top.pend) / tot * 100)}% of open work${mix[0] ? ` · most is <b>${esc(mix[0][0])}</b>` : ""}` : "No open work 🎉"}</div></div></div>`; }
+function teamChart(cl, pend){ const rows = activeEmployees().map(e => { const em = lc(e.Email); const a = pend.filter(x => teamOf(x.c).includes(em)); return { name: e.Title, over: a.filter(x => x.over).length, pend: a.filter(x => !x.over).length }; }).filter(r => r.over + r.pend).sort((a, b) => (b.over + b.pend) - (a.over + a.pend)).slice(0, 8);
+  const top = rows[0]; const unass = pend.filter(x => !teamOf(x.c).length).length;
+  return `<div class="card ch-card ch-wide"><div class="card-h"><h3>Team workload</h3><div class="right">${chartLegend([["Overdue", ST_CLR.over], ["Pending", ST_CLR.pend]])}</div></div><div class="card-b">
+    ${rows.length ? hbars(rows) : `<div class="empty">No open items assigned.</div>`}
+    <div class="ch-cap">${top ? `<b>${esc(top.name)}</b> has the most open items (${top.over + top.pend}${top.over ? `, ${top.over} overdue` : ""})` : ""}${unass ? ` · <span class="over">${unass} item${unass > 1 ? "s" : ""} on clients with no team</span>` : ""}</div></div></div>`; }
+function attentionCard(pend){ const a = pend.filter(x => x.over).sort((p, q) => (p.due || "").localeCompare(q.due || "")); const show = a.slice(0, 6);
+  return `<div class="card ch-card"><div class="card-h"><h3>Needs attention</h3><div class="right small ${a.length ? "over" : "muted"}">${a.length} overdue</div></div>
+    ${show.length ? `<ul class="att">${show.map(x => { const d = daysUntil(x.due); return `<li ${x.act}><span class="att-d">${d != null ? -d + "d" : "!"}</span><div><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${x.due ? " · due " + fmtDate(x.due) : ""}</div></div></li>`; }).join("")}</ul>${a.length > 6 ? `<div class="card-b small muted">+ ${a.length - 6} more — open the trackers</div>` : ""}` : `<div class="empty">Nothing overdue — well done.</div>`}</div>`; }
+
 VIEWS.dashboard = () => {
   const cl = visibleClients(); const active = cl.filter(c => !isDeact(c));
   const cur = curYM(); const fy = state.af.fy;
@@ -973,17 +1048,15 @@ VIEWS.dashboard = () => {
     <div class="facts"><div class="${overN ? "red" : ""}"><b>${overN}</b>overdue</div><div><b>${dueN}</b>open, due in ${ymLabel(cur)}</div><div><b>${n30}</b>due in next 30 days</div><div><b>${cr.length}</b>CR / licence ≤30d</div></div></div>
     <div class="ring">${heroRing(health)}<div class="rv">${health}%</div><div class="rt"><b>On-time health</b><br>deadlines met so far in ${new Date().getFullYear()}</div></div></div>
   ${unsetCycle ? `<div class="banner">${unsetCycle} active client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
-  <div class="kpis">
-    ${kpi2("vat", `VAT returns · due ${ymLabel(cur)}`, vat, "filed")}
-    ${kpi2("mw", `Accounting/Consultation · ${ymLabel(cur)}`, mw, "done")}
-    ${kpi2("ct", "Corporate tax · latest year", ct, "filed")}
-    ${kpi2("audit", `Audits · FY${esc(fy)}`, aud, "done")}
-    ${otherItems(cl).length ? kpi2("other", `Other services · ${curYear()}`, othWork(cl), "done") : ""}
-  </div>
+  ${(() => { const oth = othWork(cl); const svcs = [["vat", "VAT", `due ${ymLabel(cur)}`, vat, "filed"], ["mw", "Accounting / Consultation", ymLabel(cur), mw, "done"], ["ct", "Corporate tax", "latest year", ct, "filed"], ["audit", "Audit", "FY" + fy, aud, "done"], ...(oth.total ? [["other", "Other services", curYear(), oth, "done"]] : [])];
+    const pend = openItemsAll(cl, { vat, mw, ct, aud, oth });
+    return `<div class="donuts">${svcs.map(([v, t, sub, w, dw]) => donutCard(v, t, sub, w, dw)).join("")}</div>
+    <div class="chart-row">${monthChart(nowYi.filter(x => x.svc !== "CR"), new Date().getFullYear())}${locChart(pend)}</div>
+    <div class="chart-row">${isMgr() ? teamChart(cl, pend) : ""}${attentionCard(pend)}</div>`; })()}
+  <details class="dash-more" ${state.dashMore ? "open" : ""}><summary data-act="dashMore">${state.dashMore ? "▾" : "▸"} Show details — compliance calendar, client deadlines, team &amp; location tables, lists</summary>
   ${calendarCard(yi, Y)}
   ${clientGridCard(yi, Y)}
   ${isMgr() ? `<div class="mgr-row">${!state.loc ? locationCard(allowedClients()) : ""}${teamWorkloadCard(cl)}</div>` : ""}
-  <details class="dash-more" ${state.dashMore ? "open" : ""}><summary data-act="dashMore">${state.dashMore ? "▾" : "▸"} Detailed lists — VAT by deadline, accounting, corporate tax, audits, CR expiry, recent activity</summary>
   <div class="grid2">
     <div>
       <div class="card"><div class="card-h"><h3>VAT returns by deadline · ${ymLabel(cur)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="vat">Open tracker</button></div></div>
