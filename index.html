@@ -437,6 +437,7 @@ ul.att{list-style:none;margin:0;padding:6px 0}ul.att li{display:flex;gap:12px;al
 .ch-legend span{display:inline-flex;align-items:center;gap:5px;margin-left:12px;color:var(--muted)}
 .ch-legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
 .ch-legend .lg-b{background:var(--line)} .ch-legend .lg-a{background:var(--accent)}
+#finDueHint{text-transform:none}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
@@ -471,7 +472,7 @@ const SCHEMA = {
   mw:        { list: "MonthlyWork", fields: { Title:"text", ClientId:"text", Service:"text", Freq:"text", Month:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", CompletedDate:"text", Hours:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   ct:        { list: "CorporateTax", fields: { Title:"text", ClientId:"text", FY:"text", Status:"text", Preparer:"text", Reviewer:"text", DueDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   other:     { list: "OtherWork", fields: { Title:"text", ClientId:"text", Service:"text", Year:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", FollowUp:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  fees:      { list: "FeeBudget", fields: { Title:"text", ClientId:"text", Service:"text", Amount:"text", Freq:"text", StartMonth:"text", EndMonth:"text", Timing:"text", VAT:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  fees:      { list: "FeeBudget", fields: { Title:"text", ClientId:"text", Service:"text", Amount:"text", Freq:"text", StartMonth:"text", EndMonth:"text", Timing:"text", VAT:"text", Terms:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   blines:    { list: "BudgetLines", fields: { Title:"text", Kind:"text", Head:"text", Year:"text", M01:"text", M02:"text", M03:"text", M04:"text", M05:"text", M06:"text", M07:"text", M08:"text", M09:"text", M10:"text", M11:"text", M12:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   cash:      { list: "CashBook", fields: { Title:"text", Date:"text", Dir:"text", ClientId:"text", ClientName:"text", Service:"text", Head:"text", Amount:"text", VAT:"text", Mode:"text", Ref:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   activity:  { list: "ActivityLog", fields: { Title:"text", ClientId:"text", ClientName:"text", UserEmail:"text", UserName:"text", Details:"note", At:"text" } }
@@ -2298,6 +2299,14 @@ const FIN = {
 const FIN_KINDS = ["fees", "blines", "cash"];
 const FEE_FREQ = { Monthly: 1, Quarterly: 3, "Half-yearly": 6, Annually: 12, "One-off": 0 };
 const FEE_FREQ_SHORT = { Monthly: "/mo", Quarterly: "/qtr", "Half-yearly": "/half-yr", Annually: "/yr", "One-off": " once" };
+/* Due date (credit days) of each invoice. The invoice is taken as raised at the end of the billing month
+   (config invoiceAt: "end", or "start"); cash is budgeted in the month the due date falls. */
+const FEE_TERMS = ["0", "30", "45", "60", "90"];
+const FEE_TERMS_LABEL = { "0": "Immediate", "30": "30 days", "45": "45 days", "60": "60 days", "90": "90 days" };
+const INVOICE_AT = CFG.invoiceAt === "start" ? "start" : "end";
+const termsOf = f => FEE_TERMS.includes(String(f.Terms || "")) ? String(f.Terms) : (FEE_TERMS.includes(String(CFG.defaultTerms)) ? String(CFG.defaultTerms) : "0");
+const termsOff = t => { const d = +t || 0; return INVOICE_AT === "start" ? Math.floor(d / 30) : Math.ceil(d / 30); };
+const termsShort = t => +t ? `${t}d` : "on billing";
 const FEE_TIMING = { Spread: "Spread evenly over the period", Lump: "Whole amount in the billing month" };
 const PAY_MODES = ["Bank transfer", "BenefitPay", "Cheque", "Cash", "Card", "Other"];
 const UNCLASSIFIED = "Unclassified";
@@ -2324,13 +2333,16 @@ function feeSched(f, c, from, to){
   const n = FEE_FREQ[f.Freq] != null ? FEE_FREQ[f.Freq] : 1;
   const s = /^\d{4}-\d{2}$/.test(f.StartMonth || "") ? f.StartMonth : FIN.start;
   let e = /^\d{4}-\d{2}$/.test(f.EndMonth || "") ? f.EndMonth : "9999-12"; const d = deactYM(c); if(d && d < e) e = d;
-  const add = (ym, v) => { if(ym >= from && ym <= to && ym <= e && ym >= FIN.start) out[ym] = (out[ym] || 0) + v; };
+  const off = termsOff(termsOf(f));
+  /* bm = billing month (limited by the until month / deactivation); cash lands off months later */
+  const add = (bm, v) => { if(bm > e) return; const ym = ymAdd(bm, off); if(ym >= from && ym <= to && ym >= FIN.start) out[ym] = (out[ym] || 0) + v; };
   if(n === 0){ add(s, amt); return out; }
   const spread = f.Timing !== "Lump" && n > 1;
   for(let ym = s; ym <= to && ym <= e; ym = ymAdd(ym, n)){ if(spread) for(let k = 0; k < n; k++) add(ymAdd(ym, k), amt / n); else add(ym, amt); }
   return out;
 }
-function feeLineText(f){ return `${esc(f.Service || "Fee")} ${money(fnum(f.Amount))}${FEE_FREQ_SHORT[f.Freq] || ""}`; }
+function feeLineText(f){ return `${esc(f.Service || "Fee")} ${money(fnum(f.Amount))}${FEE_FREQ_SHORT[f.Freq] || ""} <span class="faint">· due ${termsShort(termsOf(f))}</span>`; }
+function dueRuleText(t){ const off = termsOff(t); return `${FEE_TERMS_LABEL[t]}: an invoice for Jan is collected in ${MONTHS[off % 12]}${off ? ` (${off} month${off > 1 ? "s" : ""} later)` : " (same month)"}`; }
 function finHeads(){
   const extra = new Set(); (data.blines || []).forEach(b => b.Kind === "Expense" && b.Head && extra.add(b.Head)); (data.cash || []).forEach(x => x.Dir === "Out" && extra.add(headOf(x)));
   const base = FIN.heads.slice(); const seen = new Set(base.map(lc));
@@ -2475,7 +2487,7 @@ function finClientsView(){
     <input id="ff-cq" class="in search" placeholder="Search client…" value="${esc(f.cq)}" data-bind="ff.cq">
     <div class="right"><button class="btn pri" data-act="finCashAdd" data-v="In">${I.plus} Record receipt</button></div></div>
   <div class="strip"><div class="st fu"><div class="ic">B</div><div><b>${money(t.inB, 0)}</b><span>budgeted collections · ${esc(per)}</span></div></div><div class="st ok"><div class="ic">✓</div><div><b>${money(t.inA, 0)}</b><span>collected</span></div></div><div class="st ${t.inA - t.inB < 0 ? "ba" : "ok"}"><div class="ic">±</div><div><b>${money(t.inA - t.inB, 0)}</b><span>variance</span></div></div><div class="st wa"><div class="ic">!</div><div><b>${behind}</b><span>clients behind budget</span></div></div></div>
-  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Fee budget</th><th class="num">Budget</th><th class="num">Collected</th><th class="num">Variance</th><th class="num">% collected</th><th>Last receipt</th><th></th></tr></thead><tbody>
+  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Fee budget</th><th class="num">Budget (by due date)</th><th class="num">Collected</th><th class="num">Variance</th><th class="num">% collected</th><th>Last receipt</th><th></th></tr></thead><tbody>
   ${rows.map(r => { const lr = lastRcpt(r.c.id); return `<tr>
     <td class="cname"><a href="#" data-act="finFees" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a>${isDeact(r.c) ? ` ${chip("grey", "Deactivated")}` : ""}</td>
     <td class="small">${r.fees.length ? r.fees.map(feeLineText).join("<br>") : `<a href="#" data-act="finFees" data-id="${r.c.id}">${chip("amber", "Not set")}</a>`}</td>
@@ -2523,7 +2535,7 @@ function finFeesView(){
     <select class="in" data-bind="ff.fshow"><option value="all">All Bahrain clients</option><option value="missing" ${f.fshow === "missing" ? "selected" : ""}>Fee budget not set</option><option value="set" ${f.fshow === "set" ? "selected" : ""}>Fee budget set</option></select>
     <div class="right"><button class="btn" data-act="finFeeTemplate">Download fee sheet</button><button class="btn" data-act="finImport" data-v="fees">Upload fee sheet</button></div></div>
   <div class="strip"><div class="st fu"><div class="ic">BH</div><div><b>${act.length}</b><span>active Bahrain clients</span></div></div><div class="st ok"><div class="ic">✓</div><div><b>${act.length - missing}</b><span>with a fee budget</span></div></div><div class="st ${missing ? "wa" : "ok"}"><div class="ic">!</div><div><b>${missing}</b><span>fee budget not set</span></div></div><div class="st fu"><div class="ic">Σ</div><div><b>${money(T.net + T.vat, 0)}</b><span>budgeted ${Y} incl. VAT${from > `${Y}-01` ? ` (from ${ymLabel(from)})` : ""}</span></div></div></div>
-  <div class="banner info"><div>New Bahrain clients added in the Client Desk appear here automatically. Set a fee line for each service you bill — the amount <b>excluding VAT</b>, how often it is billed and from which month. VAT at ${vatPct()} is added for the cash budget.</div></div>
+  <div class="banner info"><div>New Bahrain clients added in the Client Desk appear here automatically. Set a fee line for each service you bill — the amount <b>excluding VAT</b>, how often it is billed, from which month and its <b>due date</b> (immediate, 30, 45, 60 or 90 days). Collections are budgeted in the month each invoice falls due, and VAT at ${vatPct()} is added.</div></div>
   <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Services</th><th>Fee lines</th><th class="num">${Y} net</th><th class="num">VAT</th><th class="num">${Y} incl. VAT</th><th></th></tr></thead><tbody>
   ${shown.map(r => `<tr><td class="cname">${esc(r.c.Title)}${isDeact(r.c) ? ` ${chip("grey", "Deactivated")}` : ""}</td><td>${serviceTags(r.c) || `<span class="faint small">none ticked</span>`}</td>
     <td class="small">${r.fs.length ? r.fs.map(feeLineText).join("<br>") : chip("amber", "Not set")}</td><td class="num">${moneyZ(r.net)}</td><td class="num small">${moneyZ(r.vat)}</td><td class="num"><b>${moneyZ(r.net + r.vat)}</b></td>
@@ -2558,6 +2570,7 @@ function blSave(head, year, patch){
   return finQueue(`bl|${lc(head)}|${year}`, async () => { const r = blRec(head, year);
     await saveRec("blines", r ? r.id : null, Object.assign(r ? {} : { Title: head, Kind: "Expense", Head: head, Year: String(year) }, patch, { UpdatedBy: me.email, UpdatedOn: nowISO() })); }); }
 function obSave(v){ return finQueue("ob", async () => { const r = openingRec(); await saveRec("blines", r ? r.id : null, Object.assign(r ? {} : { Title: "Opening cash & bank", Kind: "Opening", Head: "Opening cash & bank", Year: FIN.start.slice(0, 4) }, { M01: v, UpdatedBy: me.email, UpdatedOn: nowISO() })); }); }
+document.addEventListener("change", e => { const t = e.target; if(t.dataset && t.dataset.act === "finTermsPick"){ const h = document.getElementById("finDueHint"); if(h) h.textContent = dueRuleText(t.value); } });
 document.addEventListener("change", async e => {
   const t = e.target; const k = t.dataset && t.dataset.fin; if(!k || !canFin()) return;
   const raw = String(t.value || "").trim(); const v = raw === "" ? "" : r3s(fnum(raw)); if(raw !== "" && !isFinite(parseFloat(raw.replace(/[,\s]/g, "")))){ toast("Enter a number", true); return; }
@@ -2574,13 +2587,13 @@ MODALS.finFees = ({ id }) => {
   const yms = MM.map(m => `${Y}-${m}`); const byM = yms.map(ym => fs.reduce((s, f) => { const n = (feeSched(f, c, ym, ym)[ym] || 0); return s + n * (feeVat(f) ? 1 + FIN.vat : 1); }, 0));
   return `<div class="modal wide">${mHead(`Fee budget — ${esc(c.Title)}`)}<div class="mb">
     <p class="muted" style="margin-top:0">Services ticked in the Client Desk: ${serviceTags(c) || "none"}. Add one line per fee you bill this client; amounts exclude VAT.${isDeact(c) ? ` <b>Client deactivated${c.DeactivatedOn ? " on " + fmtDate(c.DeactivatedOn) : ""}</b> — budget stops after that month.` : ""}</p>
-    <div class="tw"><table class="tbl nosort"><thead><tr><th>Service</th><th class="num">Amount (excl. VAT)</th><th>Billed</th><th>From</th><th>To</th><th>Timing</th><th>VAT</th><th></th></tr></thead><tbody>
+    <div class="tw"><table class="tbl nosort"><thead><tr><th>Service</th><th class="num">Amount (excl. VAT)</th><th>Billed</th><th>From</th><th>To</th><th>Timing</th><th>Due</th><th>VAT</th><th></th></tr></thead><tbody>
     ${fs.map(f => `<tr><td><b>${esc(f.Service)}</b>${f.Notes ? `<div class="small faint">${esc(f.Notes)}</div>` : ""}</td><td class="num">${money(fnum(f.Amount))}</td><td>${esc(f.Freq)}</td><td class="small nowrap">${f.StartMonth ? ymLabel(f.StartMonth) : ymLabel(FIN.start)}</td><td class="small nowrap">${f.EndMonth ? ymLabel(f.EndMonth) : `<span class="faint">ongoing</span>`}</td>
-      <td class="small">${f.Freq === "Monthly" || f.Freq === "One-off" ? "—" : f.Timing === "Lump" ? "Billing month" : "Spread"}</td><td class="small">${feeVat(f) ? vatPct() : "No VAT"}</td>
+      <td class="small">${f.Freq === "Monthly" || f.Freq === "One-off" ? "—" : f.Timing === "Lump" ? "Billing month" : "Spread"}</td><td class="small nowrap">${FEE_TERMS_LABEL[termsOf(f)]}</td><td class="small">${feeVat(f) ? vatPct() : "No VAT"}</td>
       <td class="nowrap"><button class="btn sm" data-act="finFeeEdit" data-id="${f.id}">Edit</button> <button class="btn sm ghost" data-act="finFeeDel" data-id="${f.id}">Delete</button></td></tr>`).join("")}
     </tbody></table>${fs.length ? "" : `<div class="empty">No fee lines yet.</div>`}</div>
     <div class="toolbar" style="margin-top:12px"><button class="btn pri" data-act="finFeeAdd" data-c="${id}">${I.plus} Add fee line</button></div>
-    ${fs.length ? `<div class="lbl small" style="margin-top:8px"><b>Budgeted collections ${Y} (incl. VAT)</b></div><div class="tw"><table class="tbl nosort"><thead><tr>${yms.map(ym => `<th class="num">${MONTHS[+ym.slice(5) - 1]}</th>`).join("")}<th class="num">Total</th></tr></thead><tbody><tr>${byM.map(v => `<td class="num small">${moneyZ(v, 0)}</td>`).join("")}<td class="num"><b>${money(byM.reduce((s, v) => s + v, 0))}</b></td></tr></tbody></table></div>` : ""}
+    ${fs.length ? `<div class="lbl small" style="margin-top:8px"><b>Budgeted collections ${Y} by due date (incl. VAT)</b></div><div class="tw"><table class="tbl nosort"><thead><tr>${yms.map(ym => `<th class="num">${MONTHS[+ym.slice(5) - 1]}</th>`).join("")}<th class="num">Total</th></tr></thead><tbody><tr>${byM.map(v => `<td class="num small">${moneyZ(v, 0)}</td>`).join("")}<td class="num"><b>${money(byM.reduce((s, v) => s + v, 0))}</b></td></tr></tbody></table></div>` : ""}
   </div><div class="mf"><button type="button" class="btn" data-act="close">Close</button></div></div>`;
 };
 MODALS.finFeeForm = ({ id, cid }) => {
@@ -2591,19 +2604,20 @@ MODALS.finFeeForm = ({ id, cid }) => {
     <label class="full">Service<input class="in" name="Service" list="finSvcs" required value="${esc(f.Service || "")}" placeholder="e.g. Accounting"><datalist id="finSvcs">${svcs.map(s => `<option value="${esc(s)}">`).join("")}</datalist></label>
     <label>Fee amount (BHD, excl. VAT)<input class="in" name="Amount" inputmode="decimal" required value="${esc(f.Amount || "")}" placeholder="e.g. 150"></label>
     <label>Billed<select class="in" name="Freq">${opt(Object.keys(FEE_FREQ), f.Freq || "Monthly")}</select></label>
-    <label>From month (first billing)<input class="in" type="month" name="StartMonth" min="${FIN.start}" value="${esc(startDef)}" required></label>
+    <label>From month (first billing)<input class="in" type="month" name="StartMonth" value="${esc(startDef)}" required></label>
     <label>Until month <span class="faint">(blank = ongoing)</span><input class="in" type="month" name="EndMonth" value="${esc(f.EndMonth || "")}"></label>
     <label>Timing in the cash budget<select class="in" name="Timing">${opt(Object.keys(FEE_TIMING), f.Timing || "Spread", FEE_TIMING)}</select><span class="hint small faint">For quarterly, half-yearly and annual fees</span></label>
+    <label>Due date (credit period)<select class="in" name="Terms" data-act="finTermsPick">${opt(FEE_TERMS, termsOf(f), FEE_TERMS_LABEL)}</select><span class="hint small faint" id="finDueHint">${esc(dueRuleText(termsOf(f)))}</span></label>
     <label>VAT<select class="in" name="VAT">${opt(["Yes", "No"], f.VAT || "Yes", { Yes: `Add VAT ${vatPct()}`, No: "No VAT (exempt / out of scope)" })}</select></label>
     <label class="full">Notes<input class="in" name="Notes" value="${esc(f.Notes || "")}" placeholder="optional — e.g. per engagement letter dated…"></label>
-  </div></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
+  </div><p class="small muted">Cash is budgeted in the month the invoice falls due, taking the invoice as raised at the ${INVOICE_AT === "start" ? "start" : "end"} of each billing month. For a fee already running before ${ymLabel(FIN.start)} with credit days, set the From month earlier (e.g. ${ymLabel(ymAdd(FIN.start, -3))}) so collections due in early ${FIN.start.slice(0, 4)} are included — only cash due from ${ymLabel(FIN.start)} counts.</p></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
 SUBMIT.finFee = async (form, o) => {
   if(!canFin()) return; const id = form.dataset.id; const cid = form.dataset.c; const amt = fnum(o.Amount);
   if(!(amt > 0)) return toast("Enter the fee amount", true); if(!String(o.Service || "").trim()) return toast("Enter the service", true);
   if(o.EndMonth && o.EndMonth < o.StartMonth) return toast("'Until' month is before the 'From' month", true);
   const svc = String(o.Service).trim();
-  await saveRec("fees", id || null, { Title: `${cid}|${svc}`, ClientId: cid, Service: svc, Amount: r3s(amt), Freq: o.Freq, StartMonth: o.StartMonth < FIN.start ? FIN.start : o.StartMonth, EndMonth: o.EndMonth || "", Timing: o.Timing, VAT: o.VAT, Notes: o.Notes || "", UpdatedBy: me.email, UpdatedOn: nowISO() });
+  await saveRec("fees", id || null, { Title: `${cid}|${svc}`, ClientId: cid, Service: svc, Amount: r3s(amt), Freq: o.Freq, StartMonth: o.StartMonth, EndMonth: o.EndMonth || "", Timing: o.Timing, VAT: o.VAT, Terms: FEE_TERMS.includes(o.Terms) ? o.Terms : "0", Notes: o.Notes || "", UpdatedBy: me.email, UpdatedOn: nowISO() });
   closeModal(); render(); renderModals(); toast(id ? "Fee line updated" : "Fee line added");
 };
 MODALS.finCash = ({ id, dir, cid }) => {
@@ -2642,7 +2656,7 @@ SUBMIT.finHead = async (form, o) => { const h = String(o.Head || "").trim(); if(
 
 /* ---------- Excel: import cash book / fee sheet, export report ---------- */
 const CASH_COLS = ["Date", "Type", "Client", "Service", "Expense Head", "Description", "Amount (incl. VAT)", "VAT", "Mode", "Reference", "Notes"];
-const FEE_COLS = ["Fee ID", "Client", "Service", "Amount (excl. VAT)", "Frequency", "From Month", "To Month", "Timing", "VAT"];
+const FEE_COLS = ["Fee ID", "Client", "Service", "Amount (excl. VAT)", "Frequency", "From Month", "To Month", "Timing", "VAT", "Due (days)"];
 function finSheetRows(buf){ const wb = XLSX.read(buf, { type: "array" }); const ws = wb.Sheets[wb.SheetNames[0]]; const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
   const hi = aoa.findIndex(r => r.some(v => /^(date|client)$/i.test(String(v).trim()))); if(hi < 0) return { head: [], rows: [] };
   const head = aoa[hi].map(v => lc(String(v).replace(/\(.*\)/, ""))); const col = n => head.indexOf(lc(n.replace(/\(.*\)/, "")));
@@ -2671,17 +2685,19 @@ function finParseFees(buf){ const { col, rows } = finSheetRows(buf); if(!col) re
     let from = "", to = ""; try { from = bParseYM(g(x, "From Month")) || FIN.start; to = bParseYM(g(x, "To Month")); } catch(e){ errors.push(String(e)); }
     if(to && from && to < from) errors.push("To Month is before From Month");
     const tim = lc(g(x, "Timing")); const Timing = /lump|billing|whole/.test(tim) ? "Lump" : "Spread"; const vat = /^(no|n|0|exempt)/i.test(String(g(x, "VAT")).trim()) ? "No" : "Yes";
+    const tRaw = lc(g(x, "Due")).replace(/\s*days?$/, ""); const Terms = tRaw === "" || /^(immediate|imm|0|on receipt|cash)$/.test(tRaw) ? "0" : FEE_TERMS.includes(String(parseInt(tRaw))) ? String(parseInt(tRaw)) : null;
+    if(!Terms) errors.push("Due (days) must be Immediate, 30, 45, 60 or 90");
     const svc = String(g(x, "Service")).trim() || "Fee";
-    Object.assign(out, { id: ex ? ex.id : "", f: c ? { Title: `${c.id}|${svc}`, ClientId: c.id, Service: svc, Amount: r3s(amt), Freq: freq, StartMonth: from < FIN.start ? FIN.start : from, EndMonth: to || "", Timing, VAT: vat } : null, desc: `${svc} ${money(amt)}${FEE_FREQ_SHORT[freq] || ""}` });
+    Object.assign(out, { id: ex ? ex.id : "", f: c ? { Title: `${c.id}|${svc}`, ClientId: c.id, Service: svc, Amount: r3s(amt), Freq: freq, StartMonth: from, EndMonth: to || "", Timing, VAT: vat, Terms: Terms || "0" } : null, desc: `${svc} ${money(amt)}${FEE_FREQ_SHORT[freq] || ""}` });
     let action = errors.length ? "Error" : ex ? "Update" : "New";
-    if(action === "Update" && ["Service", "Amount", "Freq", "StartMonth", "EndMonth", "Timing", "VAT"].every(k => String(ex[k] || "") === String(out.f[k] || "") || (k === "Timing" && (ex.Timing || "Spread") === out.f.Timing) || (k === "VAT" && (ex.VAT || "Yes") === out.f.VAT))) action = "No change";
+    if(action === "Update" && ["Service", "Amount", "Freq", "StartMonth", "EndMonth", "Timing", "VAT", "Terms"].every(k => (k === "Terms" && termsOf(ex) === out.f.Terms) || String(ex[k] || "") === String(out.f[k] || "") || (k === "Timing" && (ex.Timing || "Spread") === out.f.Timing) || (k === "VAT" && (ex.VAT || "Yes") === out.f.VAT))) action = "No change";
     return { ...out, errors, notes: [], action }; }); }
 MODALS.finImport = ({ kind }) => {
   const p = state.finImp && state.finImp.kind === kind ? state.finImp : null; const cnt = a => p ? p.rows.filter(x => x.action === a).length : 0; const apply = cnt("New") + cnt("Update");
   const ac = a => ({ New: chip("green", "New"), Update: chip("blue", "Update"), Error: chip("red", "Error"), Duplicate: chip("grey", "Duplicate"), Skip: chip("grey", "No amount"), "No change": chip("grey", "No change") }[a]);
   return `<div class="modal wide">${mHead(kind === "cash" ? "Import receipts & payments" : "Upload fee sheet")}<div class="mb">
     <p class="muted" style="margin-top:0">${kind === "cash" ? `One row per receipt or payment: <b>${CASH_COLS.join(", ")}</b>. Type is <i>Receipt</i> or <i>Payment</i>. Receipts are matched to Bahrain clients by name; payments need an expense head. VAT left blank on a receipt is worked out at ${vatPct()}. Rows with the same date, type, amount and reference as an existing entry are skipped as duplicates.`
-      : `Download the fee sheet — it lists every Bahrain client with one row per service ticked, plus the fee lines already set. Fill <b>Amount (excl. VAT)</b>, <b>Frequency</b> and <b>From Month</b> (e.g. Jan-2026); rows without an amount are ignored. Rows with a Fee ID update that line.`}</p>
+      : `Download the fee sheet — it lists every Bahrain client with one row per service ticked, plus the fee lines already set. Fill <b>Amount (excl. VAT)</b>, <b>Frequency</b>, <b>From Month</b> (e.g. Jan-2026) and <b>Due (days)</b>; rows without an amount are ignored. Rows with a Fee ID update that line.`}</p>
     <div class="toolbar"><input type="file" id="finFile" accept=".xlsx,.xls,.csv" class="in"><button class="btn" data-act="finImpRead" data-v="${kind}">Check file</button><button class="btn ghost" data-act="${kind === "cash" ? "finCashTemplate" : "finFeeTemplate"}">Download ${kind === "cash" ? "template" : "fee sheet"}</button></div>
     ${p ? `<div class="toolbar">${chip("green", cnt("New") + " new")} ${kind === "fees" ? chip("blue", cnt("Update") + " to update") + " " + chip("grey", cnt("No change") + cnt("Skip") + " unchanged / blank") : chip("grey", cnt("Duplicate") + " duplicates")} ${chip(cnt("Error") ? "red" : "grey", cnt("Error") + " with errors")} <span class="small muted">${esc(p.file)}</span></div>
       <div class="tw" style="max-height:48vh"><table class="tbl"><thead><tr><th>Row</th>${kind === "cash" ? "<th>Date</th><th>Type</th>" : ""}<th>${kind === "cash" ? "Client / head" : "Client"}</th><th>${kind === "cash" ? "Amount" : "Fee"}</th><th>Action</th><th>Details</th></tr></thead><tbody>
@@ -2693,10 +2709,10 @@ MODALS.finImport = ({ kind }) => {
 function finDownload(wb, name){ XLSX.writeFile(wb, name); }
 function finFeeSheet(){
   const rows = []; for(const c of finClients().filter(c => !isDeact(c)).sort((a, b) => a.Title.localeCompare(b.Title))){ const fs = feesOf(c.id);
-    fs.forEach(f => rows.push([f.id, c.Title, f.Service, fnum(f.Amount), f.Freq, f.StartMonth ? ymLabel(f.StartMonth).replace(" ", "-") : "", f.EndMonth ? ymLabel(f.EndMonth).replace(" ", "-") : "", f.Timing === "Lump" ? "In billing month" : "Spread evenly", f.VAT || "Yes"]));
-    const have = new Set(fs.map(f => lc(f.Service))); servicesOf(c).map(s => s === "Others" && otherServiceText(c) ? otherServiceText(c) : s).filter(s => !have.has(lc(s))).forEach(s => rows.push(["", c.Title, s, "", "Monthly", ymLabel(FIN.start).replace(" ", "-"), "", "Spread evenly", "Yes"])); }
-  const ws = XLSX.utils.aoa_to_sheet([FEE_COLS, ...rows]); ws["!cols"] = [{ wch: 12 }, { wch: 38 }, { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 6 }];
-  const wi = XLSX.utils.aoa_to_sheet([["Column", "How to fill"], ["Fee ID", "Leave as is. Blank = new fee line."], ["Amount (excl. VAT)", "Fee in BHD before VAT. Leave blank to skip the row."], ["Frequency", "Monthly, Quarterly, Half-yearly, Annually or One-off"], ["From Month", "First billing month, e.g. Jan-2026"], ["To Month", "Last month (optional). Blank = ongoing"], ["Timing", "Spread evenly (default) or In billing month — for quarterly / half-yearly / annual fees"], ["VAT", `Yes = add ${vatPct()} VAT; No = no VAT`]]); wi["!cols"] = [{ wch: 20 }, { wch: 90 }];
+    fs.forEach(f => rows.push([f.id, c.Title, f.Service, fnum(f.Amount), f.Freq, f.StartMonth ? ymLabel(f.StartMonth).replace(" ", "-") : "", f.EndMonth ? ymLabel(f.EndMonth).replace(" ", "-") : "", f.Timing === "Lump" ? "In billing month" : "Spread evenly", f.VAT || "Yes", +termsOf(f) ? +termsOf(f) : "Immediate"]));
+    const have = new Set(fs.map(f => lc(f.Service))); servicesOf(c).map(s => s === "Others" && otherServiceText(c) ? otherServiceText(c) : s).filter(s => !have.has(lc(s))).forEach(s => rows.push(["", c.Title, s, "", "Monthly", ymLabel(FIN.start).replace(" ", "-"), "", "Spread evenly", "Yes", "Immediate"])); }
+  const ws = XLSX.utils.aoa_to_sheet([FEE_COLS, ...rows]); ws["!cols"] = [{ wch: 12 }, { wch: 38 }, { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 6 }, { wch: 11 }];
+  const wi = XLSX.utils.aoa_to_sheet([["Column", "How to fill"], ["Fee ID", "Leave as is. Blank = new fee line."], ["Amount (excl. VAT)", "Fee in BHD before VAT. Leave blank to skip the row."], ["Frequency", "Monthly, Quarterly, Half-yearly, Annually or One-off"], ["From Month", "First billing month, e.g. Jan-2026"], ["To Month", "Last month (optional). Blank = ongoing"], ["Timing", "Spread evenly (default) or In billing month — for quarterly / half-yearly / annual fees"], ["VAT", `Yes = add ${vatPct()} VAT; No = no VAT`], ["Due (days)", "Immediate, 30, 45, 60 or 90 — cash is budgeted in the month the invoice falls due"]]); wi["!cols"] = [{ wch: 20 }, { wch: 90 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Fee budget"); XLSX.utils.book_append_sheet(wb, wi, "Instructions"); finDownload(wb, `Vinpro-Bahrain-Fee-Budget-${todayISO()}.xlsx`); }
 function finCashTemplate(){ const ws = XLSX.utils.aoa_to_sheet([CASH_COLS, [todayISO(), "Receipt", finClients()[0] ? finClients()[0].Title : "Client name", "Accounting", "", "INV-1001", 165, "", "Bank transfer", "FT123456", ""], [todayISO(), "Payment", "", "", FIN.heads[0], "Office rent", 450, 0, "Bank transfer", "FT123457", ""]]);
   ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 34 }, { wch: 16 }, { wch: 24 }, { wch: 28 }, { wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 24 }];
@@ -2713,7 +2729,7 @@ function finExport(){
   const a2 = [[`12-month view ${Y}`], [], ["Particulars", "", ...yms.map(ymLabel), "Total"]];
   tl.forEach((l, i) => { if(l.sec){ a2.push([l.sec]); return; } if(l.sub) return; for(const [lab, k] of [["Budget", "b"], ["Actual", "a"], ["Variance", "v"]]) a2.push([lab === "Budget" ? l.label : "", lab, ...per.map(p => k === "v" ? vv(p[i], p[i].b, p[i].a) : rd(p[i][k])), k === "v" ? vv(l, l.b, l.a) : rd(l[k])]); });
   const a3 = [["Client", "YTD budget", "YTD collected", "Variance", "% collected", "Fee lines"], ...finClients().map(c => ({ c, x: ty.byC[c.id] || { b: 0, a: 0 } })).filter(r => r.x.b || r.x.a || !isDeact(r.c)).sort((p, q) => p.c.Title.localeCompare(q.c.Title))
-    .map(r => [r.c.Title, rd(r.x.b), rd(r.x.a), rd(r.x.a - r.x.b), r.x.b ? Math.round(r.x.a / r.x.b * 100) : "", feesOf(r.c.id).map(f => `${f.Service} ${f.Amount}${FEE_FREQ_SHORT[f.Freq] || ""}`).join("; ")])];
+    .map(r => [r.c.Title, rd(r.x.b), rd(r.x.a), rd(r.x.a - r.x.b), r.x.b ? Math.round(r.x.a / r.x.b * 100) : "", feesOf(r.c.id).map(f => `${f.Service} ${f.Amount}${FEE_FREQ_SHORT[f.Freq] || ""} due ${termsShort(termsOf(f))}`).join("; ")])];
   const a4 = [["Date", "Type", "Client / Received from", "Service", "Expense head", "Description", "Amount (incl. VAT)", "VAT", "Mode", "Reference", "Notes", "Entered by", "Entered on"],
     ...(data.cash || []).filter(x => cashYm(x).slice(0, 4) === Y).sort((a, b) => (a.Date || "").localeCompare(b.Date || "")).map(x => [x.Date, x.Dir === "In" ? "Receipt" : "Payment", x.Dir === "In" ? ((clientById(x.ClientId) || {}).Title || x.ClientName || "") : "", x.Service || "", x.Dir === "Out" ? headOf(x) : "", x.Title || "", rd(fnum(x.Amount)), rd(fnum(x.VAT)), x.Mode || "", x.Ref || "", x.Notes || "", empName(x.UpdatedBy), (x.UpdatedOn || "").slice(0, 10)])];
   const a5 = [["Expense head", ...MM.map(m => MONTHS[+m - 1] + " " + Y), "Total"], ...finHeads().map(h => { const r = blRec(h, Y) || {}; const v = MM.map(m => rd(fnum(r["M" + m]))); return [h, ...v, rd(v.reduce((s, x) => s + x, 0))]; })];
@@ -2764,7 +2780,7 @@ function finDemoSeed(d){
   let s = 11; const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280; const now = curYM(); const fees = [], cash = [], blines = [];
   const bh = d.clients.filter(c => c.Location === "Bahrain");
   bh.forEach((c, i) => { if(i % 6 === 5) return; const sv = String(c.Services || "");
-    const line = (Service, Amount, Freq, StartMonth, Timing, VAT) => fees.push({ id: uid(), Title: `${c.id}|${Service}`, ClientId: c.id, Service, Amount: String(Amount), Freq, StartMonth, EndMonth: "", Timing: Timing || "Spread", VAT: VAT || "Yes", Notes: "", UpdatedBy: "vignesh@vinproglobal.com", UpdatedOn: nowISO() });
+    const line = (Service, Amount, Freq, StartMonth, Timing, VAT) => fees.push({ Terms: ["0", "30", "30", "45", "60"][i % 5], id: uid(), Title: `${c.id}|${Service}`, ClientId: c.id, Service, Amount: String(Amount), Freq, StartMonth, EndMonth: "", Timing: Timing || "Spread", VAT: VAT || "Yes", Notes: "", UpdatedBy: "vignesh@vinproglobal.com", UpdatedOn: nowISO() });
     if(/Accounting/.test(sv)) line("Accounting", 350 + Math.round(rnd() * 30) * 10, "Monthly", FIN.start);
     if(/VAT/.test(sv) && c.VATCycle !== "Not registered") line("VAT", 200 + Math.round(rnd() * 6) * 25, "Quarterly", FIN.start, "Lump");
     if(/Audit/.test(sv)) line("Audit", 1200 + Math.round(rnd() * 16) * 50, "Annually", ymAdd(FIN.start, 3 + (i % 4)), "Lump");
