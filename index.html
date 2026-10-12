@@ -2638,7 +2638,6 @@ function finSheetGrid(Y, ym){
         ${gauge("Collections vs budget", inP, inP != null && inP >= 100, inP != null && inP >= 90)}${gauge("Spend vs budget", outP, outP != null && outP <= 100)}
         <div class="ms-kv"><span>Net cash flow</span><b class="${hasAct ? (s.inA - s.outAt >= 0 ? "fav" : "adv") : ""}">${hasAct ? money(s.inA - s.outAt) : "—"}</b></div>
         <div class="ms-kv"><span>Budgeted net cash flow</span><b>${money(s.inB - s.outBt)}</b></div>
-        <div class="ms-kv"><span>Opening AR outstanding</span><b>${money(arOutstandingAll())}</b></div>
       </div></div>
     </aside>
   </div>`;
