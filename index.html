@@ -1059,7 +1059,7 @@ VIEWS.dashboard = () => {
   const cur = curYM(); const fy = state.af.fy;
   const vat = workSum(vatWork(cl)), mw = workSum(mwDueWork(cl)), ct = workSum(ctWork(cl)), aud = workSum(auditWork(cl, fy));
   const cr = active.map(c => ({ c, i: crInfo(c) })).filter(x => x.i.d != null && x.i.d <= 30).sort((a,b) => a.i.d - b.i.d);
-  const unsetCycle = active.filter(c => !c.VATCycle).length;
+  const unsetCycle = active.filter(c => !c.VATCycle && hasService(c, "VAT")).length;
   const hour = new Date().getHours(); const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const acts = data.activity.filter(a => isMgr() || !a.ClientId || cl.some(c => c.id === a.ClientId)).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 8);
   const tile = (view, label, w, doneWord) => `<button class="kpi" data-act="nav" data-v="${view}"><div class="l">${label}</div><div class="v">${w.pending.length}</div><div class="s">${w.curP} of ${w.total} pending this period · ${w.doneN} ${doneWord}</div>${w.prevN ? `<div class="s ${w.over ? "over" : ""}">+ ${w.prevN} from earlier period${w.prevN > 1 ? "s" : ""}${w.over ? ` (${w.over} overdue)` : ""}</div>` : ""}</button>`;
@@ -1074,7 +1074,7 @@ VIEWS.dashboard = () => {
   <div class="hero"><div class="hi"><h2 class="serif">${greet}, ${esc(me.name.split(" ")[0])}</h2><div class="d">${fmtDate(todayISO())} · ${state.loc ? esc(state.loc === "UAE" ? "UAE (Dubai)" : "Bahrain") : "Bahrain & UAE"} · ${active.length} active clients</div>
     <div class="facts"><div class="${overN ? "red" : ""}"><b>${overN}</b>overdue</div><div><b>${dueN}</b>open, due in ${ymLabel(cur)}</div><div><b>${n30}</b>due in next 30 days</div><div><b>${cr.length}</b>CR / licence ≤30d</div></div></div>
     <div class="ring">${heroRing(health)}<div class="rv">${health}%</div><div class="rt"><b>On-time health</b><br>deadlines met so far in ${new Date().getFullYear()}</div></div></div>
-  ${unsetCycle ? `<div class="banner">${unsetCycle} active client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
+  ${unsetCycle ? `<div class="banner">${unsetCycle} active VAT client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
   ${(() => { const oth = othWork(cl); const svcs = [["vat", "VAT", `due ${ymLabel(cur)}`, vat, "filed"], ["mw", "Accounting / Consultation", `due ${ymLabel(cur)}`, mw, "done"], ["ct", "Corporate tax", "latest year", ct, "filed"], ["audit", "Audit", "FY" + fy, aud, "done"], ...(oth.total ? [["other", "Other services", curYear(), oth, "done"]] : [])];
     const pend = openItemsAll(cl, { vat, mw, ct, aud, oth });
     return `<div class="donuts">${svcs.map(([v, t, sub, w, dw]) => donutCard(v, t, sub, w, dw)).join("")}</div>
@@ -1187,7 +1187,7 @@ VIEWS.clients = () => {
 VIEWS.vat = () => {
   const f = state.vf; const q = lc(f.q);
   const base = visibleClients().filter(c => c.Status !== "Deactivated" && (!q || lc(c.Title).includes(q)) && (!f.who || teamOf(c).includes(f.who)));
-  const unset = base.filter(c => !c.VATCycle).length;
+  const unset = base.filter(c => !c.VATCycle && hasService(c, "VAT")).length;
   const regd = Object.keys(CYCLES).filter(k => CYCLES[k].n);
   if(f.cycle == null){ const n = {}; base.forEach(c => { if(regd.includes(c.VATCycle)) n[c.VATCycle] = (n[c.VATCycle] || 0) + 1; }); f.cycle = Object.keys(n).sort((a, b) => n[b] - n[a])[0] || ""; }
   const cur = curYM();
@@ -1205,7 +1205,7 @@ VIEWS.vat = () => {
     ${isMgr() ? `<select class="in" data-bind="vf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
     ${f.mode === "month" ? `<select class="in" data-bind="vf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>` : ""}
   </div>
-  ${unset ? `<div class="banner">${unset} client${unset>1?"s have":" has"} no VAT cycle set and ${unset>1?"are":"is"} not shown. <button class="btn sm" data-act="gotoUnset">Set VAT cycles</button></div>` : ""}`;
+  ${unset ? `<div class="banner">${unset} VAT client${unset>1?"s have":" has"} no VAT cycle set and ${unset>1?"are":"is"} not shown. <button class="btn sm" data-act="gotoUnset">Set VAT cycles</button></div>` : ""}`;
   const shown = f.cycle ? base.filter(c => c.VATCycle === f.cycle) : base;
   return head + (f.mode === "month" ? vatMonthView(shown) : vatYearView(shown));
 };
@@ -2157,7 +2157,7 @@ const ACT = {
   nav: d => { if(d.v === "clients") state.cf.crMonth = ""; state.view = d.v; render(); window.scrollTo(0, 0); },
   reload: () => reload(),
   signout: () => msalApp.logoutRedirect({ account }),
-  gotoUnset: () => { state.view = "clients"; Object.assign(state.cf, { cycle:"__unset", status:"Active", q:"", who:"" }); render(); },
+  gotoUnset: () => { state.view = "clients"; Object.assign(state.cf, { cycle:"__unset", svc:"VAT", status:"Active", q:"", who:"", crMonth:"" }); render(); },
   openClient: (d, e) => { if(e.target.closest("[data-stop]")) return; e.preventDefault(); state.clientTab = "overview"; openModal("client", { id: d.id }); },
   ctab: d => { state.clientTab = d.v; renderModals(); },
   close: () => closeModal(),
