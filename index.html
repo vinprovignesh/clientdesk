@@ -507,6 +507,7 @@ ul.att{list-style:none;margin:0;padding:6px 0}ul.att li{display:flex;gap:12px;al
 .ms-kv{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line-2);font-size:13px;font-variant-numeric:tabular-nums}.ms-kv span{color:var(--muted)}
 @media (max-width:1180px){.ms-grid{grid-template-columns:1fr}}
 @media (max-width:760px){.ms-bridge{grid-template-columns:1fr 1fr}.ms-op{display:none}.ms-tv{font-size:21px}.ms-hero h2{font-size:28px}.ms-g{display:none}}
+.vat-card.on{border-color:var(--accent)}.vat-card .chip{margin-left:6px}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
@@ -947,7 +948,7 @@ function render(){
   const locName = state.loc || "Bahrain & UAE";
   const sub = { dashboard: (isMgr() ? "All clients" : "Your assigned clients") + " · " + locName, mw: `Monthly or annual per client · monthly accounting due day ${ACCT_DUE_DAY} of the next month · annual accounting ${ANNUAL_ACCT_MONTHS} months after year end`, ct: "Corporate tax returns by financial year · UAE (FTA): 9 months after year end · Bahrain (DMTT): 15 months", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
     vat: "Due date: Bahrain (NBR) last day of the following month · UAE (FTA) 28th of the following month", audit: "Statutory audit progress by financial year", other: "Work listed under Others on each client — owner, due date, follow-ups and work log",
-    bva: `Vinpro Global Services WLL · monthly cash budget vs actual from ${ymLabel(FIN.start)} · BHD incl. VAT`,
+    bva: `Vinpro Global Services WLL · monthly cash budget vs actual from ${ymLabel(FIN.start)} · BHD ${vatTag()}`,
     team: "Employees, roles and client assignments", activity: "Every change and every password view is recorded", admin: "Import the client master, export, and SharePoint setup" }[state.view];
   app.innerHTML = `
   <div class="shell">
@@ -2397,6 +2398,27 @@ const cashYm = x => String(x.Date || "").slice(0, 7);
 const headOf = x => (x.Head || "").trim() || UNCLASSIFIED;
 
 /* net (excl. VAT) budget of one fee line per month, within [from, to] */
+/* VAT registration: until a "registered from" month is set, no VAT is added to fee budgets or worked
+   out on receipts. Once set, VAT applies to invoices billed from that month on. */
+function vatRegRec(){ return (data.blines || []).find(b => b.Kind === "Setting" && b.Head === "VATRegisteredFrom"); }
+function vatFrom(){ const r = vatRegRec(); const v = r ? r.M01 : (CFG.vatRegisteredFrom || ""); return /^\d{4}-\d{2}$/.test(v || "") ? v : ""; }
+const vatOn = ym => { const f = vatFrom(); return !!f && !!ym && ym >= f; };
+const vatAny = () => !!vatFrom();
+const vatTag = () => vatAny() ? "incl. VAT" : "no VAT (not VAT registered)";
+/* per cash month: n = net fee, v = VAT on it (only for invoices billed once VAT registered) */
+function feeSchedV(f, c, from, to){
+  const out = {}; const amt = fnum(f.Amount); if(!amt) return out; const vr = feeVat(f) ? FIN.vat : 0;
+  const n = FEE_FREQ[f.Freq] != null ? FEE_FREQ[f.Freq] : 1;
+  const s = /^\d{4}-\d{2}$/.test(f.StartMonth || "") ? f.StartMonth : FIN.start;
+  let e = /^\d{4}-\d{2}$/.test(f.EndMonth || "") ? f.EndMonth : "9999-12"; const d = deactYM(c); if(d && d < e) e = d;
+  const off = termsOff(termsOf(f));
+  const add = (bm, v) => { if(bm > e) return; const ym = ymAdd(bm, off); if(ym >= from && ym <= to && ym >= FIN.start){ const x = out[ym] || (out[ym] = { n: 0, v: 0 }); x.n += v; x.v += vr && vatOn(bm) ? v * vr : 0; } };
+  if(n === 0){ add(s, amt); return out; }
+  const spread = f.Timing !== "Lump" && n > 1;
+  for(let ym = s; ym <= to && ym <= e; ym = ymAdd(ym, n)){ if(spread) for(let k = 0; k < n; k++) add(ymAdd(ym, k), amt / n); else add(ym, amt); }
+  return out;
+}
+function feeGross(f, c, from, to){ const o = feeSchedV(f, c, from, to); let t = 0; for(const k in o) t += o[k].n + o[k].v; return t; }
 function feeSched(f, c, from, to){
   const out = {}; const amt = fnum(f.Amount); if(!amt) return out;
   const n = FEE_FREQ[f.Freq] != null ? FEE_FREQ[f.Freq] : 1;
@@ -2429,10 +2451,10 @@ function finSeries(to){
   const from = FIN.start; const S = {};
   for(const ym of finYms(from, to)) S[ym] = { inB: 0, inBv: 0, inA: 0, inAv: 0, outB: {}, outA: {}, outBt: 0, outAt: 0, byC: {} };
   const cl = new Map(finClients().map(c => [c.id, c]));
-  for(const f of data.fees || []){ const c = cl.get(f.ClientId); if(!c) continue; const sc = feeSched(f, c, from, to);
-    for(const ym in sc){ const s = S[ym]; const net = sc[ym]; const v = feeVat(f) ? net * FIN.vat : 0; s.inB += net + v; s.inBv += v; const bc = s.byC[c.id] || (s.byC[c.id] = { b: 0, a: 0 }); bc.b += net + v; } }
+  for(const f of data.fees || []){ const c = cl.get(f.ClientId); if(!c) continue; const sc = feeSchedV(f, c, from, to);
+    for(const ym in sc){ const s = S[ym]; const net = sc[ym].n; const v = sc[ym].v; s.inB += net + v; s.inBv += v; const bc = s.byC[c.id] || (s.byC[c.id] = { b: 0, a: 0 }); bc.b += net + v; } }
   for(const x of data.cash || []){ const s = S[cashYm(x)]; if(!s) continue; const a = fnum(x.Amount);
-    if(x.Dir === "In"){ s.inA += a; s.inAv += fnum(x.VAT); const k = x.ClientId || "_none"; const bc = s.byC[k] || (s.byC[k] = { b: 0, a: 0 }); bc.a += a; }
+    if(x.Dir === "In"){ s.inA += a; s.inAv += vatOn(cashYm(x)) ? fnum(x.VAT) : 0; const k = x.ClientId || "_none"; const bc = s.byC[k] || (s.byC[k] = { b: 0, a: 0 }); bc.a += a; }
     else { const h = headOf(x); s.outA[h] = (s.outA[h] || 0) + a; s.outAt += a; } }
   for(const b of data.blines || []){ if(b.Kind !== "Expense") continue;
     MM.forEach(m => { const s = S[`${b.Year}-${m}`]; const v = fnum(b["M" + m]); if(!s || !v) return; s.outB[b.Head] = (s.outB[b.Head] || 0) + v; s.outBt += v; }); }
@@ -2448,8 +2470,8 @@ function finSum(S, yms){
 function headAmt(map, h){ let v = 0; for(const k in map) if(lc(k) === lc(h)) v += map[k]; return v; }
 /* lines of the report: dir +1 = inflow-like (actual above budget is good), -1 = outflow-like */
 function finLines(t, closing){
-  const L = [{ sec: "A · Cash inflow" }, { key: "in", label: "Fees collected from Bahrain clients (incl. VAT)", b: t.inB, a: t.inA, dir: 1, act: "finGoClients" },
-    { label: `of which output VAT (${vatPct()})`, b: t.inBv, a: t.inAv, dir: 1, sub: true }, { sec: "B · Cash outflow" }];
+  const L = [{ sec: "A · Cash inflow" }, { key: "in", label: `Fees collected from Bahrain clients${vatAny() ? " (incl. VAT)" : ""}`, b: t.inB, a: t.inA, dir: 1, act: "finGoClients" },
+    ...(vatAny() ? [{ label: `of which output VAT (${vatPct()})`, b: t.inBv, a: t.inAv, dir: 1, sub: true }] : []), { sec: "B · Cash outflow" }];
   const heads = finHeads(); for(const h of heads){ const b = headAmt(t.outB, h), a = headAmt(t.outA, h); if(h === UNCLASSIFIED && !b && !a) continue; L.push({ label: h, b, a, dir: -1, ind: true, act: "finGoHead", h }); }
   L.push({ label: "Total cash outflow", b: t.outBt, a: t.outAt, dir: -1, tot: true });
   L.push({ label: "C · Net cash flow (A − B)", b: t.inB - t.outBt, a: t.inA - t.outAt, dir: 1, tot: true, net: true });
@@ -2494,7 +2516,7 @@ function finSummaryView(){
   </div>`;
   const toolbar = `<div class="toolbar"><select class="in" data-bind="ff.month" title="Month">${finMonthOpts(ym)}</select>
     <div class="seg">${[["sheet", "Monthly sheet"], ["month", "Month & YTD"]].map(([k, l]) => `<button class="${f.mode === k ? "on" : ""}" data-act="finMode" data-v="${k}">${l}</button>`).join("")}</div>
-    <span class="small muted">BHD · cash basis · incl. VAT${f.mode !== "sheet" && ym === curYM() ? " · <b>month in progress</b>" : ""}</span>
+    <span class="small muted">BHD · cash basis · ${vatTag()}${f.mode !== "sheet" && ym === curYM() ? " · <b>month in progress</b>" : ""}</span>
     <div class="right"><button class="btn" data-act="finCashAdd" data-v="In">${I.plus} Receipt</button><button class="btn" data-act="finCashAdd" data-v="Out">${I.plus} Payment</button><button class="btn ghost" data-act="finExport">Export to Excel</button></div></div>`;
   const body = f.mode === "sheet" ? finSheetGrid(Y, ym) : `<div class="card"><div class="tw"><table class="tbl fin nosort"><thead>
       <tr><th></th><th colspan="4" class="grp">${ymLabel(ym)}</th><th colspan="4" class="grp sep">Year to date · ${ymLabel(ytd[0]).slice(0, 3)}–${ymLabel(ym).slice(0, 3)} ${Y}</th></tr>
@@ -2583,9 +2605,9 @@ function finSheetGrid(Y, ym){
   return `${hero}
   <div class="ms-grid">
     <div class="ms-main">
-      <div class="card ms-card"><div class="ms-ch in"><h3>Income</h3><span class="muted small">Collections from Bahrain clients, incl. VAT${idle > 0 ? ` · ${idle} client${idle === 1 ? "" : "s"} with nothing due or received this month` : ""}</span></div>
+      <div class="card ms-card"><div class="ms-ch in"><h3>Income</h3><span class="muted small">Collections from Bahrain clients${vatAny() ? ", incl. VAT" : ""}${idle > 0 ? ` · ${idle} client${idle === 1 ? "" : "s"} with nothing due or received this month` : ""}</span></div>
         <div class="tw"><table class="tbl ms-tbl nosort">${head}<tbody>${incRows || `<tr><td colspan="5" class="empty">No collections budgeted or received this month.</td></tr>`}
-        ${row("<b>Total income</b>", s.inB, A(s.inA), 1, "tot")}${row(`<span class="small">of which output VAT (${vatPct()})</span>`, s.inBv, A(s.inAv), 1, "sub")}</tbody></table></div></div>
+        ${row("<b>Total income</b>", s.inB, A(s.inA), 1, "tot")}${vatAny() ? row(`<span class="small">of which output VAT (${vatPct()})</span>`, s.inBv, A(s.inAv), 1, "sub") : ""}</tbody></table></div></div>
       <div class="card ms-card"><div class="ms-ch out"><h3>Expenses</h3><span class="muted small">Payments by expense head${emptyHeads ? ` · ${emptyHeads} head${emptyHeads === 1 ? "" : "s"} with no budget or spend hidden` : ""}</span></div>
         <div class="tw"><table class="tbl ms-tbl nosort">${head}<tbody>${expRows || `<tr><td colspan="5" class="empty">No expenses budgeted or paid this month.</td></tr>`}${row("<b>Total expenses</b>", s.outBt, A(s.outAt), -1, "tot")}</tbody></table></div></div>
       <div class="card ms-card ms-sumcard"><div class="tw"><table class="tbl ms-tbl nosort">${head}<tbody>
@@ -2682,17 +2704,17 @@ function finCashView(){
     <input id="ff-cbq" class="in search" placeholder="Search party, reference, notes…" value="${esc(f.cbQ)}" data-bind="ff.cbQ">
     <div class="right"><button class="btn pri" data-act="finCashAdd" data-v="In">${I.plus} Receipt</button><button class="btn pri" data-act="finCashAdd" data-v="Out">${I.plus} Payment</button><button class="btn" data-act="finImport" data-v="cash">Import from Excel</button></div></div>
   <div class="strip"><div class="st ok"><div class="ic">↓</div><div><b>${money(inn, 0)}</b><span>receipts · ${rows.filter(x => x.Dir === "In").length} entries</span></div></div><div class="st ba"><div class="ic">↑</div><div><b>${money(out, 0)}</b><span>payments · ${rows.filter(x => x.Dir === "Out").length} entries</span></div></div><div class="st ${inn - out < 0 ? "ba" : "fu"}"><div class="ic">=</div><div><b>${money(inn - out, 0)}</b><span>net cash flow</span></div></div></div>
-  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Date</th><th>Type</th><th>Client / expense head</th><th>Description</th><th>Mode</th><th>Reference</th><th class="num">Amount</th><th class="num">VAT</th><th>Entered</th><th></th></tr></thead><tbody>
+  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Date</th><th>Type</th><th>Client / expense head</th><th>Description</th><th>Mode</th><th>Reference</th><th class="num">Amount</th>${vatAny() ? `<th class="num">VAT</th>` : ""}<th>Entered</th><th></th></tr></thead><tbody>
   ${rows.map(x => `<tr><td class="small nowrap">${fmtDate(x.Date)}</td><td>${x.Dir === "In" ? chip("green", "Receipt") : chip("amber", "Payment")}</td>
     <td class="cname">${cashParty(x)}${x.Dir === "In" && x.Service ? `<div class="small faint">${esc(x.Service)}</div>` : ""}</td><td class="small">${esc(x.Title)}</td><td class="small">${esc(x.Mode)}</td><td class="small">${esc(x.Ref)}</td>
-    <td class="num">${money(fnum(x.Amount))}</td><td class="num small">${moneyZ(fnum(x.VAT))}</td><td class="small faint nowrap">${updCell(x)}</td><td><button class="btn sm" data-act="finCashEdit" data-id="${x.id}">Edit</button></td></tr>`).join("")}
+    <td class="num">${money(fnum(x.Amount))}</td>${vatAny() ? `<td class="num small">${moneyZ(vatOn(cashYm(x)) ? fnum(x.VAT) : 0)}</td>` : ""}<td class="small faint nowrap">${updCell(x)}</td><td><button class="btn sm" data-act="finCashEdit" data-id="${x.id}">Edit</button></td></tr>`).join("")}
   </tbody></table>${rows.length ? "" : `<div class="empty">No entries for this selection. Add receipts and payments, or import them from Excel (e.g. from your bank statement).</div>`}</div></div>`;
 }
 
 function finFeesView(){
   const f = state.ff; const Y = f.year; const q = lc(f.fq); const from = finYtdFrom(`${Y}-01`), to = `${Y}-12`;
   let cl = finClients().filter(c => !isDeact(c) || feesOf(c.id).length).filter(c => !q || lc(c.Title).includes(q)).sort((a, b) => a.Title.localeCompare(b.Title));
-  const rows = cl.map(c => { const fs = feesOf(c.id); let net = 0, vat = 0, ar = 0; fs.forEach(x => { const sc = feeSched(x, c, from, to); const n = Object.values(sc).reduce((s, v) => s + v, 0); if(isAR(x)){ ar += n; return; } net += n; if(feeVat(x)) vat += n * FIN.vat; }); return { c, fs, net, vat, ar, set: fs.some(x => !isAR(x)) }; });
+  const rows = cl.map(c => { const fs = feesOf(c.id); let net = 0, vat = 0, ar = 0; fs.forEach(x => { const sc = feeSchedV(x, c, from, to); let n = 0, v = 0; for(const k in sc){ n += sc[k].n; v += sc[k].v; } if(isAR(x)){ ar += n; return; } net += n; vat += v; }); return { c, fs, net, vat, ar, set: fs.some(x => !isAR(x)) }; });
   const act = rows.filter(r => !isDeact(r.c)); const missing = act.filter(r => !r.set).length;
   const shown = rows.filter(r => f.fshow === "missing" ? !r.set && !isDeact(r.c) : f.fshow === "set" ? r.set : true);
   const T = shown.reduce((s, r) => ({ net: s.net + r.net, vat: s.vat + r.vat, ar: s.ar + r.ar }), { net: 0, vat: 0, ar: 0 });
@@ -2700,8 +2722,12 @@ function finFeesView(){
     <input id="ff-fq" class="in search" placeholder="Search client…" value="${esc(f.fq)}" data-bind="ff.fq">
     <select class="in" data-bind="ff.fshow"><option value="all">All Bahrain clients</option><option value="missing" ${f.fshow === "missing" ? "selected" : ""}>Fee budget not set</option><option value="set" ${f.fshow === "set" ? "selected" : ""}>Fee budget set</option></select>
     <div class="right"><button class="btn" data-act="finFeeTemplate">Download fee sheet</button><button class="btn" data-act="finImport" data-v="fees">Upload fee sheet</button></div></div>
-  <div class="strip"><div class="st fu"><div class="ic">BH</div><div><b>${act.length}</b><span>active Bahrain clients</span></div></div><div class="st ok"><div class="ic">✓</div><div><b>${act.length - missing}</b><span>with a fee budget</span></div></div><div class="st ${missing ? "wa" : "ok"}"><div class="ic">!</div><div><b>${missing}</b><span>fee budget not set</span></div></div><div class="st fu"><div class="ic">Σ</div><div><b>${money(T.net + T.vat + T.ar, 0)}</b><span>budgeted ${Y} incl. VAT & opening AR${from > `${Y}-01` ? ` (from ${ymLabel(from)})` : ""}</span></div></div></div>
-  <div class="banner info"><div>New Bahrain clients added in the Client Desk appear here automatically. Set a fee line for each service you bill — the amount <b>excluding VAT</b>, how often it is billed, from which month and its <b>due date</b> (immediate, 30, 45, 60 or 90 days). Collections are budgeted in the month each invoice falls due, and VAT at ${vatPct()} is added. Use <b>Opening receivable (AR)</b> in a client's fees for amounts outstanding on 1 ${ymLabel(FIN.start)}, with the month you expect to collect them.</div></div>
+  <div class="strip"><div class="st fu"><div class="ic">BH</div><div><b>${act.length}</b><span>active Bahrain clients</span></div></div><div class="st ok"><div class="ic">✓</div><div><b>${act.length - missing}</b><span>with a fee budget</span></div></div><div class="st ${missing ? "wa" : "ok"}"><div class="ic">!</div><div><b>${missing}</b><span>fee budget not set</span></div></div><div class="st fu"><div class="ic">Σ</div><div><b>${money(T.net + T.vat + T.ar, 0)}</b><span>budgeted ${Y}${vatAny() ? " incl. VAT" : ""} & opening AR${from > `${Y}-01` ? ` (from ${ymLabel(from)})` : ""}</span></div></div></div>
+  <div class="card vat-card ${vatAny() ? "on" : ""}"><div class="card-b"><div class="toolbar" style="margin:0;align-items:center">
+    <div><b>VAT registration</b> ${vatAny() ? chip("green", `Registered from ${ymLabel(vatFrom())}`) : chip("grey", "Not VAT registered")}
+      <div class="small muted">${vatAny() ? `VAT at ${vatPct()} is added to standard-rated fee lines billed from ${ymLabel(vatFrom())}, and worked out on receipts from then on. Earlier months stay without VAT.` : `No VAT is added to fee budgets or worked out on receipts. Each fee line keeps its VAT setting, so when the company registers, enter the month here and the cash flow picks up VAT from that month.`}</div></div>
+    <div class="right"><label class="small">Registered from&nbsp;<input id="fin-vatreg" class="in" type="month" min="${FIN.start}" value="${esc(vatFrom())}"></label>${vatAny() ? `<button class="btn sm ghost" data-act="finVatClear">Not registered</button>` : ""}</div></div></div></div>
+  <div class="banner info"><div>New Bahrain clients added in the Client Desk appear here automatically. Set a fee line for each service you bill — the amount <b>excluding VAT</b>, how often it is billed, from which month and its <b>due date</b> (immediate, 30, 45, 60 or 90 days). Collections are budgeted in the month each invoice falls due${vatAny() ? `, and VAT at ${vatPct()} is added to invoices billed from ${ymLabel(vatFrom())}` : " — no VAT is added while the company is not VAT registered"}. Use <b>Opening receivable (AR)</b> in a client's fees for amounts outstanding on 1 ${ymLabel(FIN.start)}, with the month you expect to collect them.</div></div>
   <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Services</th><th>Fee lines</th><th class="num">${Y} net</th><th class="num">VAT</th><th class="num">Opening AR</th><th class="num">${Y} total</th><th></th></tr></thead><tbody>
   ${shown.map(r => `<tr><td class="cname">${esc(r.c.Title)}${isDeact(r.c) ? ` ${chip("grey", "Deactivated")}` : ""}</td><td>${serviceTags(r.c) || `<span class="faint small">none ticked</span>`}</td>
     <td class="small">${r.fs.map(feeLineText).join("<br>")}${r.set ? "" : (r.fs.length ? "<br>" : "") + chip("amber", "Fees not set")}</td><td class="num">${moneyZ(r.net)}</td><td class="num small">${moneyZ(r.vat)}</td><td class="num small">${moneyZ(r.ar)}</td><td class="num"><b>${moneyZ(r.net + r.vat + r.ar)}</b></td>
@@ -2737,6 +2763,13 @@ function blSave(head, year, patch){
     await saveRec("blines", r ? r.id : null, Object.assign(r ? {} : { Title: head, Kind: "Expense", Head: head, Year: String(year) }, patch, { UpdatedBy: me.email, UpdatedOn: nowISO() })); }); }
 function obSave(v){ return finQueue("ob", async () => { const r = openingRec(); await saveRec("blines", r ? r.id : null, Object.assign(r ? {} : { Title: "Opening cash & bank", Kind: "Opening", Head: "Opening cash & bank", Year: FIN.start.slice(0, 4) }, { M01: v, UpdatedBy: me.email, UpdatedOn: nowISO() })); }); }
 document.addEventListener("change", e => { const t = e.target; if(t.dataset && t.dataset.act === "finTermsPick"){ const h = document.getElementById("finDueHint"); if(h) h.textContent = dueRuleText(t.value); } });
+async function vatRegSave(v){ if(!canFin()) return; await finQueue("vatreg", async () => { const r = vatRegRec();
+  await saveRec("blines", r ? r.id : null, Object.assign(r ? {} : { Title: "VAT registered from", Kind: "Setting", Head: "VATRegisteredFrom", Year: "" }, { M01: v, UpdatedBy: me.email, UpdatedOn: nowISO() })); });
+  render(); toast(v ? `VAT registered from ${ymLabel(v)} — cash flow now includes VAT from that month` : "Set as not VAT registered — no VAT in the cash flow"); }
+document.addEventListener("change", e => { const t = e.target; if(t.id !== "fin-vatreg") return; const v = t.value; if(v && v < FIN.start) return toast(`Pick ${ymLabel(FIN.start)} or later`, true);
+  if(!v) return vatRegSave("");
+  openModal("confirm", { text: `Treat Vinpro Global Services WLL as <b>VAT registered from ${ymLabel(v)}</b>?<br><br><span class="small muted">VAT at ${vatPct()} will be added to standard-rated fee lines billed from that month, and worked out on receipts dated from then. You can change or clear this at any time.</span>`, onYes: () => vatRegSave(v) });
+  t.value = vatFrom(); });
 document.addEventListener("change", async e => {
   const t = e.target; const k = t.dataset && t.dataset.fin; if(!k || !canFin()) return;
   const raw = String(t.value || "").trim(); const v = raw === "" ? "" : r3s(fnum(raw)); if(raw !== "" && !isFinite(parseFloat(raw.replace(/[,\s]/g, "")))){ toast("Enter a number", true); return; }
@@ -2751,16 +2784,16 @@ document.addEventListener("change", async e => {
 /* ---------- modals ---------- */
 MODALS.finFees = ({ id }) => {
   const c = clientById(id); if(!c) return ""; const fs = feesOf(id); const Y = state.ff.year || curYear();
-  const yms = MM.map(m => `${Y}-${m}`); const byM = yms.map(ym => fs.reduce((s, f) => { const n = (feeSched(f, c, ym, ym)[ym] || 0); return s + n * (feeVat(f) ? 1 + FIN.vat : 1); }, 0));
+  const yms = MM.map(m => `${Y}-${m}`); const byM = yms.map(ym => fs.reduce((s, f) => s + feeGross(f, c, ym, ym), 0));
   return `<div class="modal wide">${mHead(`Fee budget — ${esc(c.Title)}`)}<div class="mb">
     <p class="muted" style="margin-top:0">Services ticked in the Client Desk: ${serviceTags(c) || "none"}. Add one line per fee you bill this client; amounts exclude VAT.${isDeact(c) ? ` <b>Client deactivated${c.DeactivatedOn ? " on " + fmtDate(c.DeactivatedOn) : ""}</b> — budget stops after that month.` : ""}</p>
     <div class="tw"><table class="tbl nosort"><thead><tr><th>Service</th><th class="num">Amount (excl. VAT)</th><th>Billed</th><th>From</th><th>To</th><th>Timing</th><th>Due</th><th>VAT</th><th></th></tr></thead><tbody>
     ${fs.map(f => `<tr><td><b>${esc(f.Service)}</b>${f.Notes ? `<div class="small faint">${esc(f.Notes)}</div>` : ""}</td><td class="num">${money(fnum(f.Amount))}</td><td>${esc(f.Freq)}</td><td class="small nowrap">${f.StartMonth ? ymLabel(f.StartMonth) : ymLabel(FIN.start)}</td><td class="small nowrap">${f.EndMonth ? ymLabel(f.EndMonth) : `<span class="faint">ongoing</span>`}</td>
-      <td class="small">${f.Freq === "Monthly" || f.Freq === "One-off" ? "—" : f.Timing === "Lump" ? "Billing month" : "Spread"}</td><td class="small nowrap">${FEE_TERMS_LABEL[termsOf(f)]}</td><td class="small">${feeVat(f) ? vatPct() : "No VAT"}</td>
+      <td class="small">${f.Freq === "Monthly" || f.Freq === "One-off" ? "—" : f.Timing === "Lump" ? "Billing month" : "Spread"}</td><td class="small nowrap">${FEE_TERMS_LABEL[termsOf(f)]}</td><td class="small">${feeVat(f) ? (vatAny() ? vatPct() : `<span class="faint" title="Applies once VAT registered">${vatPct()} once registered</span>`) : "No VAT"}</td>
       <td class="nowrap"><button class="btn sm" data-act="${isAR(f) ? "finArEdit" : "finFeeEdit"}" data-id="${f.id}">Edit</button> <button class="btn sm ghost" data-act="finFeeDel" data-id="${f.id}">Delete</button></td></tr>`).join("")}
     </tbody></table>${fs.length ? "" : `<div class="empty">No fee lines yet.</div>`}</div>
     <div class="toolbar" style="margin-top:12px"><button class="btn pri" data-act="finFeeAdd" data-c="${id}">${I.plus} Add fee line</button><button class="btn" data-act="finArAdd" data-c="${id}">${I.plus} Opening receivable (AR)</button>${arOf(id) ? `<span class="small muted">Opening AR ${money(arOf(id))} · collected ${money(arCollected(id))} · outstanding <b>${money(arOf(id) - arCollected(id))}</b></span>` : ""}</div>
-    ${fs.length ? `<div class="lbl small" style="margin-top:8px"><b>Budgeted collections ${Y} by due date (incl. VAT)</b></div><div class="tw"><table class="tbl nosort"><thead><tr>${yms.map(ym => `<th class="num">${MONTHS[+ym.slice(5) - 1]}</th>`).join("")}<th class="num">Total</th></tr></thead><tbody><tr>${byM.map(v => `<td class="num small">${moneyZ(v, 0)}</td>`).join("")}<td class="num"><b>${money(byM.reduce((s, v) => s + v, 0))}</b></td></tr></tbody></table></div>` : ""}
+    ${fs.length ? `<div class="lbl small" style="margin-top:8px"><b>Budgeted collections ${Y} by due date${vatAny() ? " (incl. VAT)" : ""}</b></div><div class="tw"><table class="tbl nosort"><thead><tr>${yms.map(ym => `<th class="num">${MONTHS[+ym.slice(5) - 1]}</th>`).join("")}<th class="num">Total</th></tr></thead><tbody><tr>${byM.map(v => `<td class="num small">${moneyZ(v, 0)}</td>`).join("")}<td class="num"><b>${money(byM.reduce((s, v) => s + v, 0))}</b></td></tr></tbody></table></div>` : ""}
   </div><div class="mf"><button type="button" class="btn" data-act="close">Close</button></div></div>`;
 };
 MODALS.finFeeForm = ({ id, cid }) => {
@@ -2775,7 +2808,7 @@ MODALS.finFeeForm = ({ id, cid }) => {
     <label>Until month <span class="faint">(blank = ongoing)</span><input class="in" type="month" name="EndMonth" value="${esc(f.EndMonth || "")}"></label>
     <label>Timing in the cash budget<select class="in" name="Timing">${opt(Object.keys(FEE_TIMING), f.Timing || "Spread", FEE_TIMING)}</select><span class="hint small faint">For quarterly, half-yearly and annual fees</span></label>
     <label>Due date (credit period)<select class="in" name="Terms" data-act="finTermsPick">${opt(FEE_TERMS, termsOf(f), FEE_TERMS_LABEL)}</select><span class="hint small faint" id="finDueHint">${esc(dueRuleText(termsOf(f)))}</span></label>
-    <label>VAT<select class="in" name="VAT">${opt(["Yes", "No"], f.VAT || "Yes", { Yes: `Add VAT ${vatPct()}`, No: "No VAT (exempt / out of scope)" })}</select></label>
+    <label>VAT${vatAny() ? "" : ` <span class="faint">(applies once VAT registered)</span>`}<select class="in" name="VAT">${opt(["Yes", "No"], f.VAT || "Yes", { Yes: `Standard rated — add ${vatPct()}${vatAny() ? "" : " once registered"}`, No: "No VAT (exempt / out of scope)" })}</select></label>
     <label class="full">Notes<input class="in" name="Notes" value="${esc(f.Notes || "")}" placeholder="optional — e.g. per engagement letter dated…"></label>
   </div><p class="small muted">Cash is budgeted in the month the invoice falls due, taking the invoice as raised at the ${INVOICE_AT === "start" ? "start" : "end"} of each billing month. For a fee already running before ${ymLabel(FIN.start)} with credit days, set the From month earlier (e.g. ${ymLabel(ymAdd(FIN.start, -3))}) so collections due in early ${FIN.start.slice(0, 4)} are included — only cash due from ${ymLabel(FIN.start)} counts.</p></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
@@ -2799,8 +2832,8 @@ MODALS.finCash = ({ id, dir, cid }) => {
       <label>Received from <span class="faint">(if not a client)</span><input class="in" name="ClientName" value="${esc(x.ClientName || "")}"></label>`
     : `<label class="full">Expense head<select class="in" name="Head" required><option value="">— Select —</option>${finHeads().filter(h => h !== UNCLASSIFIED).map(h => `<option ${lc(x.Head) === lc(h) ? "selected" : ""}>${esc(h)}</option>`).join("")}</select></label>`}
     <label class="full">Description<input class="in" name="Title" value="${esc(x.Title || "")}" placeholder="${D === "In" ? "e.g. Invoice INV-1043 · Q2 VAT fee" : "e.g. October office rent"}"></label>
-    <label>Amount (BHD, incl. VAT)<input class="in" name="Amount" inputmode="decimal" required value="${esc(x.Amount || "")}"></label>
-    <label>VAT included<input class="in" name="VAT" inputmode="decimal" value="${esc(x.VAT || "")}" placeholder="${D === "In" ? `blank = ${vatPct()} worked out` : "optional"}"></label>
+    <label>Amount (BHD${vatAny() ? ", incl. VAT" : ""})<input class="in" name="Amount" inputmode="decimal" required value="${esc(x.Amount || "")}"></label>
+    ${vatAny() ? "" : `<input type="hidden" name="VAT" value="">`}<label ${vatAny() ? "" : `style="display:none"`}>VAT included<input class="in" ${vatAny() ? `name="VAT"` : ""} inputmode="decimal" value="${esc(x.VAT || "")}" placeholder="${D === "In" ? `blank = ${vatPct()} worked out` : "optional"}"></label>
     <label>Reference<input class="in" name="Ref" value="${esc(x.Ref || "")}" placeholder="bank ref / cheque no / invoice no"></label>
     <label>Notes<input class="in" name="Notes" value="${esc(x.Notes || "")}"></label>
   </div>${x.UpdatedOn ? `<p class="small faint">Last updated by ${esc(empName(x.UpdatedBy))} on ${fmtDT(x.UpdatedOn)}</p>` : ""}</div>
@@ -2810,7 +2843,7 @@ SUBMIT.finCash = async (form, o) => {
   if(!canFin()) return; const id = form.dataset.id; const D = form.dataset.dir; const amt = fnum(o.Amount);
   if(!(amt > 0)) return toast("Enter the amount", true); if(!o.Date || o.Date < FIN.start) return toast(`Date must be on or after ${ymLabel(FIN.start)}`, true);
   if(D === "Out" && !o.Head) return toast("Choose the expense head", true);
-  let vat = String(o.VAT || "").trim() === "" ? (D === "In" ? r3(amt * FIN.vat / (1 + FIN.vat)) : 0) : fnum(o.VAT); if(vat > amt) return toast("VAT can't be more than the amount", true);
+  const vOn = vatOn(String(o.Date || "").slice(0, 7)); let vat = !vOn ? 0 : String(o.VAT || "").trim() === "" ? (D === "In" ? r3(amt * FIN.vat / (1 + FIN.vat)) : 0) : fnum(o.VAT); if(vat > amt) return toast("VAT can't be more than the amount", true);
   const f = { Title: o.Title || "", Date: o.Date, Dir: D, Amount: r3s(amt), VAT: r3s(vat), Mode: o.Mode, Ref: o.Ref || "", Notes: o.Notes || "", UpdatedBy: me.email, UpdatedOn: nowISO(),
     ClientId: D === "In" ? (o.ClientId || "") : "", ClientName: D === "In" && !o.ClientId ? (o.ClientName || "") : "", Service: D === "In" ? (o.Service || "") : "", Head: D === "Out" ? o.Head : "" };
   await saveRec("cash", id || null, f); closeModal(); render(); renderModals(); toast(`${D === "In" ? "Receipt" : "Payment"} ${id ? "updated" : "saved"} · BHD ${money(amt)}`);
@@ -2836,7 +2869,7 @@ function finParseCash(buf){ const { col, rows } = finSheetRows(buf); if(!col) re
     try { out.Date = bParseDate(g(x, "Date")); } catch(e){ errors.push(String(e)); } if(!out.Date && !errors.length) errors.push("Date missing"); else if(out.Date && out.Date < FIN.start) errors.push(`Before ${ymLabel(FIN.start)}`);
     const ty = lc(g(x, "Type")); out.Dir = /^(receipt|in|r|cr|credit)/.test(ty) ? "In" : /^(payment|out|p|dr|debit)/.test(ty) ? "Out" : ""; if(!out.Dir) errors.push("Type must be Receipt or Payment");
     const amt = fnum(g(x, "Amount")); if(!(amt > 0)) errors.push("Amount missing"); out.Amount = r3s(amt);
-    const vRaw = String(g(x, "VAT")).trim(); out.VAT = r3s(vRaw === "" ? (out.Dir === "In" ? amt * FIN.vat / (1 + FIN.vat) : 0) : fnum(vRaw));
+    const vRaw = String(g(x, "VAT")).trim(); out.VAT = !vatOn(String(out.Date || "").slice(0, 7)) ? "" : r3s(vRaw === "" ? (out.Dir === "In" ? amt * FIN.vat / (1 + FIN.vat) : 0) : fnum(vRaw));
     out.Title = String(g(x, "Description")).trim(); out.Mode = String(g(x, "Mode")).trim() || "Bank transfer"; out.Ref = String(g(x, "Reference")).trim(); out.Notes = String(g(x, "Notes")).trim();
     if(out.Dir === "In"){ const cn = String(g(x, "Client")).trim(); const c = finMatchClient(cn); out.ClientId = c ? c.id : ""; out.ClientName = c ? "" : cn; out.Service = String(g(x, "Service")).trim(); out.party = c ? c.Title : cn || "(not linked)"; if(cn && !c) notes.push("Client not found — saved as unlinked receipt"); }
     else if(out.Dir === "Out"){ const h = String(g(x, "Expense Head")).trim(); if(!h) errors.push("Expense head missing"); out.Head = canonHead(h); out.party = out.Head; if(h && !heads.some(y => lc(y) === lc(h))) notes.push("New expense head"); }
@@ -2893,7 +2926,7 @@ function finSheetWs(Y, upto){
   const put = (r, c, v, f) => { if(f) ws[E(r, c)] = { t: "n", f, v: r3(v || 0), z: NF }; else if(typeof v === "number") ws[E(r, c)] = { t: "n", v: r3(v), z: NF }; else if(v != null && v !== "") ws[E(r, c)] = { t: "s", v: String(v) }; };
   const bc = i => 1 + 2 * i, ac = i => 2 + 2 * i; const TB = 1 + 2 * yms.length, TA = TB + 1, TV = TB + 2; const ti = tot.map(ym => yms.indexOf(ym));
   const sumCols = (r, colOf) => ti.length ? ti.map(i => E(r, colOf(i))).join("+") : "0";
-  put(0, 0, `Vinpro Global Services WLL — Budget vs Actual ${Y} (BHD incl. VAT)`); yms.forEach((ym, i) => put(1, bc(i), MONTHS[+ym.slice(5) - 1])); put(1, TB, `Total ${tot.length ? MONTHS[+tot[0].slice(5) - 1] + "–" + MONTHS[+tot[tot.length - 1].slice(5) - 1] : ""}`);
+  put(0, 0, `Vinpro Global Services WLL — Budget vs Actual ${Y} (BHD ${vatTag()})`); yms.forEach((ym, i) => put(1, bc(i), MONTHS[+ym.slice(5) - 1])); put(1, TB, `Total ${tot.length ? MONTHS[+tot[0].slice(5) - 1] + "–" + MONTHS[+tot[tot.length - 1].slice(5) - 1] : ""}`);
   put(2, 0, "Particulars"); yms.forEach((ym, i) => { put(2, bc(i), "Bud"); put(2, ac(i), "Act"); }); put(2, TB, "Bud"); put(2, TA, "Act"); put(2, TV, "Var");
   const merges = [...yms.map((ym, i) => ({ s: { r: 1, c: bc(i) }, e: { r: 1, c: ac(i) } })), { s: { r: 1, c: TB }, e: { r: 1, c: TV } }];
   let r = 3; const OPEN = r; put(r, 0, "Opening Balance"); r++;
@@ -2926,7 +2959,7 @@ function finExport(){
   const ym = state.ff.month; const Y = ym.slice(0, 4); const S = finSeries(`${Y}-12`); const ytd = finYms(finYtdFrom(ym), ym);
   const tm = finSum(S, [ym]), ty = finSum(S, ytd), cm = finClosing(S, ym); const lm = finLines(tm, cm), ly = finLines(ty, cm); const rd = n => r3(n);
   const vv = (l, b, a) => rd((a - b) * l.dir); const pc = (l, b, a) => Math.abs(b) > 0.0005 ? Math.round((a - b) * l.dir / Math.abs(b) * 1000) / 10 : "";
-  const a1 = [[`Vinpro Global Services WLL — Budget vs Actual (cash basis, BHD incl. VAT)`], [`Month: ${ymLabel(ym)} · YTD: ${ymLabel(ytd[0])} – ${ymLabel(ym)}`], [],
+  const a1 = [[`Vinpro Global Services WLL — Budget vs Actual (cash basis, BHD ${vatTag()})`], [`Month: ${ymLabel(ym)} · YTD: ${ymLabel(ytd[0])} – ${ymLabel(ym)}`], [],
     ["Particulars", "Month budget", "Month actual", "Variance (fav +)", "Var %", "YTD budget", "YTD actual", "Variance (fav +)", "Var %"],
     ...lm.map((l, i) => { const y = ly[i]; if(l.sec) return [l.sec]; return [(l.ind || l.sub ? "   " : "") + l.label, rd(l.b), rd(l.a), vv(l, l.b, l.a), pc(l, l.b, l.a), ...(l.close ? [] : [rd(y.b), rd(y.a), vv(y, y.b, y.a), pc(y, y.b, y.a)])]; })];
   const a3 = [["Client", "YTD budget", "YTD collected", "Variance", "% collected", "Fee lines"], ...finClients().map(c => ({ c, x: ty.byC[c.id] || { b: 0, a: 0 } })).filter(r => r.x.b || r.x.a || !isDeact(r.c)).sort((p, q) => p.c.Title.localeCompare(q.c.Title))
@@ -2945,6 +2978,7 @@ const needXlsx = () => { if(window.XLSX) return true; toast("Excel library still
 
 Object.assign(ACT, {
   finTab: d => { state.ff.tab = d.v; render(); window.scrollTo(0, 0); },
+  finVatClear: () => openModal("confirm", { text: "Mark the company as <b>not VAT registered</b>? VAT is removed from the budget and the reports.", onYes: () => vatRegSave("") }),
   finStep: d => { const m = ymAdd(state.ff.month, +d.v); if(m < FIN.start) return; state.ff.month = m; render(); },
   finMode: d => { state.ff.mode = d.v; render(); },
   finPeriod: d => { state.ff.period = d.v; render(); },
@@ -2996,8 +3030,8 @@ function finDemoSeed(d){
     MM.forEach(m => r["M" + m] = h === "VAT paid to NBR" ? (["04", "07", "10"].includes(m) ? "380" : "") : h === "Salary, Visa & Ticket" && m === "06" ? String(v + 1200) : String(v)); blines.push(r); });
   blines.push({ id: uid(), Title: "Opening cash & bank", Kind: "Opening", Head: "Opening cash & bank", Year: Y, M01: "12500", UpdatedBy: "vignesh@vinproglobal.com", UpdatedOn: nowISO() });
   for(let ym = FIN.start; ym < now; ym = ymAdd(ym, 1)){
-    for(const c of bh){ const fs = fees.filter(f => f.ClientId === c.id); let due = 0; fs.forEach(f => { const n = feeSched(f, c, ym, ym)[ym] || 0; due += n * (feeVat(f) ? 1 + FIN.vat : 1); });
-      if(!due || rnd() < 0.15) continue; const amt = r3(due * (0.7 + rnd() * 0.6)); cash.push({ id: uid(), Title: `Fees ${ymLabel(ym)}`, Date: `${ym}-${pad(5 + Math.floor(rnd() * 22))}`, Dir: "In", ClientId: c.id, ClientName: "", Service: fs[0] ? fs[0].Service : "", Amount: r3s(amt), VAT: r3s(amt * FIN.vat / (1 + FIN.vat)), Mode: rnd() < .7 ? "Bank transfer" : "BenefitPay", Ref: "FT" + Math.floor(1e6 + rnd() * 8e6), Notes: "", UpdatedBy: "vignesh@vinproglobal.com", UpdatedOn: nowISO() }); }
+    for(const c of bh){ const fs = fees.filter(f => f.ClientId === c.id); let due = 0; fs.forEach(f => { due += feeGross(f, c, ym, ym); });
+      if(!due || rnd() < 0.15) continue; const amt = r3(due * (0.7 + rnd() * 0.6)); cash.push({ id: uid(), Title: `Fees ${ymLabel(ym)}`, Date: `${ym}-${pad(5 + Math.floor(rnd() * 22))}`, Dir: "In", ClientId: c.id, ClientName: "", Service: fs[0] ? fs[0].Service : "", Amount: r3s(amt), VAT: "", Mode: rnd() < .7 ? "Bank transfer" : "BenefitPay", Ref: "FT" + Math.floor(1e6 + rnd() * 8e6), Notes: "", UpdatedBy: "vignesh@vinproglobal.com", UpdatedOn: nowISO() }); }
     for(const r of blines.filter(b => b.Kind === "Expense")){ const b = fnum(r["M" + ym.slice(5)]); if(!b || ym.slice(0, 4) !== Y) continue; const amt = r3(b * (0.85 + rnd() * 0.3));
       cash.push({ id: uid(), Title: r.Head + " · " + ymLabel(ym), Date: `${ym}-${pad(1 + Math.floor(rnd() * 26))}`, Dir: "Out", ClientId: "", ClientName: "", Service: "", Head: r.Head, Amount: r3s(amt), VAT: "", Mode: "Bank transfer", Ref: "", Notes: "", UpdatedBy: "vignesh@vinproglobal.com", UpdatedOn: nowISO() }); } }
   /* opening receivables, part collected */

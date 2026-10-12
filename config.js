@@ -33,9 +33,10 @@ window.VINPRO_CONFIG = {
   // For clients on an annual accounting engagement: months after financial year end
   annualAccountingDueMonths: 3,
 
-  // Budget vs Actual (Vinpro Global Services WLL, Bahrain) — cash basis, BHD incl. VAT
+  // Budget vs Actual (Vinpro Global Services WLL, Bahrain) — cash basis, BHD; VAT only once registered
   budgetStart: "2026-01",          // first month tracked, YYYY-MM
   vatRate: 0.10,                   // Bahrain VAT added to fee budgets and worked out on receipts
+  vatRegisteredFrom: "",           // "" = not VAT registered. Normally set in the app (Fee budget tab); this is only the default
   financeAccess: ["Admin"],        // roles that can open it; add "Manager" to share with managers
   invoiceAt: "end",                // invoices taken as raised at the "end" (or "start") of each billing month
   defaultTerms: "0",               // due date for fee lines without one: "0" (immediate), "30", "45", "60" or "90"
