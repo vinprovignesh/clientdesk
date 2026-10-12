@@ -513,6 +513,10 @@ ul.att{list-style:none;margin:0;padding:6px 0}ul.att li{display:flex;gap:12px;al
 .ms-ar{margin-top:12px;padding-top:10px;border-top:2px solid var(--line)}
 .ms-arh{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:2px}
 .ms-kv.tot b{font-size:15px}.ms-kv.tot span{color:var(--ink);font-weight:650}
+.ch-svg .b-wip{fill:var(--vg-due)}.ch-svg .b-rev{fill:var(--pur)}.ch-svg .fut{opacity:.38}
+.ch-val.sm{font-size:9.5px}
+.sm-cap .cw{display:inline-flex;align-items:center;gap:4px;margin-right:8px}.sm-cap .cw i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.sm-cap .cw i.b-wip{background:var(--vg-due)}.sm-cap .cw i.b-rev{background:var(--pur)}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
@@ -1057,16 +1061,18 @@ function dueTag(due){ const d = daysUntil(due); return d == null ? "" : d < 0 ? 
 /* ---------- management view: every deadline of a calendar year, by service and by client ---------- */
 const SVC_ABBR = { VAT:"VAT", Accounting:"ACC", Consultancy:"CON", "Corporate Tax":"CT", Audit:"AUD", Other:"OTH", CR:"CR" };
 const DL_RANK = { over: 3, due: 2, future: 1, done: 0 };
+/* review stages: with the reviewer / manager / partner (everything else open is work in progress) */
+function isReviewStage(st){ return /review|draft fs|manager\/partner/i.test(String(st || "")); }
 function deadlineItems(clients, year){ const Y = String(year); const out = []; const t = todayISO(); const cur = curYM(); const jan = `${Y}-01`;
-  const push = (c, svc, due, done, label, act) => { if(!due || String(due).slice(0, 4) !== Y) return; const ym = due.slice(0, 7);
-    out.push({ c, svc, due, ym, done, st: done ? "done" : due < t ? "over" : ym === cur ? "due" : "future", label, act }); };
+  const push = (c, svc, due, done, label, act, stat) => { if(!due || String(due).slice(0, 4) !== Y) return; const ym = due.slice(0, 7);
+    out.push({ c, svc, due, ym, done, st: done ? "done" : due < t ? "over" : ym === cur ? "due" : "future", rv: !done && isReviewStage(stat), label, act }); };
   for(const c of clients){ if(isDeact(c)) continue;
-    for(const pe of periodsFor(c, ymAdd(jan, -2), `${Y}-12`)){ const st = vatStatus(c.id, pe); push(c, "VAT", dueOf(pe, c), VAT_DONE.has(st), `VAT ${periodLabel(c.VATCycle, pe)} · ${st}`, `data-act="editVat" data-c="${c.id}" data-pe="${pe}"`); }
+    for(const pe of periodsFor(c, ymAdd(jan, -2), `${Y}-12`)){ const st = vatStatus(c.id, pe); push(c, "VAT", dueOf(pe, c), VAT_DONE.has(st), `VAT ${periodLabel(c.VATCycle, pe)} · ${st}`, `data-act="editVat" data-c="${c.id}" data-pe="${pe}"`, st); }
     for(const svc of MW_SERVICES){ if(!hasService(c, svc)) continue;
-      for(const p of mwPeriods(c, svc, ymAdd(jan, -14), `${Y}-12`)){ const st = mwStatus(c.id, svc, p.ym, p.freq); push(c, svc, mwDue(c, svc, p.ym, p.freq), MW_DONE.has(st), `${svc} ${mwLabel(c, p.ym, p.freq)} · ${st}`, `data-act="editMw" data-c="${c.id}" data-s="${svc}" data-m="${p.ym}" data-f="${p.freq}"`); } }
-    if(hasService(c, "Corporate Tax")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; push(c, "Corporate Tax", ctDue(c, fy), CT_DONE.has(st), `Corporate tax FY${fy} · ${st}`, `data-act="editCt" data-c="${c.id}" data-fy="${fy}"`); }
-    if(hasService(c, "Audit")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = auditRec(c.id, fy); if(!r || !r.DueDate) continue; const st = auditSt(c, r); push(c, "Audit", r.DueDate, AUDIT_DONE.has(st), `Audit FY${fy} · ${st}`, `data-act="editAudit" data-c="${c.id}" data-fy="${fy}"`); }
-    for(const x of otherItems([c], Y)) if(x.due) push(c, "Other", x.due, x.done, `${x.name} · ${x.st}`, `data-act="editOther" data-id="${x.rec.id}"`);
+      for(const p of mwPeriods(c, svc, ymAdd(jan, -14), `${Y}-12`)){ const st = mwStatus(c.id, svc, p.ym, p.freq); push(c, svc, mwDue(c, svc, p.ym, p.freq), MW_DONE.has(st), `${svc} ${mwLabel(c, p.ym, p.freq)} · ${st}`, `data-act="editMw" data-c="${c.id}" data-s="${svc}" data-m="${p.ym}" data-f="${p.freq}"`, st); } }
+    if(hasService(c, "Corporate Tax")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; push(c, "Corporate Tax", ctDue(c, fy), CT_DONE.has(st), `Corporate tax FY${fy} · ${st}`, `data-act="editCt" data-c="${c.id}" data-fy="${fy}"`, st); }
+    if(hasService(c, "Audit")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = auditRec(c.id, fy); if(!r || !r.DueDate) continue; const st = auditSt(c, r); push(c, "Audit", r.DueDate, AUDIT_DONE.has(st), `Audit FY${fy} · ${st}`, `data-act="editAudit" data-c="${c.id}" data-fy="${fy}"`, st); }
+    for(const x of otherItems([c], Y)) if(x.due) push(c, "Other", x.due, x.done, `${x.name} · ${x.st}`, `data-act="editOther" data-id="${x.rec.id}"`, x.st);
     if(/^\d{4}-\d{2}-\d{2}$/.test(c.CRExpiry || "")) push(c, "CR", c.CRExpiry, false, `${locOf(c) === "UAE" ? "Trade licence" : "CR"} expiry`, `data-act="openClient" data-id="${c.id}"`);
   }
   return out; }
@@ -1132,22 +1138,26 @@ function openItemsAll(cl, w){ const L = [];
   w.oth.pending.forEach(x => L.push({ c: x.c, svc: x.name, label: x.year, due: x.due, over: x.over, act: `data-act="editOther" data-id="${x.rec.id}"` }));
   return L; }
 function svcMonthChart(items, Y, title, sub, view){ const cur = curYM(); const months = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
-  const data = months.map(m => { const a = items.filter(x => x.ym === m); return { m, done: a.filter(x => x.done).length, over: a.filter(x => x.st === "over").length, pend: a.filter(x => x.st === "due").length, fut: a.filter(x => x.st === "future").length }; });
-  const tot = d => d.done + d.over + d.pend + d.fut; const max = Math.max(1, ...data.map(tot)); const W = 360, H = 150, pl = 4, pb = 20, pt = 16, bw = (W - pl) / 12;
+  const data = months.map(m => { const a = items.filter(x => x.ym === m); const open = a.filter(x => !x.done); const w = open.filter(x => !x.rv), r = open.filter(x => x.rv);
+    return { m, done: a.length - open.length, w: w.length, wo: w.filter(x => x.st === "over").length, r: r.length, ro: r.filter(x => x.st === "over").length, all: a.length }; });
+  const max = Math.max(1, ...data.map(d => Math.max(d.w, d.r))); const W = 360, H = 150, pl = 4, pb = 20, pt = 16, bw = (W - pl) / 12;
   const y = v => pt + (H - pt - pb) * (1 - v / max);
-  const bars = data.map((d, i) => { let base = 0; const x = pl + i * bw + bw * 0.18, w = bw * 0.64;
-    const segs = [["done", d.done], ["over", d.over], ["pend", d.pend], ["fut", d.fut]].filter(q => q[1]).map(([k, v], j, arr) => { const y1 = y(base + v), y0 = y(base); base += v;
-      return `<rect x="${x.toFixed(1)}" y="${(y1 + (j ? 1 : 0)).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0.5, y0 - y1 - (j ? 1 : 0)).toFixed(1)}" fill="${ST_CLR[k]}" ${j === arr.length - 1 ? `rx="3"` : ""}/>`; }).join("");
-    const t = tot(d);
-    return `<g class="mbar" data-act="calGo" data-v="${view}" data-m="${d.m}"><rect x="${pl + i * bw}" y="${pt - 14}" width="${bw}" height="${H - pt - pb + 14}" fill="transparent"/>${d.m === cur ? `<rect x="${pl + i * bw + 1}" y="${pt - 14}" width="${bw - 2}" height="${H - pt - pb + 14}" rx="5" class="ch-cur"/>` : ""}${segs}<title>${esc(title)} · ${ymLabel(d.m)}: ${t} deadline${t === 1 ? "" : "s"} · ${d.done} done · ${d.over} overdue · ${d.pend} due now · ${d.fut} upcoming</title>${t ? `<text x="${pl + i * bw + bw / 2}" y="${y(t) - 3}" text-anchor="middle" class="ch-val">${t}</text>` : ""}<text x="${pl + i * bw + bw / 2}" y="${H - 5}" text-anchor="middle" class="ch-ax ${d.m === cur ? "cur" : ""}">${MONTHS[i][0]}</text></g>`; }).join("");
-  const over = data.reduce((a, d) => a + d.over, 0), nowD = data.find(d => d.m === cur) || { pend: 0 }, nx = data.find(d => d.m === ymAdd(cur, 1)), all = data.reduce((a, d) => a + tot(d), 0), done = data.reduce((a, d) => a + d.done, 0);
-  const cap = over ? `<b class="over">${over} overdue</b> · ${nowD.pend} due in ${MONTHS[+cur.slice(5) - 1]}` : nowD.pend ? `<b>${nowD.pend}</b> due in ${ymLabel(cur)} · none overdue` : nx && tot(nx) ? `Next: <b>${tot(nx)}</b> in ${ymLabel(nx.m)}` : all ? `${done} of ${all} done this year` : "No deadlines this year";
+  const bar = (x, w, n, over, cls, fut) => { if(!n) return ""; const top = y(n), base = y(0), split = y(over); /* overdue sits at the bottom, the rest above it */
+    return `${over ? `<rect x="${x.toFixed(1)}" y="${split.toFixed(1)}" width="${w.toFixed(1)}" height="${(base - split).toFixed(1)}" fill="${ST_CLR.over}"/>` : ""}${n - over ? `<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0.5, split - top - (over ? 1 : 0)).toFixed(1)}" rx="2" class="${cls}${fut ? " fut" : ""}"/>` : ""}<text x="${(x + w / 2).toFixed(1)}" y="${(top - 3).toFixed(1)}" text-anchor="middle" class="ch-val sm">${n}</text>`; };
+  const bars = data.map((d, i) => { const x0 = pl + i * bw, w = bw * 0.36, fut = d.m > cur;
+    return `<g class="mbar" data-act="calGo" data-v="${view}" data-m="${d.m}"><rect x="${x0}" y="${pt - 14}" width="${bw}" height="${H - pt - pb + 14}" fill="transparent"/>${d.m === cur ? `<rect x="${x0 + 1}" y="${pt - 14}" width="${bw - 2}" height="${H - pt - pb + 14}" rx="5" class="ch-cur"/>` : ""}
+      ${bar(x0 + bw * 0.12, w, d.w, d.wo, "b-wip", fut)}${bar(x0 + bw * 0.52, w, d.r, d.ro, "b-rev", fut)}
+      <title>${esc(title)} · ${ymLabel(d.m)}: ${d.w} in progress${d.wo ? ` (${d.wo} overdue)` : ""} · ${d.r} under review${d.ro ? ` (${d.ro} overdue)` : ""} · ${d.done} done of ${d.all}</title>
+      <text x="${x0 + bw / 2}" y="${H - 5}" text-anchor="middle" class="ch-ax ${d.m === cur ? "cur" : ""}">${MONTHS[i][0]}</text></g>`; }).join("");
+  const tw = data.reduce((a, d) => a + (d.m <= cur ? d.w : 0), 0), tr = data.reduce((a, d) => a + (d.m <= cur ? d.r : 0), 0), over = data.reduce((a, d) => a + d.wo + d.ro, 0);
+  const all = data.reduce((a, d) => a + d.all, 0), done = data.reduce((a, d) => a + d.done, 0);
+  const cap = !all ? "No deadlines this year" : `<span class="cw"><i class="b-wip"></i><b>${tw}</b> in progress</span> <span class="cw"><i class="b-rev"></i><b>${tr}</b> in review</span>${over ? ` <b class="over">· ${over} overdue</b>` : ""}`;
   return `<div class="card sm-chart"><div class="sm-h"><div><b>${esc(title)}</b><span>${esc(sub)}</span></div><div class="sm-n ${over ? "over" : ""}">${all ? Math.round(done / all * 100) + "%" : "—"}<span>done</span></div></div>
-    <svg viewBox="0 0 ${W} ${H}" class="ch-svg" role="img" aria-label="${esc(title)} deadlines by month"><line x1="${pl}" x2="${W}" y1="${y(0)}" y2="${y(0)}" class="ch-grid"/>${bars}</svg><div class="sm-cap">${cap}</div></div>`; }
+    <svg viewBox="0 0 ${W} ${H}" class="ch-svg" role="img" aria-label="${esc(title)}: work in progress and under review by month"><line x1="${pl}" x2="${W}" y1="${y(0)}" y2="${y(0)}" class="ch-grid"/>${bars}</svg><div class="sm-cap">${cap}</div></div>`; }
 function deadlineCharts(items, Y){ const defs = [["VAT", "returns by filing deadline", x => x.svc === "VAT", "vat"], ["Accounting", "monthly / annual close", x => x.svc === "Accounting", "mw"], ["Consultation", "monthly / annual", x => x.svc === "Consultancy", "mw"],
     ["Corporate Tax", "returns by due date", x => x.svc === "Corporate Tax", "ct"], ["Audit", "by target date", x => x.svc === "Audit", "audit"], ["Other services", "by due date", x => x.svc === "Other", "other"]];
   const shown = defs.filter(d => items.some(d[2]) || ["VAT", "Accounting", "Corporate Tax", "Audit"].includes(d[0]));
-  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Deadlines by month · ${Y}</h3><div class="right">${chartLegend([["Done", ST_CLR.done], ["Due this month", ST_CLR.pend], ["Overdue", ST_CLR.over], ["Upcoming", ST_CLR.fut]])}</div></div>
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Work in progress vs review · ${Y}</h3><div class="right">${chartLegend([["Work in progress", "var(--vg-due)"], ["Under review", "var(--pur)"], ["Overdue", ST_CLR.over], ["Later months (faded)", "color-mix(in srgb, var(--vg-due) 38%, transparent)"]])}</div></div>
     <div class="sm-grid">${shown.map(([t, sub, f, v]) => svcMonthChart(items.filter(f), Y, t, sub, v)).join("")}</div></div>`; }
 function hbars(rows, maxV){ const max = Math.max(1, maxV || Math.max(...rows.map(r => r.over + r.pend)));
   return rows.map(r => `<div class="hb"><div class="hb-l" title="${esc(r.name)}">${esc(r.name)}</div><div class="hb-t">${r.over ? `<i style="width:${(r.over / max * 100).toFixed(1)}%;background:${ST_CLR.over}" title="${r.over} overdue"></i>` : ""}${r.pend ? `<i style="width:${(r.pend / max * 100).toFixed(1)}%;background:${ST_CLR.pend}" title="${r.pend} pending"></i>` : ""}</div><div class="hb-v">${r.over + r.pend}${r.over ? ` <span class="over">(${r.over}!)</span>` : ""}</div></div>`).join(""); }
