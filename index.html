@@ -548,6 +548,7 @@ table.tbl tr.net td,.fsheet tr.net td.pl{background:color-mix(in srgb,var(--vt-a
 /* pending stages in teal shades (completed = navy): in progress teal, under review dark teal */
 :root{--vg-rev:#00665f}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--vg-rev:#7fe3da}}:root[data-theme="dark"]{--vg-rev:#7fe3da}
 .ch-svg .b-wip{fill:var(--vg-due)!important}.ch-svg .b-rev{fill:var(--vg-rev)!important}.sm-cap .cw i.b-wip{background:var(--vg-due)!important}.sm-cap .cw i.b-rev{background:var(--vg-rev)!important}
+.fin-exp.locked td.num{padding:10px 8px;font-variant-numeric:tabular-nums}
 .lockv{display:inline-block;min-width:110px;text-align:right;padding:6px 9px;font-variant-numeric:tabular-nums;font-weight:600}
 .mexp.locked .lockv{min-width:150px}
 .ms-ch .btn.sm,.card-h .right .btn.sm{margin-left:8px}
@@ -2826,12 +2827,14 @@ async function mtotSave(h, ym, v){ return finQueue(`mtot|${lc(h)}|${ym}`, async 
   if(!fnum(v)){ if(r) await removeRec("cash", r.id); return; }
   await saveRec("cash", r ? r.id : null, Object.assign(r ? {} : { Dir: "Out", Head: h, Ref: MTOT_REF, Date: lastDay(ym), Title: `Total for ${ymLabel(ym)}`, Mode: "", ClientId: "", ClientName: "", Service: "", VAT: "", Notes: "" }, { Amount: r3s(fnum(v)), UpdatedBy: me.email, UpdatedOn: nowISO() })); }); }
 /* Lock: a month that already has figures shows them read-only until "Edit" is pressed */
-state.ff.ul = { mexp: "", chk: "" };
+state.ff.ul = { mexp: "", chk: "", bl: "" };
+const blHas = Y => (data.blines || []).some(b => b.Kind === "Expense" && String(b.Year) === String(Y) && MM.some(m => b["M" + m] !== "" && b["M" + m] != null)) || (String(Y) === FIN.start.slice(0, 4) && openingBal() != null);
 const mexpHas = ym => (data.cash || []).some(x => isMtot(x) && cashYm(x) === ym);
 const chkHas = ym => CASH_ACCTS.some(a => { const r = chkRec(a, ym.slice(0, 4)); const v = r ? r["M" + ym.slice(5)] : ""; return v !== "" && v != null; });
-const finLocked = (kind, ym) => (kind === "mexp" ? mexpHas(ym) : chkHas(ym)) && state.ff.ul[kind] !== ym;
+const finHas = (kind, k) => kind === "mexp" ? mexpHas(k) : kind === "bl" ? blHas(k) : chkHas(k);
+const finLocked = (kind, ym) => finHas(kind, ym) && state.ff.ul[kind] !== ym;
 const lockBtn = (kind, ym) => finLocked(kind, ym) ? `<button class="btn sm" data-act="finUnlock" data-k="${kind}" data-m="${ym}">${I.edit} Edit</button>`
-  : (kind === "mexp" ? mexpHas(ym) : chkHas(ym)) ? `<button class="btn sm pri" data-act="finLock" data-k="${kind}">✓ Done</button>` : "";
+  : finHas(kind, ym) ? `<button class="btn sm pri" data-act="finLock" data-k="${kind}">✓ Done</button>` : "";
 function finMonthExpView(){
   const f = state.ff; let ym = /^\d{4}-\d{2}$/.test(f.cbMonth) ? f.cbMonth : (curYM() < FIN.start ? FIN.start : curYM());
   const S = finSeries(`${ym.slice(0, 4)}-12`)[ym]; const heads = finHeads().filter(h => h !== UNCLASSIFIED || headAmt(S.outA, h));
@@ -2904,14 +2907,14 @@ function finExpView(){
   const Y = state.ff.year; const heads = finHeads().filter(h => h !== UNCLASSIFIED || blRec(h, Y)); const ob = openingRec();
   const prevHas = (data.blines || []).some(b => b.Kind === "Expense" && String(b.Year) === String(+Y - 1));
   const colTot = m => heads.reduce((s, h) => s + fnum((blRec(h, Y) || {})["M" + m]), 0);
-  const isFirst = Y === FIN.start.slice(0, 4);
-  return `<div class="toolbar"><select class="in" data-bind="ff.year" title="Budget year">${finYearOpts(Y)}</select><span class="small muted">Monthly budget per expense head, BHD incl. VAT. Type an amount and press Tab — it saves automatically.</span>
-    <div class="right">${prevHas ? `<button class="btn" data-act="finExpCopy" data-v="${Y}">Copy ${+Y - 1} budget</button>` : ""}<button class="btn" data-act="finHeadAdd">${I.plus} Add expense head</button></div></div>
-  ${isFirst ? `<div class="card"><div class="card-b"><div class="toolbar" style="margin:0"><label class="small"><b>Opening cash & bank balance on 1 ${ymLabel(FIN.start)}</b> (BHD)&nbsp; <input id="fin-ob" class="in fin-cell" style="width:140px" inputmode="decimal" data-fin="ob" value="${esc(ob ? ob.M01 : "")}" placeholder="e.g. 15000"></label><span class="small muted">Used for the closing cash line on the Budget vs Actual report.</span></div></div></div>` : ""}
-  <div class="card"><div class="tw"><table class="tbl fin fin-exp nosort"><thead><tr><th>Expense head</th>${MM.map(m => `<th class="num">${MONTHS[+m - 1]}</th>`).join("")}<th class="num">Total ${Y}</th><th></th></tr></thead><tbody>
+  const isFirst = Y === FIN.start.slice(0, 4); const LK = finLocked("bl", Y);
+  return `<div class="toolbar"><select class="in" data-bind="ff.year" title="Budget year">${finYearOpts(Y)}</select><span class="small muted">${LK ? `🔒 The ${Y} budget is locked. Press <b>Edit</b> to change it.` : `Monthly budget per expense head, BHD. Type an amount and press Tab — it saves automatically. Press <b>Done</b> to lock.`}</span>
+    <div class="right">${LK ? "" : `${prevHas ? `<button class="btn" data-act="finExpCopy" data-v="${Y}">Copy ${+Y - 1} budget</button>` : ""}<button class="btn" data-act="finHeadAdd">${I.plus} Add expense head</button>`}${lockBtn("bl", Y)}</div></div>
+  ${isFirst ? `<div class="card"><div class="card-b"><div class="toolbar" style="margin:0"><label class="small"><b>Opening cash & bank balance on 1 ${ymLabel(FIN.start)}</b> (BHD)&nbsp; ${LK ? `<span class="lockv">${ob && ob.M01 !== "" ? money(fnum(ob.M01)) : "—"}</span>` : `<input id="fin-ob" class="in fin-cell" style="width:140px" inputmode="decimal" data-fin="ob" value="${esc(ob ? ob.M01 : "")}" placeholder="e.g. 15000">`}</label><span class="small muted">Used for the closing cash line on the Budget vs Actual report.</span></div></div></div>` : ""}
+  <div class="card"><div class="tw"><table class="tbl fin fin-exp nosort ${LK ? "locked" : ""}"><thead><tr><th>Expense head</th>${MM.map(m => `<th class="num">${MONTHS[+m - 1]}</th>`).join("")}<th class="num">Total ${Y}</th><th></th></tr></thead><tbody>
   ${heads.map((h, i) => { const r = blRec(h, Y) || {}; const tot = MM.reduce((s, m) => s + fnum(r["M" + m]), 0); const before = m => `${Y}-${m}` < FIN.start;
-    return `<tr><td class="cname nowrap">${esc(h)}</td>${MM.map(m => `<td class="num">${before(m) ? `<span class="faint">·</span>` : `<input id="bl-${i}-${m}" class="in fin-cell" inputmode="decimal" data-fin="bl" data-h="${esc(h)}" data-y="${Y}" data-m="${m}" value="${esc(r["M" + m] || "")}">`}</td>`).join("")}
-      <td class="num" id="blt-${i}"><b>${moneyZ(tot, 0)}</b></td><td class="nowrap"><button class="btn sm ghost" title="Copy the first amount to every later month" data-act="finExpFill" data-h="${esc(h)}" data-y="${Y}">Fill →</button></td></tr>`; }).join("")}
+    return `<tr><td class="cname nowrap">${esc(h)}</td>${MM.map(m => `<td class="num">${before(m) ? `<span class="faint">·</span>` : LK ? (fnum(r["M" + m]) ? money(fnum(r["M" + m]), 0) : `<span class="faint">–</span>`) : `<input id="bl-${i}-${m}" class="in fin-cell" inputmode="decimal" data-fin="bl" data-h="${esc(h)}" data-y="${Y}" data-m="${m}" value="${esc(r["M" + m] || "")}">`}</td>`).join("")}
+      <td class="num" id="blt-${i}"><b>${moneyZ(tot, 0)}</b></td><td class="nowrap">${LK ? "" : `<button class="btn sm ghost" title="Copy the first amount to every later month" data-act="finExpFill" data-h="${esc(h)}" data-y="${Y}">Fill →</button>`}</td></tr>`; }).join("")}
   </tbody><tfoot><tr class="tot"><td>Total outflow budget</td>${MM.map(m => `<td class="num" id="blc-${m}">${moneyZ(colTot(m), 0)}</td>`).join("")}<td class="num" id="blg">${money(MM.reduce((s, m) => s + colTot(m), 0), 0)}</td><td></td></tr></tfoot></table></div>
   <div class="card-b small muted">Expense heads come from <code>config.js</code> (<i>expenseHeads</i>); heads added here or used in the cash book are listed too. Budget months before ${ymLabel(FIN.start)} are not tracked.</div></div>`;
 }
@@ -2941,6 +2944,7 @@ document.addEventListener("change", async e => {
   try {
     if(k === "bl"){ const { h, y, m } = t.dataset; const r = blRec(h, y); if(r && String(r["M" + m] || "") === v) return; await blSave(h, y, { ["M" + m]: v }); finExpRefresh(); }
     if(k === "ob"){ await obSave(v); }
+    if(k === "bl" || k === "ob") state.ff.ul.bl = k === "bl" ? t.dataset.y : FIN.start.slice(0, 4);
     if(k === "mexp" || k === "chk"){ const ym = k === "mexp" ? t.dataset.m : `${t.dataset.y}-${t.dataset.m}`; state.ff.ul[k] = ym; }
     if(k === "mexp"){ const { h, m } = t.dataset; const r = mtotRec(h, m); if((r ? r3s(fnum(r.Amount)) : "") === (fnum(v) ? r3s(fnum(v)) : "")) return; await mtotSave(h, m, v); setTimeout(render, 0); }
     if(k === "chk"){ const { h, y, m } = t.dataset; const r = chkRec(h, y); if(r && String(r["M" + m] || "") === v) return; await chkSave(h, y, { ["M" + m]: v }); setTimeout(render, 0); }
@@ -3144,8 +3148,8 @@ function finExport(){
 const needXlsx = () => { if(window.XLSX) return true; toast("Excel library still loading — try again in a moment", true); return false; };
 
 Object.assign(ACT, {
-  finTab: d => { state.ff.tab = d.v; state.ff.ul = { mexp: "", chk: "" }; render(); window.scrollTo(0, 0); },
-  finUnlock: d => { state.ff.ul[d.k] = d.m; render(); const el = document.querySelector(d.k === "mexp" ? ".mexp-in" : ".fin-cell.chk"); if(el) el.focus(); },
+  finTab: d => { state.ff.tab = d.v; state.ff.ul = { mexp: "", chk: "", bl: "" }; render(); window.scrollTo(0, 0); },
+  finUnlock: d => { state.ff.ul[d.k] = d.m; render(); const el = document.querySelector(d.k === "mexp" ? ".mexp-in" : d.k === "bl" ? ".fin-exp .fin-cell" : ".fin-cell.chk"); if(el) el.focus(); },
   finLock: d => { const el = document.activeElement; if(el && el.blur) el.blur(); setTimeout(() => { state.ff.ul[d.k] = ""; render(); toast("Saved and locked"); }, 50); },
   finCbView: d => { state.ff.cbView = d.v; if(d.v === "exp" && !/^\d{4}-\d{2}$/.test(state.ff.cbMonth)) state.ff.cbMonth = curYM() < FIN.start ? FIN.start : curYM(); render(); },
   finVatClear: () => openModal("confirm", { text: "Mark the company as <b>not VAT registered</b>? VAT is removed from the budget and the reports.", onYes: () => vatRegSave("") }),
@@ -3167,10 +3171,10 @@ Object.assign(ACT, {
   finRcptsFilter: d => { const m = state.modals[state.modals.length - 1]; if(m && m.type === "finRcpts"){ m.props.arOnly = d.v === "1"; renderModals(); } },
   finCashDel: d => { const x = data.cash.find(r => r.id === d.id); if(!x) return; openModal("confirm", { text: `Delete this ${x.Dir === "In" ? "receipt" : "payment"} of <b>BHD ${money(fnum(x.Amount))}</b> dated ${fmtDate(x.Date)}?`, onYes: async () => { await removeRec("cash", x.id); state.modals = state.modals.filter(m => m.type !== "finCash"); await logAct(x.Dir === "In" ? "Receipt deleted" : "Payment deleted", clientById(x.ClientId) || null, `BHD ${money(fnum(x.Amount))} dated ${fmtDate(x.Date)}${x.Ref ? " · " + x.Ref : ""}`); toast("Entry deleted"); } }); },
   finHeadAdd: () => openModal("finHead"),
-  finExpFill: async d => { const r = blRec(d.h, d.y) || {}; const months = MM.filter(m => `${d.y}-${m}` >= FIN.start); const first = months.find(m => fnum(r["M" + m]));
+  finExpFill: async d => { state.ff.ul.bl = String(d.y || d.v); const r = blRec(d.h, d.y) || {}; const months = MM.filter(m => `${d.y}-${m}` >= FIN.start); const first = months.find(m => fnum(r["M" + m]));
     if(!first) return toast("Type the monthly amount in the first month, then use Fill →", true); const v = r["M" + first]; const patch = {}; months.filter(m => m > first).forEach(m => patch["M" + m] = v);
     await blSave(d.h, d.y, patch); render(); toast(`${d.h}: BHD ${money(fnum(v))} filled to Dec`); },
-  finExpCopy: d => { const Y = String(d.v), P = String(+Y - 1); const src = data.blines.filter(b => b.Kind === "Expense" && String(b.Year) === P);
+  finExpCopy: d => { state.ff.ul.bl = String(d.y || d.v); const Y = String(d.v), P = String(+Y - 1); const src = data.blines.filter(b => b.Kind === "Expense" && String(b.Year) === P);
     openModal("confirm", { text: `Copy the ${P} monthly budget of <b>${src.length}</b> expense heads into ${Y}? Months already filled in ${Y} are overwritten.`, onYes: async () => { for(const b of src){ const patch = {}; MM.forEach(m => patch["M" + m] = b["M" + m] || ""); await blSave(b.Head, Y, patch); } toast(`Copied ${src.length} heads into ${Y}`); } }); },
   finImport: d => { state.finImp = null; openModal("finImport", { kind: d.v }); },
   finImpRead: async d => { const f = $("#finFile") && $("#finFile").files[0]; if(!f) return toast("Choose the Excel file first", true); if(!needXlsx()) return;
