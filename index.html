@@ -508,6 +508,8 @@ ul.att{list-style:none;margin:0;padding:6px 0}ul.att li{display:flex;gap:12px;al
 @media (max-width:1180px){.ms-grid{grid-template-columns:1fr}}
 @media (max-width:760px){.ms-bridge{grid-template-columns:1fr 1fr}.ms-op{display:none}.ms-tv{font-size:21px}.ms-hero h2{font-size:28px}.ms-g{display:none}}
 .vat-card.on{border-color:var(--accent)}.vat-card .chip{margin-left:6px}
+.mexp .mexp-in{width:150px!important;font-size:14px;padding:7px 9px!important}
+.mexp td{vertical-align:middle}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
@@ -2485,7 +2487,7 @@ function varCell(b, a, dir){ const v = (a - b) * dir; if(Math.abs(r3(v)) < 0.000
 /* ---------- view ---------- */
 const FIN_TABS = [["summary", "Budget vs Actual"], ["clients", "Inflow by client"], ["cash", "Cash book"], ["fees", "Fee budget"], ["exp", "Expense budget"]];
 const finDefMonth = () => { const m = ymAdd(curYM(), -1); return m < FIN.start ? FIN.start : m; };
-state.ff = { tab: "summary", mode: "sheet", month: finDefMonth(), period: "ytd", cq: "", cbMonth: curYM() < FIN.start ? FIN.start : curYM(), cbDir: "", cbQ: "", cbHead: "", fq: "", fshow: "all", year: String(Math.max(+FIN.start.slice(0, 4), new Date().getFullYear())) };
+state.ff = { tab: "summary", mode: "sheet", month: finDefMonth(), period: "ytd", cq: "", cbView: "exp", cbMonth: curYM() < FIN.start ? FIN.start : curYM(), cbDir: "", cbQ: "", cbHead: "", fq: "", fshow: "all", year: String(Math.max(+FIN.start.slice(0, 4), new Date().getFullYear())) };
 function finMonthOpts(sel, extra){ const last = ymAdd(curYM() < FIN.start ? FIN.start : curYM(), 3); const ms = finYms(FIN.start, last).reverse();
   return (extra || "") + ms.map(m => `<option value="${m}" ${sel === m ? "selected" : ""}>${ymLabel(m)}</option>`).join(""); }
 function finYearOpts(sel){ const ys = []; for(let y = +FIN.start.slice(0, 4); y <= new Date().getFullYear() + 1; y++) ys.push(String(y)); return ys.map(y => `<option ${String(sel) === y ? "selected" : ""}>${y}</option>`).join(""); }
@@ -2717,7 +2719,34 @@ function finCashRows(){
     .sort((a, b) => (b.Date || "").localeCompare(a.Date || "") || (a.Dir === b.Dir ? 0 : a.Dir === "In" ? -1 : 1));
 }
 function cashParty(x){ if(x.Dir === "In"){ const c = clientById(x.ClientId); return c ? esc(c.Title) : x.ClientName ? `<span class="muted">${esc(x.ClientName)}</span>` : `<span class="faint">Not linked</span>`; } return esc(headOf(x)); }
+/* ---------- Monthly expenses: one total per expense head per month, typed in ---------- */
+const MTOT_REF = "MONTHLY-TOTAL";
+const isMtot = x => x.Dir === "Out" && x.Ref === MTOT_REF;
+function mtotRec(h, ym){ return (data.cash || []).find(x => isMtot(x) && cashYm(x) === ym && lc(headOf(x)) === lc(h)); }
+async function mtotSave(h, ym, v){ return finQueue(`mtot|${lc(h)}|${ym}`, async () => { const r = mtotRec(h, ym);
+  if(!fnum(v)){ if(r) await removeRec("cash", r.id); return; }
+  await saveRec("cash", r ? r.id : null, Object.assign(r ? {} : { Dir: "Out", Head: h, Ref: MTOT_REF, Date: lastDay(ym), Title: `Total for ${ymLabel(ym)}`, Mode: "", ClientId: "", ClientName: "", Service: "", VAT: "", Notes: "" }, { Amount: r3s(fnum(v)), UpdatedBy: me.email, UpdatedOn: nowISO() })); }); }
+function finMonthExpView(){
+  const f = state.ff; let ym = /^\d{4}-\d{2}$/.test(f.cbMonth) ? f.cbMonth : (curYM() < FIN.start ? FIN.start : curYM());
+  const S = finSeries(`${ym.slice(0, 4)}-12`)[ym]; const heads = finHeads().filter(h => h !== UNCLASSIFIED || headAmt(S.outA, h));
+  const rows = heads.map((h, i) => { const r = mtotRec(h, ym); const lump = r ? fnum(r.Amount) : 0; const all = headAmt(S.outA, h); const items = r3(all - lump); const b = headAmt(S.outB, h); return { h, i, lump, items, all, b }; });
+  const T = rows.reduce((t, x) => ({ b: t.b + x.b, a: t.a + x.all }), { b: 0, a: 0 }); const tv = T.b - T.a;
+  return `<div class="toolbar"><select class="in" data-bind="ff.cbMonth">${finMonthOpts(ym)}</select>
+    <span class="small muted">Type each head's total for the month and press Tab — it saves straight away.</span>
+    <div class="right"><button class="btn" data-act="finCashAdd" data-v="In">${I.plus} Receipt</button></div></div>
+  <div class="card mexp"><div class="card-h"><h3>Expenses · ${ymLabel(ym)}</h3><div class="right small muted">BHD</div></div>
+  <div class="tw"><table class="tbl nosort"><thead><tr><th>Expense head</th><th class="num">Budget</th><th class="num">Actual for the month</th><th class="num">Variance</th></tr></thead><tbody>
+  ${rows.map(x => { const v = x.b - x.all; return `<tr><td class="cname">${esc(x.h)}</td><td class="num muted">${moneyZ(x.b)}</td>
+    <td class="num"><input id="mexp-${x.i}" class="in fin-cell mexp-in" inputmode="decimal" data-fin="mexp" data-h="${esc(x.h)}" data-m="${ym}" value="${x.lump ? r3(x.lump).toFixed(3) : ""}" placeholder="0.000">${Math.abs(x.items) >= 0.0005 ? `<div class="small faint">+ ${money(x.items)} in individual payments</div>` : ""}</td>
+    <td class="num ${Math.abs(v) < 0.0005 ? "faint" : v > 0 ? "fav" : "adv"}">${Math.abs(v) < 0.0005 ? "–" : (v > 0 ? "" : "(") + money(Math.abs(v)) + (v > 0 ? "" : ")")}</td></tr>`; }).join("")}
+  </tbody><tfoot><tr class="tot"><td>Total expenses</td><td class="num">${money(T.b)}</td><td class="num">${money(T.a)}</td><td class="num ${Math.abs(tv) < 0.0005 ? "" : tv > 0 ? "fav" : "adv"}">${(tv < -0.0005 ? "(" : "") + money(Math.abs(tv)) + (tv < -0.0005 ? ")" : "")}</td></tr></tfoot></table></div>
+  <div class="card-b small muted">Variance in brackets = spent more than budget. To change the list of heads, use <b>Add expense head</b> on the Expense budget tab.</div></div>`;
+}
 function finCashView(){
+  const f = state.ff; const seg = `<div class="seg" style="margin-bottom:14px">${[["exp", "Monthly expenses"], ["list", "All entries"]].map(([k, l]) => `<button class="${(f.cbView || "exp") === k ? "on" : ""}" data-act="finCbView" data-v="${k}">${l}</button>`).join("")}</div>`;
+  return seg + ((f.cbView || "exp") === "exp" ? finMonthExpView() : finCashListView());
+}
+function finCashListView(){
   const f = state.ff; const rows = finCashRows(); const inn = rows.filter(x => x.Dir === "In").reduce((s, x) => s + fnum(x.Amount), 0), out = rows.filter(x => x.Dir === "Out").reduce((s, x) => s + fnum(x.Amount), 0);
   const years = []; for(let y = new Date().getFullYear() + 1; y >= +FIN.start.slice(0, 4); y--) years.push(String(y));
   return `<div class="toolbar">
@@ -2806,7 +2835,8 @@ document.addEventListener("change", async e => {
   try {
     if(k === "bl"){ const { h, y, m } = t.dataset; const r = blRec(h, y); if(r && String(r["M" + m] || "") === v) return; await blSave(h, y, { ["M" + m]: v }); finExpRefresh(); }
     if(k === "ob"){ await obSave(v); }
-    if(k === "chk"){ const { h, y, m } = t.dataset; const r = chkRec(h, y); if(r && String(r["M" + m] || "") === v) return; await chkSave(h, y, { ["M" + m]: v }); render(); }
+    if(k === "mexp"){ const { h, m } = t.dataset; const r = mtotRec(h, m); if((r ? r3s(fnum(r.Amount)) : "") === (fnum(v) ? r3s(fnum(v)) : "")) return; await mtotSave(h, m, v); setTimeout(render, 0); }
+    if(k === "chk"){ const { h, y, m } = t.dataset; const r = chkRec(h, y); if(r && String(r["M" + m] || "") === v) return; await chkSave(h, y, { ["M" + m]: v }); setTimeout(render, 0); }
   } catch(err){ console.error(err); }
 });
 
@@ -3009,12 +3039,13 @@ const needXlsx = () => { if(window.XLSX) return true; toast("Excel library still
 
 Object.assign(ACT, {
   finTab: d => { state.ff.tab = d.v; render(); window.scrollTo(0, 0); },
+  finCbView: d => { state.ff.cbView = d.v; if(d.v === "exp" && !/^\d{4}-\d{2}$/.test(state.ff.cbMonth)) state.ff.cbMonth = curYM() < FIN.start ? FIN.start : curYM(); render(); },
   finVatClear: () => openModal("confirm", { text: "Mark the company as <b>not VAT registered</b>? VAT is removed from the budget and the reports.", onYes: () => vatRegSave("") }),
   finStep: d => { const m = ymAdd(state.ff.month, +d.v); if(m < FIN.start) return; state.ff.month = m; render(); },
   finMode: d => { state.ff.mode = d.v; render(); },
   finPeriod: d => { state.ff.period = d.v; render(); },
   finGoClients: (d, e) => { if(e) e.preventDefault(); state.ff.tab = "clients"; state.ff.period = "month"; if(d.m) state.ff.month = d.m; render(); },
-  finGoHead: (d, e) => { if(e) e.preventDefault(); Object.assign(state.ff, { tab: "cash", cbDir: "Out", cbHead: d.h || "", cbMonth: d.m || state.ff.month, cbQ: "" }); render(); },
+  finGoHead: (d, e) => { if(e) e.preventDefault(); Object.assign(state.ff, { tab: "cash", cbView: "list", cbDir: "Out", cbHead: d.h || "", cbMonth: d.m || state.ff.month, cbQ: "" }); render(); },
   finFees: (d, e) => { if(e) e.preventDefault(); if(!canFin()) return; openModal("finFees", { id: d.id }); },
   finFeeAdd: d => openModal("finFeeForm", { cid: d.c }),
   finFeeEdit: d => openModal("finFeeForm", { id: d.id }),
