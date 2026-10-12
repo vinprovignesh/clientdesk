@@ -26,26 +26,7 @@ window.VINPRO_CONFIG = {
   // VAT periods ending before this month are not tracked (avoids old "overdue" noise). Format YYYY-MM
   vatTrackingStart: "2026-01",
 
-  // Monthly Work (Accounting & Consultancy): first month tracked, and the day of the
-  // following month by which a month's accounting should be closed
-  monthlyTrackingStart: "2026-09",
-  accountingDueDay: 15,
-  // For clients on an annual accounting engagement: months after financial year end
-  annualAccountingDueMonths: 3,
-
-  // Budget vs Actual (Vinpro Global Services WLL, Bahrain) — cash basis, BHD; VAT only once registered
-  budgetStart: "2026-01",          // first month tracked, YYYY-MM
-  vatRate: 0.10,                   // Bahrain VAT added to fee budgets and worked out on receipts
-  vatRegisteredFrom: "",           // "" = not VAT registered. Normally set in the app (Fee budget tab); this is only the default
-  financeAccess: ["Admin"],        // roles that can open it; add "Manager" to share with managers
-  invoiceAt: "end",                // invoices taken as raised at the "end" (or "start") of each billing month
-  defaultTerms: "0",               // due date for fee lines without one: "0" (immediate), "30", "45", "60" or "90"
-  expenseHeads: [                  // cash outflow heads, in report order
-    "Rent, EWA and LMRA", "Salary, Visa & Ticket", "Bahrain Exps - SG", "Car Rental", "Office Exps",
-    "Reimbursement - Fees", "Accommodation", "Travel / Referral Fee", "Vinpro Dubai", "Vinpro Chennai",
-    "Vignesh Chennai", "VAT paid to NBR"
-  ],
-  cashAccounts: [                  // "Check" block: month-end balances keyed in, should total the closing balance
-    "Cash", "Petty Cash", "Beyon", "Ila Bank", "SBI Bank", "Flexi Deposit", "BBK Bank"
-  ]
+  // Accounting & Consultancy: first month tracked. Work is due on the last day of the
+  // following month (annual engagements: last day of the month after year end).
+  monthlyTrackingStart: "2026-09"
 };

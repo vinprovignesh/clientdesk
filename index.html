@@ -748,8 +748,8 @@ function freqText(c, svc){ const h = freqHist(c, svc); if(!h.length) return "Mon
   return h.map((e, i) => `${e.freq}${e.from ? " from " + ymLabel(e.from) : (i ? "" : " (from start)")}`).join(" → "); }
 function fyEndMM(c){ return (c.FYEnd || "12-31").slice(0, 2); }
 function fyLabelOf(c, ym){ return `FY ending ${fyEndLabel(c.FYEnd || "12-31")} ${ym.slice(0, 4)}`; }
-function mwDefaultDue(svc, ym, freq){ if(freq === "Annually") return svc === "Accounting" ? lastDay(ymAdd(ym, ANNUAL_ACCT_MONTHS)) : lastDay(ym);
-  return svc === "Accounting" ? `${ymAdd(ym, 1)}-${pad(Math.min(ACCT_DUE_DAY, 28))}` : lastDay(ym); }
+/* accounting & consultancy (monthly or annual): due on the last day of the following month */
+function mwDefaultDue(svc, ym, freq){ return lastDay(ymAdd(ym, 1)); }
 function mwRec(cid, svc, ym, freq){ freq = freq || "Monthly"; return data.mw.find(x => x.ClientId === cid && x.Service === svc && x.Month === ym && (x.Freq || "Monthly") === freq); }
 function mwStatus(cid, svc, ym, freq){ const r = mwRec(cid, svc, ym, freq); return (r && r.Status) || "Not started"; }
 function mwDue(c, svc, ym, freq){ const r = mwRec(c.id, svc, ym, freq); return (r && r.DueDate) || mwDefaultDue(svc, ym, freq); }
@@ -833,7 +833,7 @@ function render(){
   if(!me.role){ app.innerHTML = noAccessScreen(); return; }
   const ae = document.activeElement; const fid = ae && ae.id && app.contains(ae) ? ae.id : null; const pos = fid && ae.selectionStart;
   const locName = state.loc || "Bahrain & UAE";
-  const sub = { dashboard: (isMgr() ? "All clients" : "Your assigned clients") + " · " + locName, mw: `Monthly or annual per client · monthly accounting due day ${ACCT_DUE_DAY} of the next month · annual accounting ${ANNUAL_ACCT_MONTHS} months after year end`, ct: "Corporate tax returns by financial year · UAE (FTA): 9 months after year end · Bahrain (DMTT): 15 months", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
+  const sub = { dashboard: (isMgr() ? "All clients" : "Your assigned clients") + " · " + locName, mw: `Monthly or annual per client · due on the last day of the following month (annual: month after year end)`, ct: "Corporate tax returns by financial year · UAE (FTA): 9 months after year end · Bahrain (DMTT): 15 months", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
     vat: "Due date: Bahrain (NBR) last day of the following month · UAE (FTA) 28th of the following month", audit: "Statutory audit progress by financial year", other: "Work listed under Others on each client — owner, due date, follow-ups and work log",
     team: "Employees, roles and client assignments", activity: "Every change and every password view is recorded", admin: "Import the client master, export, and SharePoint setup" }[state.view];
   app.innerHTML = `
@@ -1333,7 +1333,7 @@ function mwAnnualView(base){
     .map(x => ({ ...x, freq: "Annually", rec: mwRec(x.c.id, f.svc, x.ym, "Annually"), st: mwStatus(x.c.id, f.svc, x.ym, "Annually"), due: mwDue(x.c, f.svc, x.ym, "Annually") }));
   const total = rows.length, done = rows.filter(r => MW_DONE.has(r.st)).length; rows = mwFilterShow(rows).sort((a, b) => a.due.localeCompare(b.due));
   const pct = total ? Math.round(done / total * 100) : 0;
-  return `<div class="card"><div class="card-b"><div class="progress-row"><div><b>${esc(f.svc)} · annual clients · financial years ending in ${esc(fy)}</b><div class="small muted">One engagement per financial year · default due ${f.svc === "Accounting" ? `${ANNUAL_ACCT_MONTHS} months after year end` : "at year end"}</div></div>
+  return `<div class="card"><div class="card-b"><div class="progress-row"><div><b>${esc(f.svc)} · annual clients · financial years ending in ${esc(fy)}</b><div class="small muted">One engagement per financial year · default due on the last day of the month after year end</div></div>
     <div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} completed (${pct}%)</span></div></div></div>
   ${total ? mwTable(rows, f.svc, true) : `<div class="empty">No clients on an <b>annual</b> ${esc(f.svc)} frequency for financial years ending in ${esc(fy)}${fy + "-12" < MW_START ? ` (tracking starts ${ymLabel(MW_START)})` : ""}.</div>`}</div>${f.show === "done" ? "" : mwCarriedCard(mwCarried(base, f.svc, `${fy}-01`).filter(r => r.freq === "Annually"), f.svc, `of financial years ending before ${fy}`)}`;
 }
@@ -1650,7 +1650,7 @@ MODALS.mwForm = ({ cid, svc, ym, freq }) => {
     <label class="full">Status<select class="in" name="Status">${opt(MW_STATUSES, r.Status || "Not started")}</select></label>
     <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || (teamOf(c).includes(lc(me.email)) ? me.email : teamOf(c)[0]))}</select></label>
     <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || c.Reviewer)}</select></label>
-    <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate || mwDefaultDue(svc, ym, freq))}"><span class="hint">Default: ${freq === "Annually" ? (svc === "Accounting" ? `${ANNUAL_ACCT_MONTHS} months after year end` : "year end") : (svc === "Accounting" ? `day ${ACCT_DUE_DAY} of the following month` : "last day of the month")}</span></label>
+    <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate || mwDefaultDue(svc, ym, freq))}"><span class="hint">Default: ${freq === "Annually" ? "last day of the month after year end" : "last day of the following month"}</span></label>
     <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
     ${svc === "Consultancy" ? `<label>Hours spent<input class="in" name="Hours" value="${esc(r.Hours)}" inputmode="decimal" placeholder="e.g. 6.5"></label>` : ""}
     ${wlBlock(r, svc === "Accounting" ? "Add a note — e.g. bank rec done, awaiting sales invoices" : "Add a note — e.g. meeting held, report drafted")}
