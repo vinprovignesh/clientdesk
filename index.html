@@ -548,6 +548,9 @@ table.tbl tr.net td,.fsheet tr.net td.pl{background:color-mix(in srgb,var(--vt-a
 /* pending stages in teal shades (completed = navy): in progress teal, under review dark teal */
 :root{--vg-rev:#00665f}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--vg-rev:#7fe3da}}:root[data-theme="dark"]{--vg-rev:#7fe3da}
 .ch-svg .b-wip{fill:var(--vg-due)!important}.ch-svg .b-rev{fill:var(--vg-rev)!important}.sm-cap .cw i.b-wip{background:var(--vg-due)!important}.sm-cap .cw i.b-rev{background:var(--vg-rev)!important}
+.lockv{display:inline-block;min-width:110px;text-align:right;padding:6px 9px;font-variant-numeric:tabular-nums;font-weight:600}
+.mexp.locked .lockv{min-width:150px}
+.ms-ch .btn.sm,.card-h .right .btn.sm{margin-left:8px}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
@@ -2667,8 +2670,9 @@ function finSheetGrid(Y, ym){
     : diff == null ? `<div class="ms-recon none"><b>Awaiting balances</b><span>Key in the month-end balance for each account.</span></div>`
     : Math.abs(diff) < 0.0005 ? `<div class="ms-recon ok"><b>✓ Reconciled</b><span>Cash &amp; bank agree with the closing balance.</span></div>`
     : `<div class="ms-recon bad"><b>Difference ${money(diff)}</b><span>Cash &amp; bank are ${diff > 0 ? "higher" : "lower"} than the closing balance — check for unrecorded ${diff > 0 ? "receipts" : "payments"}.</span></div>`;
+  const chkLk = hasAct && finLocked("chk", ym);
   const accts = CASH_ACCTS.map((a, i) => { const x = hasAct ? chkVal(a, ym) : null; const own = x && x.keyed;
-    return `<div class="ms-acct"><label for="chk-${i}-${ym}">${esc(a)}</label>${hasAct ? `<input id="chk-${i}-${ym}" class="in fin-cell chk" inputmode="decimal" data-fin="chk" data-h="${esc(a)}" data-y="${ym.slice(0, 4)}" data-m="${ym.slice(5)}" value="${own ? r3(x.v).toFixed(3) : ""}" placeholder="${x && !own ? esc(money(x.v)) : "0.000"}" title="${x && !own ? "Carried forward from an earlier month — type to change" : ""}">` : `<span class="faint">—</span>`}</div>`; }).join("");
+    return `<div class="ms-acct"><label for="chk-${i}-${ym}">${esc(a)}</label>${chkLk ? `<span class="lockv ${own ? "" : "faint"}" title="${x && !own ? "Carried forward" : ""}">${x ? money(x.v) : "—"}</span>` : hasAct ? `<input id="chk-${i}-${ym}" class="in fin-cell chk" inputmode="decimal" data-fin="chk" data-h="${esc(a)}" data-y="${ym.slice(0, 4)}" data-m="${ym.slice(5)}" value="${own ? r3(x.v).toFixed(3) : ""}" placeholder="${x && !own ? esc(money(x.v)) : "0.000"}" title="${x && !own ? "Carried forward from an earlier month — type to change" : ""}">` : `<span class="faint">—</span>`}</div>`; }).join("");
 
   const inP = pct(A(s.inA), s.inB), outP = pct(A(s.outAt), s.outBt);
   const gauge = (label, p, good, near) => `<div class="ms-gauge"><div class="ms-gh"><span>${label}</span><b>${p == null ? "—" : Math.round(p) + "%"}</b></div><div class="ms-bar big"><i class="${p == null ? "" : good ? "ok" : near ? "warn" : "bad"}" style="width:${p == null ? 0 : Math.min(100, p)}%"></i></div></div>`;
@@ -2685,7 +2689,7 @@ function finSheetGrid(Y, ym){
         ${row("Opening balance", o.ob, A(o.oa), 1, "", true)}${row("Add: total income", s.inB, A(s.inA), 1)}${row("Less: total expenses", s.outBt, A(s.outAt), -1)}${row("<b>Closing balance</b>", o.cb, A(o.ca), 1, "tot net")}</tbody></table></div></div>
     </div>
     <aside class="ms-side">
-      <div class="card ms-card"><div class="ms-ch chk"><h3>Cash &amp; bank check</h3><span class="muted small">Balances on ${hasAct ? fmtDate(lastDay(ym)) : "month end"}</span></div>
+      <div class="card ms-card"><div class="ms-ch chk"><h3>Cash &amp; bank check</h3><span class="muted small">${chkLk ? "🔒 " : ""}Balances on ${hasAct ? fmtDate(lastDay(ym)) : "month end"}</span>${hasAct ? `<span style="margin-left:auto">${lockBtn("chk", ym)}</span>` : ""}</div>
         <div class="card-b">${recon}<div class="ms-accts">${accts}</div>
         <div class="ms-ctot"><span>Total cash &amp; bank</span><b>${chk == null ? "—" : money(chk)}</b></div>
         <div class="ms-ctot"><span>Closing balance (actual)</span><b>${hasAct ? money(o.ca) : "—"}</b></div>
@@ -2821,18 +2825,25 @@ function mtotRec(h, ym){ return (data.cash || []).find(x => isMtot(x) && cashYm(
 async function mtotSave(h, ym, v){ return finQueue(`mtot|${lc(h)}|${ym}`, async () => { const r = mtotRec(h, ym);
   if(!fnum(v)){ if(r) await removeRec("cash", r.id); return; }
   await saveRec("cash", r ? r.id : null, Object.assign(r ? {} : { Dir: "Out", Head: h, Ref: MTOT_REF, Date: lastDay(ym), Title: `Total for ${ymLabel(ym)}`, Mode: "", ClientId: "", ClientName: "", Service: "", VAT: "", Notes: "" }, { Amount: r3s(fnum(v)), UpdatedBy: me.email, UpdatedOn: nowISO() })); }); }
+/* Lock: a month that already has figures shows them read-only until "Edit" is pressed */
+state.ff.ul = { mexp: "", chk: "" };
+const mexpHas = ym => (data.cash || []).some(x => isMtot(x) && cashYm(x) === ym);
+const chkHas = ym => CASH_ACCTS.some(a => { const r = chkRec(a, ym.slice(0, 4)); const v = r ? r["M" + ym.slice(5)] : ""; return v !== "" && v != null; });
+const finLocked = (kind, ym) => (kind === "mexp" ? mexpHas(ym) : chkHas(ym)) && state.ff.ul[kind] !== ym;
+const lockBtn = (kind, ym) => finLocked(kind, ym) ? `<button class="btn sm" data-act="finUnlock" data-k="${kind}" data-m="${ym}">${I.edit} Edit</button>`
+  : (kind === "mexp" ? mexpHas(ym) : chkHas(ym)) ? `<button class="btn sm pri" data-act="finLock" data-k="${kind}">✓ Done</button>` : "";
 function finMonthExpView(){
   const f = state.ff; let ym = /^\d{4}-\d{2}$/.test(f.cbMonth) ? f.cbMonth : (curYM() < FIN.start ? FIN.start : curYM());
   const S = finSeries(`${ym.slice(0, 4)}-12`)[ym]; const heads = finHeads().filter(h => h !== UNCLASSIFIED || headAmt(S.outA, h));
   const rows = heads.map((h, i) => { const r = mtotRec(h, ym); const lump = r ? fnum(r.Amount) : 0; const all = headAmt(S.outA, h); const items = r3(all - lump); const b = headAmt(S.outB, h); return { h, i, lump, items, all, b }; });
   const T = rows.reduce((t, x) => ({ b: t.b + x.b, a: t.a + x.all }), { b: 0, a: 0 }); const tv = T.b - T.a;
   return `<div class="toolbar"><select class="in" data-bind="ff.cbMonth">${finMonthOpts(ym)}</select>
-    <span class="small muted">Type each head's total for the month and press Tab — it saves straight away.</span>
+    <span class="small muted">${finLocked("mexp", ym) ? "This month is locked. Press <b>Edit</b> to change it." : "Type each head's total for the month and press Tab — it saves straight away. Press <b>Done</b> to lock the month."}</span>
     <div class="right"><button class="btn" data-act="finCashAdd" data-v="In">${I.plus} Receipt</button></div></div>
-  <div class="card mexp"><div class="card-h"><h3>Expenses · ${ymLabel(ym)}</h3><div class="right small muted">BHD</div></div>
+  <div class="card mexp ${finLocked("mexp", ym) ? "locked" : ""}"><div class="card-h"><h3>Expenses · ${ymLabel(ym)}</h3><div class="right"><span class="small muted">${finLocked("mexp", ym) ? "🔒 Locked · " : ""}BHD</span>${lockBtn("mexp", ym)}</div></div>
   <div class="tw"><table class="tbl nosort"><thead><tr><th>Expense head</th><th class="num">Budget</th><th class="num">Actual for the month</th><th class="num">Variance</th></tr></thead><tbody>
   ${rows.map(x => { const v = x.b - x.all; return `<tr><td class="cname">${esc(x.h)}</td><td class="num muted">${moneyZ(x.b)}</td>
-    <td class="num"><input id="mexp-${x.i}" class="in fin-cell mexp-in" inputmode="decimal" data-fin="mexp" data-h="${esc(x.h)}" data-m="${ym}" value="${x.lump ? r3(x.lump).toFixed(3) : ""}" placeholder="0.000">${Math.abs(x.items) >= 0.0005 ? `<div class="small faint">+ ${money(x.items)} in individual payments</div>` : ""}</td>
+    <td class="num">${finLocked("mexp", ym) ? `<span class="lockv">${x.lump ? money(x.lump) : `<span class="faint">—</span>`}</span>` : `<input id="mexp-${x.i}" class="in fin-cell mexp-in" inputmode="decimal" data-fin="mexp" data-h="${esc(x.h)}" data-m="${ym}" value="${x.lump ? r3(x.lump).toFixed(3) : ""}" placeholder="0.000">`}${Math.abs(x.items) >= 0.0005 ? `<div class="small faint">+ ${money(x.items)} in individual payments</div>` : ""}</td>
     <td class="num ${Math.abs(v) < 0.0005 ? "faint" : v > 0 ? "fav" : "adv"}">${Math.abs(v) < 0.0005 ? "–" : (v > 0 ? "" : "(") + money(Math.abs(v)) + (v > 0 ? "" : ")")}</td></tr>`; }).join("")}
   </tbody><tfoot><tr class="tot"><td>Total expenses</td><td class="num">${money(T.b)}</td><td class="num">${money(T.a)}</td><td class="num ${Math.abs(tv) < 0.0005 ? "" : tv > 0 ? "fav" : "adv"}">${(tv < -0.0005 ? "(" : "") + money(Math.abs(tv)) + (tv < -0.0005 ? ")" : "")}</td></tr></tfoot></table></div>
   <div class="card-b small muted">Variance in brackets = spent more than budget. To change the list of heads, use <b>Add expense head</b> on the Expense budget tab.</div></div>`;
@@ -2930,6 +2941,7 @@ document.addEventListener("change", async e => {
   try {
     if(k === "bl"){ const { h, y, m } = t.dataset; const r = blRec(h, y); if(r && String(r["M" + m] || "") === v) return; await blSave(h, y, { ["M" + m]: v }); finExpRefresh(); }
     if(k === "ob"){ await obSave(v); }
+    if(k === "mexp" || k === "chk"){ const ym = k === "mexp" ? t.dataset.m : `${t.dataset.y}-${t.dataset.m}`; state.ff.ul[k] = ym; }
     if(k === "mexp"){ const { h, m } = t.dataset; const r = mtotRec(h, m); if((r ? r3s(fnum(r.Amount)) : "") === (fnum(v) ? r3s(fnum(v)) : "")) return; await mtotSave(h, m, v); setTimeout(render, 0); }
     if(k === "chk"){ const { h, y, m } = t.dataset; const r = chkRec(h, y); if(r && String(r["M" + m] || "") === v) return; await chkSave(h, y, { ["M" + m]: v }); setTimeout(render, 0); }
   } catch(err){ console.error(err); }
@@ -3132,10 +3144,12 @@ function finExport(){
 const needXlsx = () => { if(window.XLSX) return true; toast("Excel library still loading — try again in a moment", true); return false; };
 
 Object.assign(ACT, {
-  finTab: d => { state.ff.tab = d.v; render(); window.scrollTo(0, 0); },
+  finTab: d => { state.ff.tab = d.v; state.ff.ul = { mexp: "", chk: "" }; render(); window.scrollTo(0, 0); },
+  finUnlock: d => { state.ff.ul[d.k] = d.m; render(); const el = document.querySelector(d.k === "mexp" ? ".mexp-in" : ".fin-cell.chk"); if(el) el.focus(); },
+  finLock: d => { const el = document.activeElement; if(el && el.blur) el.blur(); setTimeout(() => { state.ff.ul[d.k] = ""; render(); toast("Saved and locked"); }, 50); },
   finCbView: d => { state.ff.cbView = d.v; if(d.v === "exp" && !/^\d{4}-\d{2}$/.test(state.ff.cbMonth)) state.ff.cbMonth = curYM() < FIN.start ? FIN.start : curYM(); render(); },
   finVatClear: () => openModal("confirm", { text: "Mark the company as <b>not VAT registered</b>? VAT is removed from the budget and the reports.", onYes: () => vatRegSave("") }),
-  finStep: d => { const m = ymAdd(state.ff.month, +d.v); if(m < FIN.start) return; state.ff.month = m; render(); },
+  finStep: d => { const m = ymAdd(state.ff.month, +d.v); if(m < FIN.start) return; state.ff.month = m; state.ff.ul.chk = ""; render(); },
   finMode: d => { state.ff.mode = d.v; render(); },
   finPeriod: d => { state.ff.period = d.v; render(); },
   finGoClients: (d, e) => { if(e) e.preventDefault(); state.ff.tab = "clients"; state.ff.period = "month"; if(d.m) state.ff.month = d.m; render(); },
