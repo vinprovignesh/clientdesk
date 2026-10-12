@@ -542,7 +542,7 @@ const SCHEMA = {
   mw:        { list: "MonthlyWork", fields: { Title:"text", ClientId:"text", Service:"text", Freq:"text", Month:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", CompletedDate:"text", Hours:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   ct:        { list: "CorporateTax", fields: { Title:"text", ClientId:"text", FY:"text", Status:"text", Preparer:"text", Reviewer:"text", DueDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   other:     { list: "OtherWork", fields: { Title:"text", ClientId:"text", Service:"text", Year:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", FollowUp:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  fees:      { list: "FeeBudget", fields: { Title:"text", ClientId:"text", Service:"text", Amount:"text", Freq:"text", StartMonth:"text", EndMonth:"text", Timing:"text", VAT:"text", Terms:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  fees:      { list: "FeeBudget", fields: { Title:"text", ClientId:"text", Service:"text", Amount:"text", Freq:"text", StartMonth:"text", EndMonth:"text", Timing:"text", VAT:"text", Terms:"text", Party:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   blines:    { list: "BudgetLines", fields: { Title:"text", Kind:"text", Head:"text", Year:"text", M01:"text", M02:"text", M03:"text", M04:"text", M05:"text", M06:"text", M07:"text", M08:"text", M09:"text", M10:"text", M11:"text", M12:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   cash:      { list: "CashBook", fields: { Title:"text", Date:"text", Dir:"text", ClientId:"text", ClientName:"text", Service:"text", Head:"text", Amount:"text", VAT:"text", Mode:"text", Ref:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   activity:  { list: "ActivityLog", fields: { Title:"text", ClientId:"text", ClientName:"text", UserEmail:"text", UserName:"text", Details:"note", At:"text" } }
@@ -2451,10 +2451,10 @@ function finSeries(to){
   const from = FIN.start; const S = {};
   for(const ym of finYms(from, to)) S[ym] = { inB: 0, inBv: 0, inA: 0, inAv: 0, outB: {}, outA: {}, outBt: 0, outAt: 0, byC: {} };
   const cl = new Map(finClients().map(c => [c.id, c]));
-  for(const f of data.fees || []){ const c = cl.get(f.ClientId); if(!c) continue; const sc = feeSchedV(f, c, from, to);
-    for(const ym in sc){ const s = S[ym]; const net = sc[ym].n; const v = sc[ym].v; s.inB += net + v; s.inBv += v; const bc = s.byC[c.id] || (s.byC[c.id] = { b: 0, a: 0 }); bc.b += net + v; } }
+  for(const f of data.fees || []){ const c = cl.get(f.ClientId); const key = c ? c.id : isPartyAR(f) ? pkey(f.Party) : null; if(!key) continue; const sc = feeSchedV(f, c || null, from, to);
+    for(const ym in sc){ const s = S[ym]; const net = sc[ym].n; const v = sc[ym].v; s.inB += net + v; s.inBv += v; const bc = s.byC[key] || (s.byC[key] = { b: 0, a: 0 }); bc.b += net + v; } }
   for(const x of data.cash || []){ const s = S[cashYm(x)]; if(!s) continue; const a = fnum(x.Amount);
-    if(x.Dir === "In"){ s.inA += a; s.inAv += vatOn(cashYm(x)) ? fnum(x.VAT) : 0; const k = x.ClientId || "_none"; const bc = s.byC[k] || (s.byC[k] = { b: 0, a: 0 }); bc.a += a; }
+    if(x.Dir === "In"){ s.inA += a; s.inAv += vatOn(cashYm(x)) ? fnum(x.VAT) : 0; const k = x.ClientId || (String(x.ClientName || "").trim() ? pkey(x.ClientName) : "_none"); const bc = s.byC[k] || (s.byC[k] = { b: 0, a: 0 }); bc.a += a; }
     else { const h = headOf(x); s.outA[h] = (s.outA[h] || 0) + a; s.outAt += a; } }
   for(const b of data.blines || []){ if(b.Kind !== "Expense") continue;
     MM.forEach(m => { const s = S[`${b.Year}-${m}`]; const v = fnum(b["M" + m]); if(!s || !v) return; s.outB[b.Head] = (s.outB[b.Head] || 0) + v; s.outBt += v; }); }
@@ -2537,6 +2537,16 @@ const AR_SVC = "Opening AR";
 const isAR = f => lc(f && f.Service) === lc(AR_SVC);
 function arOf(cid){ return feesOf(cid).filter(isAR).reduce((s, f) => s + fnum(f.Amount), 0); }
 function arCollected(cid){ return (data.cash || []).filter(x => x.Dir === "In" && x.ClientId === cid && lc(x.Service) === lc(AR_SVC)).reduce((s, x) => s + fnum(x.Amount), 0); }
+/* Opening AR from parties that are not (yet) in the client list: fee lines with no ClientId and a Party name.
+   Receipts with the same "Received from" name are set off against them. */
+const pkey = n => "p:" + lc(n).replace(/\s+/g, " ");
+const isPartyAR = f => !f.ClientId && isAR(f) && !!String(f.Party || "").trim();
+function partyAR(){ const m = new Map();
+  for(const f of data.fees || []){ if(!isPartyAR(f)) continue; const k = pkey(f.Party); const x = m.get(k) || { key: k, name: f.Party.trim(), lines: [], ar: 0, coll: 0 }; x.lines.push(f); x.ar += fnum(f.Amount); m.set(k, x); }
+  for(const x of m.values()) x.coll = (data.cash || []).filter(c => c.Dir === "In" && !c.ClientId && String(c.ClientName || "").trim() && pkey(c.ClientName) === x.key).reduce((t, c) => t + fnum(c.Amount), 0);
+  return [...m.values()].sort((a, b) => a.name.localeCompare(b.name)); }
+function partyName(k){ const f = (data.fees || []).find(x => isPartyAR(x) && pkey(x.Party) === k); if(f) return f.Party.trim(); const c = (data.cash || []).find(x => !x.ClientId && x.ClientName && pkey(x.ClientName) === k); return c ? c.ClientName.trim() : k.slice(2); }
+function arOutstandingAll(){ return finClients().reduce((t, c) => t + arOf(c.id) - arCollected(c.id), 0) + partyAR().reduce((t, x) => t + x.ar - x.coll, 0); }
 function chkRec(acct, year){ return (data.blines || []).find(b => b.Kind === "Check" && lc(b.Head) === lc(acct) && String(b.Year) === String(year)); }
 /* keyed balance for the month, or the last keyed balance carried forward (as in "=previous month") */
 function chkVal(acct, ym){ for(let m = ym; m >= FIN.start; m = ymAdd(m, -1)){ const r = chkRec(acct, m.slice(0, 4)); const v = r ? r["M" + m.slice(5)] : ""; if(v !== "" && v != null) return { v: fnum(v), keyed: m === ym }; } return null; }
@@ -2555,8 +2565,10 @@ function finSheetModel(Y){
 function finIncomeRows(S, yms){
   const ids = new Set(); for(const ym of yms) for(const k in S[ym].byC){ const x = S[ym].byC[k]; if(Math.abs(x.b) > 0.0005 || Math.abs(x.a) > 0.0005) ids.add(k); }
   const cl = finClients().filter(c => ids.has(c.id)).sort((a, b) => a.Title.localeCompare(b.Title));
-  const other = [...ids].filter(k => !cl.some(c => c.id === k));
+  const parties = [...ids].filter(k => k.startsWith("p:")).sort((a, b) => partyName(a).localeCompare(partyName(b)));
+  const other = [...ids].filter(k => !k.startsWith("p:") && !cl.some(c => c.id === k));
   const rows = cl.map(c => ({ label: c.Title, cid: c.id, get: (ym, k) => ((S[ym].byC[c.id] || {})[k] || 0) }));
+  parties.forEach(pk => rows.push({ label: partyName(pk), party: pk, get: (ym, k) => ((S[ym].byC[pk] || {})[k] || 0) }));
   if(other.length) rows.push({ label: "Other receipts (not linked to a client)", get: (ym, k) => other.reduce((s, id) => s + ((S[ym].byC[id] || {})[k] || 0), 0) });
   return rows;
 }
@@ -2577,7 +2589,7 @@ function finSheetGrid(Y, ym){
 
   /* income: clients with budget or actual this month */
   const inc = finIncomeRows(S, [ym]); const idle = finClients().filter(c => !isDeact(c)).length - inc.filter(r => r.cid).length;
-  const incRows = inc.sort((p, q) => (q.get(ym, "b") + q.get(ym, "a")) - (p.get(ym, "b") + p.get(ym, "a"))).map(r => row(r.cid ? `<a href="#" data-act="finFees" data-id="${r.cid}">${esc(r.label)}</a>${arOf(r.cid) && (feesOf(r.cid).some(f => isAR(f) && f.StartMonth === ym)) ? ` <span class="ms-tag">AR</span>` : ""}` : `<span class="muted">${esc(r.label)}</span>`, r.get(ym, "b"), A(r.get(ym, "a")), 1)).join("");
+  const incRows = inc.sort((p, q) => (q.get(ym, "b") + q.get(ym, "a")) - (p.get(ym, "b") + p.get(ym, "a"))).map(r => row(r.cid ? `<a href="#" data-act="finFees" data-id="${r.cid}">${esc(r.label)}</a>${arOf(r.cid) && (feesOf(r.cid).some(f => isAR(f) && f.StartMonth === ym)) ? ` <span class="ms-tag">AR</span>` : ""}` : r.party ? `${esc(r.label)} <span class="ms-tag" title="Not in the client list">Opening AR · not a client</span>` : `<span class="muted">${esc(r.label)}</span>`, r.get(ym, "b"), A(r.get(ym, "a")), 1)).join("");
   const heads = finHeads().filter(h => h !== UNCLASSIFIED || headAmt(s.outA, h));
   const expRows = heads.map(h => { const b = headAmt(s.outB, h), a = headAmt(s.outA, h); return (!b && !a) ? "" : row(`<a href="#" data-act="finGoHead" data-h="${esc(h)}" data-m="${ym}">${esc(h)}</a>`, b, A(a), -1); }).join("");
   const emptyHeads = heads.filter(h => !headAmt(s.outB, h) && !headAmt(s.outA, h)).length;
@@ -2624,28 +2636,34 @@ function finSheetGrid(Y, ym){
         ${gauge("Collections vs budget", inP, inP != null && inP >= 100, inP != null && inP >= 90)}${gauge("Spend vs budget", outP, outP != null && outP <= 100)}
         <div class="ms-kv"><span>Net cash flow</span><b class="${hasAct ? (s.inA - s.outAt >= 0 ? "fav" : "adv") : ""}">${hasAct ? money(s.inA - s.outAt) : "—"}</b></div>
         <div class="ms-kv"><span>Budgeted net cash flow</span><b>${money(s.inB - s.outBt)}</b></div>
-        <div class="ms-kv"><span>Opening AR outstanding (all clients)</span><b>${money(finClients().reduce((t, c) => t + arOf(c.id) - arCollected(c.id), 0))}</b></div>
+        <div class="ms-kv"><span>Opening AR outstanding</span><b>${money(arOutstandingAll())}</b></div>
       </div></div>
     </aside>
   </div>`;
 }
 
 /* ---------- opening receivables ---------- */
-MODALS.finArForm = ({ id, cid }) => {
-  const f = id ? (data.fees.find(x => x.id === id) || {}) : {}; const c = clientById(f.ClientId || cid); if(!c) return "";
-  return `<form class="modal" style="max-width:520px" data-form="finAr" data-id="${id || ""}" data-c="${c.id}">${mHead(`Opening receivable — ${esc(c.Title)}`)}<div class="mb"><div class="form">
-    <label>Amount due on 1 ${ymLabel(FIN.start)} (BHD, incl. VAT)<input class="in" name="Amount" inputmode="decimal" required value="${esc(f.Amount || "")}" placeholder="as per debtors ledger"></label>
+MODALS.finArForm = ({ id, cid, party }) => {
+  const f = id ? (data.fees.find(x => x.id === id) || {}) : {}; const selC = f.ClientId || cid || ""; const c = clientById(selC);
+  const isP = id ? !f.ClientId : !!party || !cid; const names = [...new Set([...partyAR().map(x => x.name), ...(data.cash || []).filter(x => x.Dir === "In" && !x.ClientId && x.ClientName).map(x => x.ClientName.trim())])].sort();
+  const cl = finClients().sort((a, b) => a.Title.localeCompare(b.Title));
+  return `<form class="modal" style="max-width:560px" data-form="finAr" data-id="${id || ""}">${mHead(`Opening receivable${c && !isP ? " — " + esc(c.Title) : ""}`)}<div class="mb"><div class="form">
+    <label class="full">Owed by<select class="in" name="ClientId" data-act="finArWho"><option value="" ${isP ? "selected" : ""}>— Not in the client list (one-off) —</option>${cl.map(x => `<option value="${x.id}" ${!isP && selC === x.id ? "selected" : ""}>${esc(x.Title)}${isDeact(x) ? " (deactivated)" : ""}</option>`).join("")}</select></label>
+    <label class="full" id="finArParty" ${isP ? "" : `style="display:none"`}>Name of party<input class="in" name="Party" list="finArNames" value="${esc(f.Party || party || "")}" placeholder="e.g. ABC Trading WLL"><datalist id="finArNames">${names.map(n => `<option value="${esc(n)}">`).join("")}</datalist><span class="hint small faint">Receipts recorded with this name under “Received from” are set off against it.</span></label>
+    <label>Amount due on 1 ${ymLabel(FIN.start)} (BHD${vatAny() ? ", incl. VAT" : ""})<input class="in" name="Amount" inputmode="decimal" required value="${esc(f.Amount || "")}" placeholder="as per debtors ledger"></label>
     <label>Expected to be collected in<input class="in" type="month" name="StartMonth" min="${FIN.start}" required value="${esc(f.StartMonth || FIN.start)}"></label>
     <label class="full">Notes<input class="in" name="Notes" value="${esc(f.Notes || "")}" placeholder="optional — e.g. invoices INV-0981, INV-0990"></label>
-  </div><p class="small muted">Split across months by adding more than one line. Record the receipt with service <b>${AR_SVC}</b> so it is set off against this balance.</p></div>
+  </div><p class="small muted">Split across months by adding more than one line. If the party is later added to the client list, edit this line and pick the client under “Owed by”.</p></div>
   <div class="mf">${id ? `<button type="button" class="btn danger" data-act="finFeeDel" data-id="${id}" style="margin-right:auto">Delete</button>` : ""}<button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
 SUBMIT.finAr = async (form, o) => {
-  if(!canFin()) return; const id = form.dataset.id, cid = form.dataset.c; const amt = fnum(o.Amount);
+  if(!canFin()) return; const id = form.dataset.id; const cid = o.ClientId || ""; const party = cid ? "" : String(o.Party || "").trim(); const amt = fnum(o.Amount);
+  if(!cid && !party) return toast("Pick the client or type the party's name", true);
   if(!(amt > 0)) return toast("Enter the amount", true); if(!o.StartMonth || o.StartMonth < FIN.start) return toast(`Collection month must be ${ymLabel(FIN.start)} or later`, true);
-  await saveRec("fees", id || null, { Title: `${cid}|${AR_SVC}`, ClientId: cid, Service: AR_SVC, Amount: r3s(amt), Freq: "One-off", StartMonth: o.StartMonth, EndMonth: "", Timing: "Lump", VAT: "No", Terms: "0", Notes: o.Notes || "", UpdatedBy: me.email, UpdatedOn: nowISO() });
-  closeModal(); render(); renderModals(); toast(id ? "Opening receivable updated" : "Opening receivable added");
+  await saveRec("fees", id || null, { Title: `${cid || "party:" + party}|${AR_SVC}`, ClientId: cid, Party: party, Service: AR_SVC, Amount: r3s(amt), Freq: "One-off", StartMonth: o.StartMonth, EndMonth: "", Timing: "Lump", VAT: "No", Terms: "0", Notes: o.Notes || "", UpdatedBy: me.email, UpdatedOn: nowISO() });
+  closeModal(); render(); renderModals(); toast(id ? "Opening receivable updated" : `Opening receivable added${party ? " for " + party : ""}`);
 };
+document.addEventListener("change", e => { const t = e.target; if(t.dataset && t.dataset.act === "finArWho"){ const el = document.getElementById("finArParty"); if(el) el.style.display = t.value ? "none" : ""; } });
 
 function finChart(S, Y){
   const yms = MM.map(m => `${Y}-${m}`).filter(ym => ym >= FIN.start); if(!yms.length) return ""; const cur = curYM();
@@ -2682,8 +2700,13 @@ function finClientsView(){
     <td class="num">${moneyZ(r.b)}</td><td class="num">${moneyZ(r.a)}</td><td class="num ${r.v < -0.0005 ? "adv" : r.v > 0.0005 ? "fav" : "faint"}">${Math.abs(r.v) < 0.0005 ? "—" : money(r.v)}</td>
     <td class="num">${r.b > 0.0005 ? Math.round(r.a / r.b * 100) + "%" : "—"}</td><td class="num small">${arOf(r.c.id) ? `${money(arOf(r.c.id) - arCollected(r.c.id))}<div class="faint">of ${money(arOf(r.c.id))}</div>` : `<span class="faint">—</span>`}</td><td class="small nowrap">${lr ? fmtDate(lr) : `<span class="faint">—</span>`}</td>
     <td><button class="btn sm" data-act="finCashAdd" data-v="In" data-c="${r.c.id}">Receipt</button></td></tr>`; }).join("")}
-  ${other ? `<tr><td class="cname faint">Receipts not linked to a Bahrain client</td><td></td><td class="num">—</td><td class="num">${money(other)}</td><td></td><td></td><td></td><td></td><td></td></tr>` : ""}
-  </tbody><tfoot><tr class="tot"><td>Total</td><td></td><td class="num">${money(t.inB)}</td><td class="num">${money(t.inA)}</td><td class="num ${t.inA - t.inB < 0 ? "adv" : "fav"}">${money(t.inA - t.inB)}</td><td class="num">${t.inB ? Math.round(t.inA / t.inB * 100) + "%" : "—"}</td><td class="num">${(() => { const ar = finClients().reduce((s, c) => s + arOf(c.id) - arCollected(c.id), 0); return ar ? money(ar) : ""; })()}</td><td></td><td></td></tr></tfoot></table>
+  ${(() => { const keys = new Set([...Object.keys(t.byC).filter(k => k.startsWith("p:")), ...partyAR().map(x => x.key)]); const P = new Map(partyAR().map(x => [x.key, x]));
+    return [...keys].filter(k => !q || lc(partyName(k)).includes(q)).sort((a, b) => partyName(a).localeCompare(partyName(b))).map(k => { const x = t.byC[k] || { b: 0, a: 0 }; const pa = P.get(k); const v = x.a - x.b;
+      return `<tr><td class="cname">${esc(partyName(k))} ${chip("purple", "Not a client")}</td><td class="small">${pa ? pa.lines.map(feeLineText).join("<br>") : `<span class="faint">Receipts only</span>`}</td><td class="num">${moneyZ(x.b)}</td><td class="num">${moneyZ(x.a)}</td>
+        <td class="num ${v < -0.0005 ? "adv" : v > 0.0005 ? "fav" : "faint"}">${Math.abs(v) < 0.0005 ? "—" : money(v)}</td><td class="num">${x.b > 0.0005 ? Math.round(x.a / x.b * 100) + "%" : "—"}</td>
+        <td class="num small">${pa ? `${money(pa.ar - pa.coll)}<div class="faint">of ${money(pa.ar)}</div>` : `<span class="faint">—</span>`}</td><td></td><td><button class="btn sm" data-act="finCashAdd" data-v="In" data-p="${esc(partyName(k))}">Receipt</button></td></tr>`; }).join(""); })()}
+  ${(t.byC._none || {}).a ? `<tr><td class="cname faint">Receipts not linked to a Bahrain client</td><td></td><td class="num">—</td><td class="num">${money(t.byC._none.a)}</td><td></td><td></td><td></td><td></td><td></td></tr>` : ""}
+  </tbody><tfoot><tr class="tot"><td>Total</td><td></td><td class="num">${money(t.inB)}</td><td class="num">${money(t.inA)}</td><td class="num ${t.inA - t.inB < 0 ? "adv" : "fav"}">${money(t.inA - t.inB)}</td><td class="num">${t.inB ? Math.round(t.inA / t.inB * 100) + "%" : "—"}</td><td class="num">${(() => { const ar = arOutstandingAll(); return ar ? money(ar) : ""; })()}</td><td></td><td></td></tr></tfoot></table>
   ${rows.length || other ? "" : `<div class="empty">No Bahrain clients yet.</div>`}</div></div>`;
 }
 
@@ -2733,7 +2756,13 @@ function finFeesView(){
     <td class="small">${r.fs.map(feeLineText).join("<br>")}${r.set ? "" : (r.fs.length ? "<br>" : "") + chip("amber", "Fees not set")}</td><td class="num">${moneyZ(r.net)}</td><td class="num small">${moneyZ(r.vat)}</td><td class="num small">${moneyZ(r.ar)}</td><td class="num"><b>${moneyZ(r.net + r.vat + r.ar)}</b></td>
     <td><button class="btn sm" data-act="finFees" data-id="${r.c.id}">${r.fs.length ? "Edit fees" : "Set fees"}</button></td></tr>`).join("")}
   </tbody><tfoot><tr class="tot"><td>Total</td><td></td><td></td><td class="num">${money(T.net)}</td><td class="num">${money(T.vat)}</td><td class="num">${money(T.ar)}</td><td class="num">${money(T.net + T.vat + T.ar)}</td><td></td></tr></tfoot></table>
-  ${shown.length ? "" : `<div class="empty">No clients match.</div>`}</div></div>`;
+  ${shown.length ? "" : `<div class="empty">No clients match.</div>`}</div></div>
+  ${(() => { const P = partyAR(); return `<div class="card"><div class="card-h"><h3>Opening AR — parties not in the client list</h3><div class="right"><button class="btn sm pri" data-act="finArParty">${I.plus} Add opening receivable</button></div></div>
+    ${P.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Party</th><th>Expected collection</th><th class="num">Opening AR</th><th class="num">Collected</th><th class="num">Outstanding</th><th></th></tr></thead><tbody>
+    ${P.map(x => `<tr><td class="cname">${esc(x.name)}</td><td class="small">${x.lines.map(l => `${money(fnum(l.Amount))} in ${ymLabel(l.StartMonth || FIN.start)} <a href="#" data-act="finArEdit" data-id="${l.id}">edit</a>`).join("<br>")}</td>
+      <td class="num">${money(x.ar)}</td><td class="num">${moneyZ(x.coll)}</td><td class="num"><b>${money(x.ar - x.coll)}</b></td><td><button class="btn sm" data-act="finCashAdd" data-v="In" data-p="${esc(x.name)}">Receipt</button></td></tr>`).join("")}
+    </tbody><tfoot><tr class="tot"><td>Total</td><td></td><td class="num">${money(P.reduce((t, x) => t + x.ar, 0))}</td><td class="num">${money(P.reduce((t, x) => t + x.coll, 0))}</td><td class="num">${money(P.reduce((t, x) => t + x.ar - x.coll, 0))}</td><td></td></tr></tfoot></table></div>`
+    : `<div class="card-b small muted">For amounts owed on 1 ${ymLabel(FIN.start)} by someone who isn't in the client list — e.g. a one-off job. They show in the budget and statement under their own name, and receipts recorded with the same “Received from” name are set off against them.</div>`}</div>`; })()}`;
 }
 
 function finExpView(){
@@ -2820,7 +2849,7 @@ SUBMIT.finFee = async (form, o) => {
   await saveRec("fees", id || null, { Title: `${cid}|${svc}`, ClientId: cid, Service: svc, Amount: r3s(amt), Freq: o.Freq, StartMonth: o.StartMonth, EndMonth: o.EndMonth || "", Timing: o.Timing, VAT: o.VAT, Terms: FEE_TERMS.includes(o.Terms) ? o.Terms : "0", Notes: o.Notes || "", UpdatedBy: me.email, UpdatedOn: nowISO() });
   closeModal(); render(); renderModals(); toast(id ? "Fee line updated" : "Fee line added");
 };
-MODALS.finCash = ({ id, dir, cid }) => {
+MODALS.finCash = ({ id, dir, cid, party }) => {
   const x = id ? (data.cash.find(r => r.id === id) || {}) : {}; const D = x.Dir || dir || "In";
   const cl = finClients().sort((a, b) => (isDeact(a) - isDeact(b)) || a.Title.localeCompare(b.Title)); const sel = x.ClientId || cid || "";
   const svcList = [...new Set([...(sel ? feesOf(sel).map(f => f.Service) : []), AR_SVC, ...SERVICES.filter(s => s !== "Others")])];
@@ -2829,7 +2858,7 @@ MODALS.finCash = ({ id, dir, cid }) => {
     <label>Mode<select class="in" name="Mode">${opt(PAY_MODES, x.Mode || "Bank transfer")}</select></label>
     ${D === "In" ? `<label class="full">Client (Bahrain)<select class="in" name="ClientId"><option value="">— Not a client / not linked —</option>${cl.map(c => `<option value="${c.id}" ${sel === c.id ? "selected" : ""}>${esc(c.Title)}${isDeact(c) ? " (deactivated)" : ""}</option>`).join("")}</select></label>
       <label>Service <span class="faint">(optional)</span><input class="in" name="Service" list="finCSvcs" value="${esc(x.Service || "")}"><datalist id="finCSvcs">${svcList.map(s => `<option value="${esc(s)}">`).join("")}</datalist></label>
-      <label>Received from <span class="faint">(if not a client)</span><input class="in" name="ClientName" value="${esc(x.ClientName || "")}"></label>`
+      <label>Received from <span class="faint">(if not a client)</span><input class="in" name="ClientName" list="finPartyNames" value="${esc(x.ClientName || party || "")}"><datalist id="finPartyNames">${partyAR().map(p => `<option value="${esc(p.name)}">`).join("")}</datalist></label>`
     : `<label class="full">Expense head<select class="in" name="Head" required><option value="">— Select —</option>${finHeads().filter(h => h !== UNCLASSIFIED).map(h => `<option ${lc(x.Head) === lc(h) ? "selected" : ""}>${esc(h)}</option>`).join("")}</select></label>`}
     <label class="full">Description<input class="in" name="Title" value="${esc(x.Title || "")}" placeholder="${D === "In" ? "e.g. Invoice INV-1043 · Q2 VAT fee" : "e.g. October office rent"}"></label>
     <label>Amount (BHD${vatAny() ? ", incl. VAT" : ""})<input class="in" name="Amount" inputmode="decimal" required value="${esc(x.Amount || "")}"></label>
@@ -2878,7 +2907,8 @@ function finParseCash(buf){ const { col, rows } = finSheetRows(buf); if(!col) re
 function finParseFees(buf){ const { col, rows } = finSheetRows(buf); if(!col) return [];
   const g = (x, n) => { const i = col(n); return i < 0 ? "" : x.r[i]; };
   return rows.map(x => { const errors = []; const out = { rowNo: x.rowNo }; const fid = String(g(x, "Fee ID")).trim(); const ex = fid ? data.fees.find(f => f.id === fid) : null;
-    const c = ex ? clientById(ex.ClientId) : finMatchClient(g(x, "Client")); out.party = c ? c.Title : String(g(x, "Client")); if(!c) errors.push("Client not found among Bahrain clients");
+    const c = ex ? clientById(ex.ClientId) : finMatchClient(g(x, "Client")); out.party = c ? c.Title : (ex && ex.Party) || String(g(x, "Client")).trim(); const arRow = lc(String(g(x, "Service")).trim()) === lc(AR_SVC);
+    if(!c && !(arRow && out.party)) errors.push("Client not found among Bahrain clients");
     const amtRaw = String(g(x, "Amount")).trim(); if(amtRaw === "") return { ...out, errors: [], notes: [], action: "Skip" };
     const amt = fnum(amtRaw); if(!(amt > 0)) errors.push("Amount must be more than 0");
     const freq = Object.keys(FEE_FREQ).find(k => lc(k) === lc(g(x, "Frequency")).replace("half yearly", "half-yearly")) || (String(g(x, "Frequency")).trim() ? null : "Monthly"); if(!freq) errors.push("Frequency must be Monthly, Quarterly, Half-yearly, Annually or One-off");
@@ -2889,7 +2919,7 @@ function finParseFees(buf){ const { col, rows } = finSheetRows(buf); if(!col) re
     if(!Terms) errors.push("Due (days) must be Immediate, 30, 45, 60 or 90");
     const svc = String(g(x, "Service")).trim() || "Fee";
     const ar = lc(svc) === lc(AR_SVC);
-    Object.assign(out, { id: ex ? ex.id : "", f: c ? (ar ? { Title: `${c.id}|${AR_SVC}`, ClientId: c.id, Service: AR_SVC, Amount: r3s(amt), Freq: "One-off", StartMonth: from < FIN.start ? FIN.start : from, EndMonth: "", Timing: "Lump", VAT: "No", Terms: "0" } : { Title: `${c.id}|${svc}`, ClientId: c.id, Service: svc, Amount: r3s(amt), Freq: freq, StartMonth: from, EndMonth: to || "", Timing, VAT: vat, Terms: Terms || "0" }) : null, desc: `${svc} ${money(amt)}${FEE_FREQ_SHORT[freq] || ""}` });
+    Object.assign(out, { id: ex ? ex.id : "", f: !c && ar ? { Title: `party:${out.party}|${AR_SVC}`, ClientId: "", Party: out.party, Service: AR_SVC, Amount: r3s(amt), Freq: "One-off", StartMonth: from < FIN.start ? FIN.start : from, EndMonth: "", Timing: "Lump", VAT: "No", Terms: "0" } : c ? (ar ? { Title: `${c.id}|${AR_SVC}`, ClientId: c.id, Service: AR_SVC, Amount: r3s(amt), Freq: "One-off", StartMonth: from < FIN.start ? FIN.start : from, EndMonth: "", Timing: "Lump", VAT: "No", Terms: "0" } : { Title: `${c.id}|${svc}`, ClientId: c.id, Service: svc, Amount: r3s(amt), Freq: freq, StartMonth: from, EndMonth: to || "", Timing, VAT: vat, Terms: Terms || "0" }) : null, desc: `${svc} ${money(amt)}${FEE_FREQ_SHORT[freq] || ""}` });
     let action = errors.length ? "Error" : ex ? "Update" : "New";
     if(action === "Update" && ["Service", "Amount", "Freq", "StartMonth", "EndMonth", "Timing", "VAT", "Terms"].every(k => (k === "Terms" && termsOf(ex) === out.f.Terms) || String(ex[k] || "") === String(out.f[k] || "") || (k === "Timing" && (ex.Timing || "Spread") === out.f.Timing) || (k === "VAT" && (ex.VAT || "Yes") === out.f.VAT))) action = "No change";
     return { ...out, errors, notes: [], action }; }); }
@@ -2912,8 +2942,9 @@ function finFeeSheet(){
   const rows = []; for(const c of finClients().filter(c => !isDeact(c)).sort((a, b) => a.Title.localeCompare(b.Title))){ const fs = feesOf(c.id);
     fs.forEach(f => rows.push([f.id, c.Title, f.Service, fnum(f.Amount), f.Freq, f.StartMonth ? ymLabel(f.StartMonth).replace(" ", "-") : "", f.EndMonth ? ymLabel(f.EndMonth).replace(" ", "-") : "", f.Timing === "Lump" ? "In billing month" : "Spread evenly", f.VAT || "Yes", +termsOf(f) ? +termsOf(f) : "Immediate"]));
     const have = new Set(fs.map(f => lc(f.Service))); servicesOf(c).map(s => s === "Others" && otherServiceText(c) ? otherServiceText(c) : s).filter(s => !have.has(lc(s))).forEach(s => rows.push(["", c.Title, s, "", "Monthly", ymLabel(FIN.start).replace(" ", "-"), "", "Spread evenly", "Yes", "Immediate"])); }
+  partyAR().forEach(x => x.lines.forEach(f => rows.push([f.id, x.name, AR_SVC, fnum(f.Amount), "One-off", f.StartMonth ? ymLabel(f.StartMonth).replace(" ", "-") : "", "", "In billing month", "No", "Immediate"])));
   const ws = XLSX.utils.aoa_to_sheet([FEE_COLS, ...rows]); ws["!cols"] = [{ wch: 12 }, { wch: 38 }, { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 6 }, { wch: 11 }];
-  const wi = XLSX.utils.aoa_to_sheet([["Column", "How to fill"], ["Fee ID", "Leave as is. Blank = new fee line."], ["Amount (excl. VAT)", "Fee in BHD before VAT. Leave blank to skip the row."], ["Frequency", "Monthly, Quarterly, Half-yearly, Annually or One-off"], ["From Month", "First billing month, e.g. Jan-2026"], ["To Month", "Last month (optional). Blank = ongoing"], ["Timing", "Spread evenly (default) or In billing month — for quarterly / half-yearly / annual fees"], ["VAT", `Yes = add ${vatPct()} VAT; No = no VAT`], ["Due (days)", "Immediate, 30, 45, 60 or 90 — cash is budgeted in the month the invoice falls due"], ["Opening AR", `To add amounts outstanding on 1 ${ymLabel(FIN.start)}: Service = ${AR_SVC}, Amount = balance incl. VAT, From Month = month you expect to collect it.`]]); wi["!cols"] = [{ wch: 20 }, { wch: 90 }];
+  const wi = XLSX.utils.aoa_to_sheet([["Column", "How to fill"], ["Fee ID", "Leave as is. Blank = new fee line."], ["Amount (excl. VAT)", "Fee in BHD before VAT. Leave blank to skip the row."], ["Frequency", "Monthly, Quarterly, Half-yearly, Annually or One-off"], ["From Month", "First billing month, e.g. Jan-2026"], ["To Month", "Last month (optional). Blank = ongoing"], ["Timing", "Spread evenly (default) or In billing month — for quarterly / half-yearly / annual fees"], ["VAT", `Yes = add ${vatPct()} VAT; No = no VAT`], ["Due (days)", "Immediate, 30, 45, 60 or 90 — cash is budgeted in the month the invoice falls due"], ["Opening AR", `To add amounts outstanding on 1 ${ymLabel(FIN.start)}: Service = ${AR_SVC}, Amount = balance, From Month = month you expect to collect it. The Client can be a name not in the client list (a one-off party).`]]); wi["!cols"] = [{ wch: 20 }, { wch: 90 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Fee budget"); XLSX.utils.book_append_sheet(wb, wi, "Instructions"); finDownload(wb, `Vinpro-Bahrain-Fee-Budget-${todayISO()}.xlsx`); }
 function finCashTemplate(){ const ws = XLSX.utils.aoa_to_sheet([CASH_COLS, [todayISO(), "Receipt", finClients()[0] ? finClients()[0].Title : "Client name", "Accounting", "", "INV-1001", 165, "", "Bank transfer", "FT123456", ""], [todayISO(), "Payment", "", "", FIN.heads[0], "Office rent", 450, 0, "Bank transfer", "FT123457", ""]]);
   ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 34 }, { wch: 16 }, { wch: 24 }, { wch: 28 }, { wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 24 }];
@@ -2990,7 +3021,8 @@ Object.assign(ACT, {
   finArAdd: d => openModal("finArForm", { cid: d.c }),
   finArEdit: d => openModal("finArForm", { id: d.id }),
   finFeeDel: d => { const f = data.fees.find(x => x.id === d.id); if(!f) return; openModal("confirm", { text: `Delete the <b>${esc(f.Service)}</b> fee line (BHD ${money(fnum(f.Amount))} ${esc(f.Freq)})?`, onYes: async () => { await removeRec("fees", f.id); state.modals = state.modals.filter(m => m.type !== "finArForm" && m.type !== "finFeeForm"); toast(isAR(f) ? "Opening receivable deleted" : "Fee line deleted"); } }); },
-  finCashAdd: d => { if(!canFin()) return; openModal("finCash", { dir: d.v, cid: d.c || "" }); },
+  finCashAdd: d => { if(!canFin()) return; openModal("finCash", { dir: d.v, cid: d.c || "", party: d.p || "" }); },
+  finArParty: () => openModal("finArForm", {}),
   finCashEdit: d => openModal("finCash", { id: d.id }),
   finCashDel: d => { const x = data.cash.find(r => r.id === d.id); if(!x) return; openModal("confirm", { text: `Delete this ${x.Dir === "In" ? "receipt" : "payment"} of <b>BHD ${money(fnum(x.Amount))}</b> dated ${fmtDate(x.Date)}?`, onYes: async () => { await removeRec("cash", x.id); state.modals = state.modals.filter(m => m.type !== "finCash"); toast("Entry deleted"); } }); },
   finHeadAdd: () => openModal("finHead"),
