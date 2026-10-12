@@ -510,6 +510,9 @@ ul.att{list-style:none;margin:0;padding:6px 0}ul.att li{display:flex;gap:12px;al
 .vat-card.on{border-color:var(--accent)}.vat-card .chip{margin-left:6px}
 .mexp .mexp-in{width:150px!important;font-size:14px;padding:7px 9px!important}
 .mexp td{vertical-align:middle}
+.ms-ar{margin-top:12px;padding-top:10px;border-top:2px solid var(--line)}
+.ms-arh{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:2px}
+.ms-kv.tot b{font-size:15px}.ms-kv.tot span{color:var(--ink);font-weight:650}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
@@ -2451,10 +2454,10 @@ function openingBal(){ const o = openingRec(); return o && o.M01 !== "" ? fnum(o
 /* per-month budget & actual from start of tracking to `to` */
 function finSeries(to){
   const from = FIN.start; const S = {};
-  for(const ym of finYms(from, to)) S[ym] = { inB: 0, inBv: 0, inA: 0, inAv: 0, outB: {}, outA: {}, outBt: 0, outAt: 0, byC: {} };
+  for(const ym of finYms(from, to)) S[ym] = { inB: 0, inBv: 0, inBar: 0, inA: 0, inAv: 0, outB: {}, outA: {}, outBt: 0, outAt: 0, byC: {} };
   const cl = new Map(finClients().map(c => [c.id, c]));
   for(const f of data.fees || []){ const c = cl.get(f.ClientId); const key = c ? c.id : isPartyAR(f) ? pkey(f.Party) : null; if(!key) continue; const sc = feeSchedV(f, c || null, from, to);
-    for(const ym in sc){ const s = S[ym]; const net = sc[ym].n; const v = sc[ym].v; s.inB += net + v; s.inBv += v; const bc = s.byC[key] || (s.byC[key] = { b: 0, a: 0 }); bc.b += net + v; } }
+    for(const ym in sc){ const s = S[ym]; const net = sc[ym].n; const v = sc[ym].v; s.inB += net + v; s.inBv += v; if(isAR(f)) s.inBar += net + v; const bc = s.byC[key] || (s.byC[key] = { b: 0, a: 0 }); bc.b += net + v; } }
   for(const x of data.cash || []){ const s = S[cashYm(x)]; if(!s) continue; const a = fnum(x.Amount);
     if(x.Dir === "In"){ s.inA += a; s.inAv += vatOn(cashYm(x)) ? fnum(x.VAT) : 0; const k = x.ClientId || (String(x.ClientName || "").trim() ? pkey(x.ClientName) : "_none"); const bc = s.byC[k] || (s.byC[k] = { b: 0, a: 0 }); bc.a += a; }
     else { const h = headOf(x); s.outA[h] = (s.outA[h] || 0) + a; s.outAt += a; } }
@@ -2548,6 +2551,12 @@ function partyAR(){ const m = new Map();
   for(const x of m.values()) x.coll = (data.cash || []).filter(c => c.Dir === "In" && !c.ClientId && String(c.ClientName || "").trim() && pkey(c.ClientName) === x.key).reduce((t, c) => t + fnum(c.Amount), 0);
   return [...m.values()].sort((a, b) => a.name.localeCompare(b.name)); }
 function partyName(k){ const f = (data.fees || []).find(x => isPartyAR(x) && pkey(x.Party) === k); if(f) return f.Party.trim(); const c = (data.cash || []).find(x => !x.ClientId && x.ClientName && pkey(x.ClientName) === k); return c ? c.ClientName.trim() : k.slice(2); }
+/* Receivables roll-forward. Opening AR of a month = all opening receivables (1 Jan) + fees that fell due in
+   earlier months − cash collected in earlier months, so each month's collection shortfall carries forward. */
+function arTotalOpening(){ const ids = new Set(finClients().map(c => c.id)); return (data.fees || []).filter(f => isAR(f) && (ids.has(f.ClientId) || isPartyAR(f))).reduce((t, f) => t + fnum(f.Amount), 0); }
+function arRoll(S, ym){ let open = arTotalOpening();
+  for(const k of finYms(FIN.start, ymAdd(ym, -1))){ const s = S[k]; if(!s) continue; open += (s.inB - s.inBar) - s.inA; }
+  const s = S[ym] || { inB: 0, inBar: 0, inA: 0 }; const due = s.inB - s.inBar, coll = s.inA; return { open, due, coll, close: open + due - coll }; }
 function arOutstandingAll(){ return finClients().reduce((t, c) => t + arOf(c.id) - arCollected(c.id), 0) + partyAR().reduce((t, x) => t + x.ar - x.coll, 0); }
 function chkRec(acct, year){ return (data.blines || []).find(b => b.Kind === "Check" && lc(b.Head) === lc(acct) && String(b.Year) === String(year)); }
 /* keyed balance for the month, or the last keyed balance carried forward (as in "=previous month") */
@@ -2638,6 +2647,11 @@ function finSheetGrid(Y, ym){
         ${gauge("Collections vs budget", inP, inP != null && inP >= 100, inP != null && inP >= 90)}${gauge("Spend vs budget", outP, outP != null && outP <= 100)}
         <div class="ms-kv"><span>Net cash flow</span><b class="${hasAct ? (s.inA - s.outAt >= 0 ? "fav" : "adv") : ""}">${hasAct ? money(s.inA - s.outAt) : "—"}</b></div>
         <div class="ms-kv"><span>Budgeted net cash flow</span><b>${money(s.inB - s.outBt)}</b></div>
+        ${(() => { const r = arRoll(S, ym); return `<div class="ms-ar"><div class="ms-arh">Receivables (AR)</div>
+          <div class="ms-kv"><span>Opening AR · 1 ${ymLabel(ym)}</span><b>${money(r.open)}</b></div>
+          ${hasAct ? `<div class="ms-kv"><span>Add: fees falling due this month</span><b>${money(r.due)}</b></div>
+          <div class="ms-kv"><span>Less: collected this month</span><b>(${money(r.coll)})</b></div>
+          <div class="ms-kv tot"><span>Closing AR · ${fmtDate(lastDay(ym))}</span><b>${money(r.close)}</b></div>` : `<div class="small faint" style="padding-top:6px">Closing AR appears once the month starts.</div>`}</div>`; })()}
       </div></div>
     </aside>
   </div>`;
