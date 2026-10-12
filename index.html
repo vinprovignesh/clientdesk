@@ -2756,9 +2756,9 @@ function finCashListView(){
     <input id="ff-cbq" class="in search" placeholder="Search party, reference, notes…" value="${esc(f.cbQ)}" data-bind="ff.cbQ">
     <div class="right"><button class="btn pri" data-act="finCashAdd" data-v="In">${I.plus} Receipt</button><button class="btn pri" data-act="finCashAdd" data-v="Out">${I.plus} Payment</button><button class="btn" data-act="finImport" data-v="cash">Import from Excel</button></div></div>
   <div class="strip"><div class="st ok"><div class="ic">↓</div><div><b>${money(inn, 0)}</b><span>receipts · ${rows.filter(x => x.Dir === "In").length} entries</span></div></div><div class="st ba"><div class="ic">↑</div><div><b>${money(out, 0)}</b><span>payments · ${rows.filter(x => x.Dir === "Out").length} entries</span></div></div><div class="st ${inn - out < 0 ? "ba" : "fu"}"><div class="ic">=</div><div><b>${money(inn - out, 0)}</b><span>net cash flow</span></div></div></div>
-  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Date</th><th>Type</th><th>Client / expense head</th><th>Description</th><th>Mode</th><th>Reference</th><th class="num">Amount</th>${vatAny() ? `<th class="num">VAT</th>` : ""}<th>Entered</th><th></th></tr></thead><tbody>
+  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Date</th><th>Type</th><th>Client / expense head</th><th>Description</th><th>Reference</th><th class="num">Amount</th>${vatAny() ? `<th class="num">VAT</th>` : ""}<th>Entered</th><th></th></tr></thead><tbody>
   ${rows.map(x => `<tr><td class="small nowrap">${fmtDate(x.Date)}</td><td>${x.Dir === "In" ? chip("green", "Receipt") : chip("amber", "Payment")}</td>
-    <td class="cname">${cashParty(x)}${x.Dir === "In" && x.Service ? `<div class="small faint">${esc(x.Service)}</div>` : ""}</td><td class="small">${esc(x.Title)}</td><td class="small">${esc(x.Mode)}</td><td class="small">${esc(x.Ref)}</td>
+    <td class="cname">${cashParty(x)}${x.Dir === "In" && x.Service ? `<div class="small faint">${esc(x.Service)}</div>` : ""}</td><td class="small">${esc(x.Title)}</td><td class="small">${esc(x.Ref)}</td>
     <td class="num">${money(fnum(x.Amount))}</td>${vatAny() ? `<td class="num small">${moneyZ(vatOn(cashYm(x)) ? fnum(x.VAT) : 0)}</td>` : ""}<td class="small faint nowrap">${updCell(x)}</td><td><button class="btn sm" data-act="finCashEdit" data-id="${x.id}">Edit</button></td></tr>`).join("")}
   </tbody></table>${rows.length ? "" : `<div class="empty">No entries for this selection. Add receipts and payments, or import them from Excel (e.g. from your bank statement).</div>`}</div></div>`;
 }
@@ -2885,7 +2885,6 @@ MODALS.finCash = ({ id, dir, cid, party }) => {
   const svcList = [...new Set([...(sel ? feesOf(sel).map(f => f.Service) : []), AR_SVC, ...SERVICES.filter(s => s !== "Others")])];
   return `<form class="modal" data-form="finCash" data-id="${id || ""}" data-dir="${D}">${mHead(`${id ? "Edit" : "New"} ${D === "In" ? "receipt" : "payment"}`)}<div class="mb"><div class="form">
     <label>Date<input class="in" type="date" name="Date" required value="${esc(x.Date || todayISO())}" min="${FIN.start}-01"></label>
-    <label>Mode<select class="in" name="Mode">${opt(PAY_MODES, x.Mode || "Bank transfer")}</select></label>
     ${D === "In" ? `<label class="full">Client (Bahrain)<select class="in" name="ClientId"><option value="">— Not a client / not linked —</option>${cl.map(c => `<option value="${c.id}" ${sel === c.id ? "selected" : ""}>${esc(c.Title)}${isDeact(c) ? " (deactivated)" : ""}</option>`).join("")}</select></label>
       <label>Service <span class="faint">(optional)</span><input class="in" name="Service" list="finCSvcs" value="${esc(x.Service || "")}"><datalist id="finCSvcs">${svcList.map(s => `<option value="${esc(s)}">`).join("")}</datalist></label>
       <label>Received from <span class="faint">(if not a client)</span><input class="in" name="ClientName" list="finPartyNames" value="${esc(x.ClientName || party || "")}"><datalist id="finPartyNames">${partyAR().map(p => `<option value="${esc(p.name)}">`).join("")}</datalist></label>`
@@ -2903,7 +2902,7 @@ SUBMIT.finCash = async (form, o) => {
   if(!(amt > 0)) return toast("Enter the amount", true); if(!o.Date || o.Date < FIN.start) return toast(`Date must be on or after ${ymLabel(FIN.start)}`, true);
   if(D === "Out" && !o.Head) return toast("Choose the expense head", true);
   const vOn = vatOn(String(o.Date || "").slice(0, 7)); let vat = !vOn ? 0 : String(o.VAT || "").trim() === "" ? (D === "In" ? r3(amt * FIN.vat / (1 + FIN.vat)) : 0) : fnum(o.VAT); if(vat > amt) return toast("VAT can't be more than the amount", true);
-  const f = { Title: o.Title || "", Date: o.Date, Dir: D, Amount: r3s(amt), VAT: r3s(vat), Mode: o.Mode, Ref: o.Ref || "", Notes: o.Notes || "", UpdatedBy: me.email, UpdatedOn: nowISO(),
+  const f = { Title: o.Title || "", Date: o.Date, Dir: D, Amount: r3s(amt), VAT: r3s(vat), Mode: id ? ((data.cash.find(r => r.id === id) || {}).Mode || "") : "", Ref: o.Ref || "", Notes: o.Notes || "", UpdatedBy: me.email, UpdatedOn: nowISO(),
     ClientId: D === "In" ? (o.ClientId || "") : "", ClientName: D === "In" && !o.ClientId ? (o.ClientName || "") : "", Service: D === "In" ? (o.Service || "") : "", Head: D === "Out" ? o.Head : "" };
   await saveRec("cash", id || null, f); closeModal(); render(); renderModals(); toast(`${D === "In" ? "Receipt" : "Payment"} ${id ? "updated" : "saved"} · BHD ${money(amt)}`);
 };
