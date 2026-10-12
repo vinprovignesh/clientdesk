@@ -31,5 +31,15 @@ window.VINPRO_CONFIG = {
   monthlyTrackingStart: "2026-09",
   accountingDueDay: 15,
   // For clients on an annual accounting engagement: months after financial year end
-  annualAccountingDueMonths: 3
+  annualAccountingDueMonths: 3,
+
+  // Budget vs Actual (Vinpro Global Services WLL, Bahrain) — cash basis, BHD incl. VAT
+  budgetStart: "2026-01",          // first month tracked, YYYY-MM
+  vatRate: 0.10,                   // Bahrain VAT added to fee budgets and worked out on receipts
+  financeAccess: ["Admin"],        // roles that can open it; add "Manager" to share with managers
+  expenseHeads: [                  // cash outflow heads, in report order
+    "Rent, EWA and LMRA", "Salary, Visa & Ticket", "Bahrain Exps - SG", "Car Rental", "Office Exps",
+    "Reimbursement - Fees", "Accommodation", "Travel / Referral Fee", "Vinpro Dubai", "Vinpro Chennai",
+    "Vignesh Chennai", "VAT paid to NBR"
+  ]
 };
