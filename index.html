@@ -1334,14 +1334,13 @@ VIEWS.clients = () => {
   ${f.crMonth ? `<div class="banner info"><b>CR / licence expiring in ${ymLabel(f.crMonth)}</b> — ${list.length} client${list.length === 1 ? "" : "s"} <button class="btn sm" data-act="clearCrMonth" style="margin-left:auto">✕ Show all clients</button></div>` : ""}
   <div class="card"><div class="tw"><table class="tbl"><thead><tr>
     ${isMgr() ? `<th style="width:30px"><input type="checkbox" data-act="selAll" ${allSel ? "checked" : ""} aria-label="Select all"></th>` : ""}
-    ${th("Title", "Client")}${th("Location", "Location")}${th("CRNo", "CR / Licence")}${th("CRExpiry", "Expiry")}${th("Contact", "Contact")}${th("Services", "Services")}${th("VATCycle", "VAT cycle")}${th("Team", "Team")}${th("Logins", "Logins")}${isAdmin() ? th("Deact", "Deactivated", 'title="Admin only"') : ""}</tr></thead><tbody>
+    ${th("Title", "Client")}${th("Location", "Location")}${th("CRNo", "CR / Licence")}${th("CRExpiry", "Expiry")}${th("Contact", "Contact")}${th("Services", "Services")}${th("Team", "Team")}${th("Logins", "Logins")}${isAdmin() ? th("Deact", "Deactivated", 'title="Admin only"') : ""}</tr></thead><tbody>
     ${list.map(c => { const cr = crInfo(c); return `<tr class="click" data-act="openClient" data-id="${c.id}">
       ${isMgr() ? `<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${c.id}" ${sel.has(c.id) ? "checked" : ""} aria-label="Select"></td>` : ""}
       <td><span class="cname">${esc(c.Title)}</span>${c.Status && c.Status !== "Active" ? ` ${chip("grey", esc(c.Status))}` : ""}</td>
       <td>${locTag(c)}</td><td class="nowrap">${esc(c.CRNo)}</td><td>${chip(cr.cls, cr.txt)}</td>
       <td class="small">${esc(c.ContactName)}${c.ContactNo ? `<div class="faint nowrap">${esc(phoneOf(c))}</div>` : ""}</td>
       <td>${serviceTags(c) || `<span class="soon small">Not set</span>`}</td>
-      <td class="small nowrap">${c.VATCycle ? esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].short : c.VATCycle) : `<span class="soon">Not set</span>`}</td>
       <td>${teamOf(c).length ? avatars(teamOf(c)) : `<span class="faint small">Unassigned</span>`}</td>
       <td>${(credsBy[c.id] || []).map(p => `<span class="tag">${esc(p)}</span>`).join("") || `<span class="faint small">—</span>`}</td>
       ${isAdmin() ? `<td data-stop="1" style="text-align:center"><input type="checkbox" data-act="toggleDeact" data-id="${c.id}" ${isDeact(c) ? "checked" : ""} aria-label="Deactivated" title="${isDeact(c) ? "Deactivated — untick to reactivate" : "Tick to deactivate"}"></td>` : ""}</tr>`; }).join("")}
