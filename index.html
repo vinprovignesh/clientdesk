@@ -517,6 +517,32 @@ ul.att{list-style:none;margin:0;padding:6px 0}ul.att li{display:flex;gap:12px;al
 .ch-val.sm{font-size:9.5px}
 .sm-cap .cw{display:inline-flex;align-items:center;gap:4px;margin-right:8px}.sm-cap .cw i{width:9px;height:9px;border-radius:2px;display:inline-block}
 .sm-cap .cw i.b-wip{background:var(--vg-due)}.sm-cap .cw i.b-rev{background:var(--pur)}
+
+/* ---------- Vinpro brand on every table: navy header, teal accents, soft teal banding ---------- */
+:root{--vt-head:#050c42;--vt-head-ink:#ffffff;--vt-head-sub:#c9d0f0;--vt-accent:#009e95;--vt-band:#f4f9f9;--vt-hover:#e6f4f2;--vt-tot:#e0f2f0;--vt-tot-ink:#050c42;--vt-line:#dbe7e6}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--vt-head:#16205a;--vt-head-ink:#eef1ff;--vt-head-sub:#a9b4e6;--vt-accent:#2fbfb4;--vt-band:#121a40;--vt-hover:#15294a;--vt-tot:#11393c;--vt-tot-ink:#e8ecf5;--vt-line:#252e58}}
+:root[data-theme="dark"]{--vt-head:#16205a;--vt-head-ink:#eef1ff;--vt-head-sub:#a9b4e6;--vt-accent:#2fbfb4;--vt-band:#121a40;--vt-hover:#15294a;--vt-tot:#11393c;--vt-tot-ink:#e8ecf5;--vt-line:#252e58}
+table.tbl thead th,table.cal thead th,.tbl th{background:var(--vt-head);color:var(--vt-head-ink);border-bottom:3px solid var(--vt-accent);font-weight:650;letter-spacing:.02em}
+table.tbl thead tr:not(:last-child) th{border-bottom:1px solid rgba(255,255,255,.14)}
+table.tbl thead tr:first-child th:first-child{border-top-left-radius:8px}table.tbl thead tr:first-child th:last-child{border-top-right-radius:8px}
+.card table.tbl thead tr:first-child th:first-child,.card table.tbl thead tr:first-child th:last-child{border-radius:0}
+.tbl th.sortable:hover{color:#ffffff;background:color-mix(in srgb,var(--vt-head) 85%,var(--vt-accent))}
+.tbl th .sarr{color:var(--vt-head-sub)}.tbl th.sorted{color:#7fe3da}.tbl th.sorted .sarr{color:#7fe3da}
+.cal th{color:var(--vt-head-ink)}.cal th.cur,.tbl th.curm,.fin-grid th.curm{background:var(--vt-accent);color:#fff;box-shadow:none}
+.tbl th.grp,.fsheet th.mh{color:var(--vt-head-ink)}
+.fsheet thead th.pl,.fsheet thead th{background:var(--vt-head)}
+table.tbl tbody tr:nth-child(even) td{background:var(--vt-band)}
+table.tbl tbody tr:hover td{background:var(--vt-hover)}
+table.tbl tbody td{border-bottom-color:var(--vt-line)}
+table.tbl tr.tot td,table.tbl tfoot td,table.tbl tfoot tr.tot td{background:var(--vt-tot);color:var(--vt-tot-ink);border-top:2px solid var(--vt-accent);font-weight:700}
+table.tbl tr.sec td,.fsheet tr.sec td.pl{background:color-mix(in srgb,var(--vt-accent) 10%,var(--panel));color:var(--accent-ink)}
+table.tbl tr.net td,.fsheet tr.net td.pl{background:color-mix(in srgb,var(--vt-accent) 18%,var(--panel))}
+.tbl tr.grp td{background:color-mix(in srgb,var(--vt-head) 8%,var(--panel));color:var(--vt-tot-ink)}
+/* brand colours in charts: navy = in progress, teal = review / actual */
+.ch-svg .b-wip{fill:#050c42}.ch-svg .b-rev{fill:#009e95}.sm-cap .cw i.b-wip{background:#050c42}.sm-cap .cw i.b-rev{background:#009e95}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .ch-svg .b-wip{fill:#8fa2ff}:root:not([data-theme="light"]) .sm-cap .cw i.b-wip{background:#8fa2ff}:root:not([data-theme="light"]) .ch-svg .b-rev{fill:#2fbfb4}:root:not([data-theme="light"]) .sm-cap .cw i.b-rev{background:#2fbfb4}}
+.fchart .b-bud{fill:color-mix(in srgb,#050c42 22%,transparent)}.ch-legend .lg-b{background:color-mix(in srgb,#050c42 22%,transparent)}
+.ms-tag{background:var(--brand-soft);color:var(--accent-ink)}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
@@ -1157,7 +1183,7 @@ function svcMonthChart(items, Y, title, sub, view){ const cur = curYM(); const m
 function deadlineCharts(items, Y){ const defs = [["VAT", "returns by filing deadline", x => x.svc === "VAT", "vat"], ["Accounting", "monthly / annual close", x => x.svc === "Accounting", "mw"], ["Consultation", "monthly / annual", x => x.svc === "Consultancy", "mw"],
     ["Corporate Tax", "returns by due date", x => x.svc === "Corporate Tax", "ct"], ["Audit", "by target date", x => x.svc === "Audit", "audit"], ["Other services", "by due date", x => x.svc === "Other", "other"]];
   const shown = defs.filter(d => items.some(d[2]) || ["VAT", "Accounting", "Corporate Tax", "Audit"].includes(d[0]));
-  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Work in progress vs review · ${Y}</h3><div class="right">${chartLegend([["Work in progress", "var(--vg-due)"], ["Under review", "var(--pur)"], ["Overdue", ST_CLR.over], ["Later months (faded)", "color-mix(in srgb, var(--vg-due) 38%, transparent)"]])}</div></div>
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Work in progress vs review · ${Y}</h3><div class="right">${chartLegend([["Work in progress", "var(--vg-due)"], ["Under review", "var(--vg-done)"], ["Overdue", ST_CLR.over], ["Later months (faded)", "color-mix(in srgb, var(--vg-due) 38%, transparent)"]])}</div></div>
     <div class="sm-grid">${shown.map(([t, sub, f, v]) => svcMonthChart(items.filter(f), Y, t, sub, v)).join("")}</div></div>`; }
 function hbars(rows, maxV){ const max = Math.max(1, maxV || Math.max(...rows.map(r => r.over + r.pend)));
   return rows.map(r => `<div class="hb"><div class="hb-l" title="${esc(r.name)}">${esc(r.name)}</div><div class="hb-t">${r.over ? `<i style="width:${(r.over / max * 100).toFixed(1)}%;background:${ST_CLR.over}" title="${r.over} overdue"></i>` : ""}${r.pend ? `<i style="width:${(r.pend / max * 100).toFixed(1)}%;background:${ST_CLR.pend}" title="${r.pend} pending"></i>` : ""}</div><div class="hb-v">${r.over + r.pend}${r.over ? ` <span class="over">(${r.over}!)</span>` : ""}</div></div>`).join(""); }
