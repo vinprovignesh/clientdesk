@@ -2728,6 +2728,39 @@ SUBMIT.finAr = async (form, o) => {
 };
 document.addEventListener("change", e => { const t = e.target; if(t.dataset && t.dataset.act === "finArWho"){ const el = document.getElementById("finArParty"); if(el) el.style.display = t.value ? "none" : ""; } });
 
+/* ---------- receipts breakdown per client / one-off party, with edit & delete ---------- */
+function rcptsOf(cid, pk){ return (data.cash || []).filter(x => x.Dir === "In" && (cid ? x.ClientId === cid : !x.ClientId && String(x.ClientName || "").trim() && pkey(x.ClientName) === pk)).sort((a, b) => (b.Date || "").localeCompare(a.Date || "")); }
+function rcptCount(cid, pk){ return rcptsOf(cid, pk).length; }
+const isArRcpt = (x, party) => party ? true : lc(x.Service) === lc(AR_SVC);
+function finArSummary(q){
+  const cl = finClients().filter(c => arOf(c.id)).map(c => ({ name: c.Title, cid: c.id, ar: arOf(c.id), coll: arCollected(c.id), n: rcptsOf(c.id).filter(x => isArRcpt(x)).length, tag: "" }));
+  const pt = partyAR().map(x => ({ name: x.name, pk: x.key, ar: x.ar, coll: x.coll, n: rcptsOf(null, x.key).length, tag: chip("purple", "Not a client") }));
+  const all = [...cl, ...pt].filter(r => !q || lc(r.name).includes(q)).sort((a, b) => (b.ar - b.coll) - (a.ar - a.coll) || a.name.localeCompare(b.name));
+  if(!all.length) return "";
+  const T = all.reduce((t, r) => ({ ar: t.ar + r.ar, coll: t.coll + r.coll }), { ar: 0, coll: 0 });
+  return `<div class="card"><div class="card-h"><h3>Opening AR — receipts booked</h3><div class="right small muted">Receivables on 1 ${ymLabel(FIN.start)} and what has been collected against them</div></div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Client / party</th><th class="num">Opening AR</th><th class="num">Collected</th><th class="num">Outstanding</th><th class="num">Receipts</th><th></th></tr></thead><tbody>
+  ${all.map(r => `<tr><td class="cname">${esc(r.name)} ${r.tag}</td><td class="num">${money(r.ar)}</td><td class="num">${moneyZ(r.coll)}</td><td class="num ${r.ar - r.coll > 0.0005 ? "" : "fav"}"><b>${money(r.ar - r.coll)}</b></td><td class="num">${r.n || `<span class="faint">0</span>`}</td>
+    <td class="nowrap"><button class="btn sm" data-act="finRcpts" ${r.cid ? `data-c="${r.cid}"` : `data-p="${esc(r.name)}"`} data-ar="1">View receipts</button></td></tr>`).join("")}
+  </tbody><tfoot><tr class="tot"><td>Total</td><td class="num">${money(T.ar)}</td><td class="num">${money(T.coll)}</td><td class="num">${money(T.ar - T.coll)}</td><td></td><td></td></tr></tfoot></table></div>
+  <div class="card-b small muted">For clients, only receipts recorded with service <b>${AR_SVC}</b> are set off against the opening balance; open <b>View receipts</b> to edit a receipt's service, amount or date, or delete it.</div></div>`;
+}
+MODALS.finRcpts = ({ cid, party, arOnly }) => {
+  const c = cid ? clientById(cid) : null; const pk = party ? pkey(party) : null; const name = c ? c.Title : party;
+  let rs = rcptsOf(cid || null, pk); const isP = !c; const ar = c ? arOf(cid) : (partyAR().find(x => x.key === pk) || { ar: 0 }).ar;
+  const arColl = c ? arCollected(cid) : rs.reduce((t, x) => t + fnum(x.Amount), 0);
+  const shown = arOnly && c ? rs.filter(x => isArRcpt(x)) : rs; const tot = shown.reduce((t, x) => t + fnum(x.Amount), 0);
+  return `<div class="modal wide">${mHead(`Receipts — ${esc(name || "")}`)}<div class="mb">
+    ${ar ? `<div class="strip" style="margin-bottom:12px"><div class="st fu"><div class="ic">AR</div><div><b>${money(ar)}</b><span>opening AR on 1 ${ymLabel(FIN.start)}</span></div></div><div class="st ok"><div class="ic">✓</div><div><b>${money(arColl)}</b><span>collected against AR</span></div></div><div class="st ${ar - arColl > 0.0005 ? "wa" : "ok"}"><div class="ic">=</div><div><b>${money(ar - arColl)}</b><span>AR outstanding</span></div></div></div>` : ""}
+    ${c && ar ? `<div class="seg" style="margin-bottom:10px">${[["", "All receipts"], ["1", "Against opening AR only"]].map(([k, l]) => `<button class="${(arOnly ? "1" : "") === k ? "on" : ""}" data-act="finRcptsFilter" data-v="${k}">${l}</button>`).join("")}</div>` : ""}
+    <div class="tw" style="max-height:52vh"><table class="tbl nosort"><thead><tr><th>Date</th><th>Against</th><th>Description</th><th>Reference</th><th class="num">Amount</th><th>Entered</th><th></th></tr></thead><tbody>
+    ${shown.map(x => `<tr><td class="small nowrap">${fmtDate(x.Date)}</td><td>${isArRcpt(x, isP) ? `<span class="ms-tag">Opening AR</span>` : esc(x.Service || "Fees")}</td><td class="small">${esc(x.Title)}</td><td class="small">${esc(x.Ref)}</td>
+      <td class="num"><b>${money(fnum(x.Amount))}</b></td><td class="small faint nowrap">${updCell(x)}</td>
+      <td class="nowrap"><button class="btn sm" data-act="finCashEdit" data-id="${x.id}">Edit</button> <button class="btn sm danger" data-act="finCashDel" data-id="${x.id}">Delete</button></td></tr>`).join("")}
+    </tbody>${shown.length ? `<tfoot><tr class="tot"><td colspan="4">Total · ${shown.length} receipt${shown.length === 1 ? "" : "s"}</td><td class="num">${money(tot)}</td><td></td><td></td></tr></tfoot>` : ""}</table>
+    ${shown.length ? "" : `<div class="empty">No receipts booked${arOnly ? " against opening AR" : ""} yet.</div>`}</div></div>
+  <div class="mf"><button type="button" class="btn pri" data-act="finCashAdd" data-v="In" ${c ? `data-c="${cid}"` : `data-p="${esc(party)}"`} style="margin-right:auto">${I.plus} Record receipt</button><button type="button" class="btn" data-act="close">Close</button></div></div>`;
+};
 function finChart(S, Y){
   const yms = MM.map(m => `${Y}-${m}`).filter(ym => ym >= FIN.start); if(!yms.length) return ""; const cur = curYM();
   const rows = yms.map(ym => ({ ym, ...finSum(S, [ym]) }));
@@ -2762,15 +2795,16 @@ function finClientsView(){
     <td class="small">${r.fees.length ? r.fees.map(feeLineText).join("<br>") : `<a href="#" data-act="finFees" data-id="${r.c.id}">${chip("amber", "Not set")}</a>`}</td>
     <td class="num">${moneyZ(r.b)}</td><td class="num">${moneyZ(r.a)}</td><td class="num ${r.v < -0.0005 ? "adv" : r.v > 0.0005 ? "fav" : "faint"}">${Math.abs(r.v) < 0.0005 ? "—" : money(r.v)}</td>
     <td class="num">${r.b > 0.0005 ? Math.round(r.a / r.b * 100) + "%" : "—"}</td><td class="num small">${arOf(r.c.id) ? `${money(arOf(r.c.id) - arCollected(r.c.id))}<div class="faint">of ${money(arOf(r.c.id))}</div>` : `<span class="faint">—</span>`}</td><td class="small nowrap">${lr ? fmtDate(lr) : `<span class="faint">—</span>`}</td>
-    <td><button class="btn sm" data-act="finCashAdd" data-v="In" data-c="${r.c.id}">Receipt</button></td></tr>`; }).join("")}
+    <td class="nowrap"><button class="btn sm" data-act="finRcpts" data-c="${r.c.id}" title="See, edit or delete receipts">Receipts${rcptCount(r.c.id) ? ` (${rcptCount(r.c.id)})` : ""}</button> <button class="btn sm ghost" data-act="finCashAdd" data-v="In" data-c="${r.c.id}" title="Record a receipt">+</button></td></tr>`; }).join("")}
   ${(() => { const keys = new Set([...Object.keys(t.byC).filter(k => k.startsWith("p:")), ...partyAR().map(x => x.key)]); const P = new Map(partyAR().map(x => [x.key, x]));
     return [...keys].filter(k => !q || lc(partyName(k)).includes(q)).sort((a, b) => partyName(a).localeCompare(partyName(b))).map(k => { const x = t.byC[k] || { b: 0, a: 0 }; const pa = P.get(k); const v = x.a - x.b;
       return `<tr><td class="cname">${esc(partyName(k))} ${chip("purple", "Not a client")}</td><td class="small">${pa ? pa.lines.map(feeLineText).join("<br>") : `<span class="faint">Receipts only</span>`}</td><td class="num">${moneyZ(x.b)}</td><td class="num">${moneyZ(x.a)}</td>
         <td class="num ${v < -0.0005 ? "adv" : v > 0.0005 ? "fav" : "faint"}">${Math.abs(v) < 0.0005 ? "—" : money(v)}</td><td class="num">${x.b > 0.0005 ? Math.round(x.a / x.b * 100) + "%" : "—"}</td>
-        <td class="num small">${pa ? `${money(pa.ar - pa.coll)}<div class="faint">of ${money(pa.ar)}</div>` : `<span class="faint">—</span>`}</td><td></td><td><button class="btn sm" data-act="finCashAdd" data-v="In" data-p="${esc(partyName(k))}">Receipt</button></td></tr>`; }).join(""); })()}
+        <td class="num small">${pa ? `${money(pa.ar - pa.coll)}<div class="faint">of ${money(pa.ar)}</div>` : `<span class="faint">—</span>`}</td><td></td><td><button class="btn sm" data-act="finRcpts" data-p="${esc(partyName(k))}">Receipts${rcptCount(null, k) ? ` (${rcptCount(null, k)})` : ""}</button> <button class="btn sm ghost" data-act="finCashAdd" data-v="In" data-p="${esc(partyName(k))}" title="Record a receipt">+</button></td></tr>`; }).join(""); })()}
   ${(t.byC._none || {}).a ? `<tr><td class="cname faint">Receipts not linked to a Bahrain client</td><td></td><td class="num">—</td><td class="num">${money(t.byC._none.a)}</td><td></td><td></td><td></td><td></td><td></td></tr>` : ""}
   </tbody><tfoot><tr class="tot"><td>Total</td><td></td><td class="num">${money(t.inB)}</td><td class="num">${money(t.inA)}</td><td class="num ${t.inA - t.inB < 0 ? "adv" : "fav"}">${money(t.inA - t.inB)}</td><td class="num">${t.inB ? Math.round(t.inA / t.inB * 100) + "%" : "—"}</td><td class="num">${(() => { const ar = arOutstandingAll(); return ar ? money(ar) : ""; })()}</td><td></td><td></td></tr></tfoot></table>
-  ${rows.length || other ? "" : `<div class="empty">No Bahrain clients yet.</div>`}</div></div>`;
+  ${rows.length || other ? "" : `<div class="empty">No Bahrain clients yet.</div>`}</div></div>
+  ${finArSummary(q)}`;
 }
 
 function finCashRows(){
@@ -3115,7 +3149,9 @@ Object.assign(ACT, {
   finCashAdd: d => { if(!canFin()) return; openModal("finCash", { dir: d.v, cid: d.c || "", party: d.p || "" }); },
   finArParty: () => openModal("finArForm", {}),
   finCashEdit: d => openModal("finCash", { id: d.id }),
-  finCashDel: d => { const x = data.cash.find(r => r.id === d.id); if(!x) return; openModal("confirm", { text: `Delete this ${x.Dir === "In" ? "receipt" : "payment"} of <b>BHD ${money(fnum(x.Amount))}</b> dated ${fmtDate(x.Date)}?`, onYes: async () => { await removeRec("cash", x.id); state.modals = state.modals.filter(m => m.type !== "finCash"); toast("Entry deleted"); } }); },
+  finRcpts: (d, e) => { if(e) e.preventDefault(); if(!canFin()) return; openModal("finRcpts", { cid: d.c || "", party: d.p || "", arOnly: !!d.ar && !!d.c }); },
+  finRcptsFilter: d => { const m = state.modals[state.modals.length - 1]; if(m && m.type === "finRcpts"){ m.props.arOnly = d.v === "1"; renderModals(); } },
+  finCashDel: d => { const x = data.cash.find(r => r.id === d.id); if(!x) return; openModal("confirm", { text: `Delete this ${x.Dir === "In" ? "receipt" : "payment"} of <b>BHD ${money(fnum(x.Amount))}</b> dated ${fmtDate(x.Date)}?`, onYes: async () => { await removeRec("cash", x.id); state.modals = state.modals.filter(m => m.type !== "finCash"); await logAct(x.Dir === "In" ? "Receipt deleted" : "Payment deleted", clientById(x.ClientId) || null, `BHD ${money(fnum(x.Amount))} dated ${fmtDate(x.Date)}${x.Ref ? " · " + x.Ref : ""}`); toast("Entry deleted"); } }); },
   finHeadAdd: () => openModal("finHead"),
   finExpFill: async d => { const r = blRec(d.h, d.y) || {}; const months = MM.filter(m => `${d.y}-${m}` >= FIN.start); const first = months.find(m => fnum(r["M" + m]));
     if(!first) return toast("Type the monthly amount in the first month, then use Fill →", true); const v = r["M" + first]; const patch = {}; months.filter(m => m > first).forEach(m => patch["M" + m] = v);
