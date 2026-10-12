@@ -618,13 +618,24 @@ class GraphStore {
     }
     this.missing = [];
   }
+  /* SharePoint may store a column under a different internal name than the one requested
+     (e.g. names that look like Excel cell references such as "M01"), so map each field to
+     the list's real internal name, matched by name first and then by display name. */
   async ensureColumns(){
+    this.cols = this.cols || {};
     for(const k of Object.keys(SCHEMA)){ const lid = this.listIds[k]; if(!lid) continue;
-      const cols = await this.g("GET", `/sites/${this.siteId}/lists/${lid}/columns?$select=name&$top=500`); const have = new Set(cols.value.map(c => c.name));
-      for(const [name, t] of Object.entries(SCHEMA[k].fields)){ if(name === "Title" || have.has(name)) continue;
-        await this.g("POST", `/sites/${this.siteId}/lists/${lid}/columns`, { name, text: t === "note" ? { allowMultipleLines: true, linesForEditing: 6 } : {} }); } }
+      try {
+        const cols = (await this.g("GET", `/sites/${this.siteId}/lists/${lid}/columns?$select=name,displayName&$top=500`)).value; const map = {};
+        const find = n => (cols.find(c => c.name === n) || cols.find(c => lc(c.displayName) === lc(n)) || {}).name;
+        for(const [name, t] of Object.entries(SCHEMA[k].fields)){ let real = name === "Title" ? "Title" : find(name);
+          if(!real){ const c = await this.g("POST", `/sites/${this.siteId}/lists/${lid}/columns`, { name, text: t === "note" ? { allowMultipleLines: true, linesForEditing: 6 } : {} }); real = c.name || name; cols.push(c); }
+          map[name] = real; }
+        this.cols[k] = map;
+      } catch(e){ console.warn("Column check failed for", k, e); } }
   }
-  norm(kind, it){ const r = { id: String(it.id) }; const f = it.fields || {}; for(const k of Object.keys(SCHEMA[kind].fields)) r[k] = f[k] == null ? "" : String(f[k]); return r; }
+  col(kind, name){ return (this.cols && this.cols[kind] && this.cols[kind][name]) || name; }
+  toSP(kind, f){ const o = {}; for(const k in f) o[this.col(kind, k)] = f[k]; return o; }
+  norm(kind, it){ const r = { id: String(it.id) }; const f = it.fields || {}; for(const k of Object.keys(SCHEMA[kind].fields)){ const v = f[this.col(kind, k)]; r[k] = v == null ? "" : String(v); } return r; }
   async loadAll(){
     const out = {};
     await Promise.all(Object.keys(SCHEMA).map(async kind => {
@@ -637,8 +648,8 @@ class GraphStore {
     return out;
   }
   needList(kind){ if(!this.listIds[kind]) throw new Error(`The ${SCHEMA[kind].list} list isn't set up on SharePoint yet. Ask the administrator to sign in once to finish the update.`); }
-  async create(kind, fields){ this.needList(kind); const f = cleanFields(kind, fields); const it = await this.g("POST", `/sites/${this.siteId}/lists/${this.listIds[kind]}/items`, { fields: f }); return Object.assign({}, this.norm(kind, { id: it.id, fields: {} }), f); }
-  async update(kind, id, fields){ this.needList(kind); await this.g("PATCH", `/sites/${this.siteId}/lists/${this.listIds[kind]}/items/${id}/fields`, cleanFields(kind, fields)); }
+  async create(kind, fields){ this.needList(kind); const f = cleanFields(kind, fields); const it = await this.g("POST", `/sites/${this.siteId}/lists/${this.listIds[kind]}/items`, { fields: this.toSP(kind, f) }); return Object.assign({}, this.norm(kind, { id: it.id, fields: {} }), f); }
+  async update(kind, id, fields){ this.needList(kind); await this.g("PATCH", `/sites/${this.siteId}/lists/${this.listIds[kind]}/items/${id}/fields`, this.toSP(kind, cleanFields(kind, fields))); }
   async remove(kind, id){ await this.g("DELETE", `/sites/${this.siteId}/lists/${this.listIds[kind]}/items/${id}`); }
 }
 
