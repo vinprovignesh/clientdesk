@@ -294,11 +294,13 @@ tr.click-row:hover td{background:var(--panel-2)}
 }
 
 /* =================== THEME REFRESH (whole tool) =================== */
-:root{--vg-done:#009e95;--vg-done-bg:#dff3f1;--vg-due:#050c42;--vg-due-bg:#e3e6f3;--vg-over:#d0453d;--vg-over-bg:#fbe5e3;--vg-fut:#c9e6e3;--vg-fut-ink:#3f6f6b}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--vg-done:#2fbfb4;--vg-done-bg:#10393a;--vg-due:#8fa2ff;--vg-due-bg:#1f2a5c;--vg-over:#f07a6e;--vg-over-bg:#3a1a17;--vg-fut:#24414a;--vg-fut-ink:#9cc7c2}}
-:root[data-theme="dark"]{--vg-done:#2fbfb4;--vg-done-bg:#10393a;--vg-due:#8fa2ff;--vg-due-bg:#1f2a5c;--vg-over:#f07a6e;--vg-over-bg:#3a1a17;--vg-fut:#24414a;--vg-fut-ink:#9cc7c2}
+:root{--vg-done:#050c42;--vg-done-bg:#e3e6f3;--vg-due:#009e95;--vg-due-bg:#dff3f1;--vg-over:#d0453d;--vg-over-bg:#fbe5e3;--vg-fut:#dfe4ec;--vg-fut-ink:#56637a}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--vg-done:#8fa2ff;--vg-done-bg:#1f2a5c;--vg-due:#2fbfb4;--vg-due-bg:#10393a;--vg-over:#f07a6e;--vg-over-bg:#3a1a17;--vg-fut:#2a3350;--vg-fut-ink:#aab4c5}}
+:root[data-theme="dark"]{--vg-done:#8fa2ff;--vg-done-bg:#1f2a5c;--vg-due:#2fbfb4;--vg-due-bg:#10393a;--vg-over:#f07a6e;--vg-over-bg:#3a1a17;--vg-fut:#2a3350;--vg-fut-ink:#aab4c5}
 .dl.ok{background:var(--vg-done-bg)!important;color:var(--vg-done)!important}.dl.wa{background:var(--vg-due-bg)!important;color:var(--vg-due)!important;box-shadow:inset 0 0 0 1.5px var(--vg-due)!important}
 .dl.ba{background:var(--vg-over-bg)!important;color:var(--vg-over)!important;box-shadow:inset 0 0 0 1.5px var(--vg-over)!important}.dl.fu{background:var(--vg-fut)!important;color:var(--vg-fut-ink)!important}
+.chip.st-done{background:var(--vg-done-bg);color:var(--vg-done)}.chip.st-pend{background:var(--vg-due-bg);color:var(--vg-due)}
+.steps i.on{background:var(--vg-done)!important}.bar i{background:var(--vg-done)!important}
 .segbar .ok{background:var(--vg-done)}.segbar .wa{background:var(--vg-due)}.segbar .ba{background:var(--vg-over)}
 body{background:radial-gradient(1200px 500px at 100% -10%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 60%),var(--bg)}
 /* sidebar */
@@ -752,7 +754,8 @@ function mwRec(cid, svc, ym, freq){ freq = freq || "Monthly"; return data.mw.fin
 function mwStatus(cid, svc, ym, freq){ const r = mwRec(cid, svc, ym, freq); return (r && r.Status) || "Not started"; }
 function mwDue(c, svc, ym, freq){ const r = mwRec(c.id, svc, ym, freq); return (r && r.DueDate) || mwDefaultDue(svc, ym, freq); }
 function mwLabel(c, ym, freq){ return freq === "Annually" ? fyLabelOf(c, ym) : ymLabel(ym); }
-function mwChip(st){ return chip(MW_COLOR[st] || "grey", esc(st), true); }
+function stCls(st, done){ return done.has(st) ? "st-done" : "st-pend"; }
+function mwChip(st){ return chip(stCls(st, MW_DONE), esc(st), true); }
 function mwPeriods(c, svc, fromYm, toYm){ const out = []; if(fromYm < MW_START) fromYm = MW_START;
   for(let ym = fromYm; ym <= toYm; ym = ymAdd(ym, 1)){ const f = freqAt(c, svc, ym); if(f === "Monthly") out.push({ ym, freq: "Monthly" }); else if(ym.slice(5, 7) === fyEndMM(c)) out.push({ ym, freq: "Annually" }); }
   return out; }
@@ -760,7 +763,7 @@ function mwItems(clients, horizonDays = 10){ const cur = curYM(); const out = []
   for(const c of clients){ if(isDeact(c)) continue; for(const svc of MW_SERVICES){ if(!hasService(c, svc)) continue;
     for(const p of mwPeriods(c, svc, ymAdd(cur, -12), cur)){ const st = mwStatus(c.id, svc, p.ym, p.freq); if(MW_DONE.has(st)) continue; const due = mwDue(c, svc, p.ym, p.freq); const d = daysUntil(due); if(d <= horizonDays) out.push({ c, svc, ym: p.ym, freq: p.freq, due, d, st, rec: mwRec(c.id, svc, p.ym, p.freq) }); } } }
   return out.sort((a, b) => a.d - b.d); }
-function ctChip(st){ return chip(CT_COLOR[st] || "grey", esc(st), true); }
+function ctChip(st){ return chip(stCls(st, CT_DONE), esc(st), true); }
 function vatStart(c){ const a = CFG.vatTrackingStart || "2000-01", b = c.VATFrom || ""; return b > a ? b : a; }
 function vatRec(cid, pe){ return data.vat.find(v => v.ClientId === cid && v.PeriodEnd === pe); }
 function vatStatus(cid, pe){ const r = vatRec(cid, pe); return (r && r.Status) || "Not started"; }
@@ -791,8 +794,8 @@ function crInfo(c){
 }
 function updCell(r){ if(!r || !r.UpdatedOn) return ""; return `<span title="${esc(empName(r.UpdatedBy))} · ${fmtDT(r.UpdatedOn)}">${esc(empName(r.UpdatedBy).split(" ")[0])} · ${fmtDate(r.UpdatedOn.slice(0,10)).slice(0,6)}</span>`; }
 function chip(color, text, dot){ return `<span class="chip ${color}">${dot ? '<span class="dot"></span>' : ""}${text}</span>`; }
-function vatChip(st){ return chip(VAT_COLOR[st] || "grey", esc(st), true); }
-function auditChip(st){ return chip(AUDIT_COLOR[st] || "grey", esc(st), true); }
+function vatChip(st){ return chip(stCls(st, VAT_DONE), esc(st), true); }
+function auditChip(st){ return chip(stCls(st, AUDIT_DONE), esc(st), true); }
 function avatars(emails){ return `<div class="avs">${emails.map(e => `<span class="av" title="${esc(e)}"><i>${esc(initials(empName(e)))}</i>${esc(empName(e).split(" ")[0])}</span>`).join("")}</div>`; }
 
 /* ============================================================
@@ -936,7 +939,7 @@ function auditWork(clients, fy){ const out = []; const prev = String(+fy - 1);
     const r = auditRec(c.id, fy); const st = auditSt(c, r); const done = AUDIT_DONE.has(st); out.push({ c, fy, st, done, cur: true, prev: false, over: false, due: (r && r.DueDate) || "" }); }
   return out.sort((a, b) => (b.prev - a.prev) || a.c.Title.localeCompare(b.c.Title)); }
 function workSum(items){ const now = items.filter(x => x.cur); return { total: now.length, doneN: now.filter(x => x.done).length, curP: now.filter(x => !x.done).length, prevN: items.filter(x => x.prev).length, over: items.filter(x => x.over).length, pending: items.filter(x => !x.done) }; }
-function prevChip(x, label){ return x.over ? chip("red", "Overdue · " + esc(label)) : x.prev ? chip("amber", "Previous period · " + esc(label)) : ""; }
+function prevChip(x, label){ return x.over ? chip("red", "Overdue · " + esc(label)) : x.prev ? chip("st-pend", "Previous period · " + esc(label)) : ""; }
 function dueTag(due){ const d = daysUntil(due); return d == null ? "" : d < 0 ? `<span class="over">past due</span>` : d === 0 ? `<span class="soon">today</span>` : d <= 7 ? `<span class="soon">in ${d} day${d === 1 ? "" : "s"}</span>` : ""; }
 
 /* ---------- management view: every deadline of a calendar year, by service and by client ---------- */
@@ -1039,7 +1042,7 @@ function hbars(rows, maxV){ const max = Math.max(1, maxV || Math.max(...rows.map
 function locChart(pend){ const rows = LOCATIONS.map(L => { const a = pend.filter(x => locOf(x.c) === L); return { name: L === "UAE" ? "UAE (Dubai)" : "Bahrain", L, over: a.filter(x => x.over).length, pend: a.filter(x => !x.over).length }; }).filter(r => !state.loc || r.L === state.loc);
   const tot = rows.reduce((a, r) => a + r.over + r.pend, 0); const top = rows.slice().sort((a, b) => (b.over + b.pend) - (a.over + a.pend))[0];
   const svcMix = {}; pend.forEach(x => { const k = ["VAT", "Accounting", "Consultation", "Corporate tax", "Audit"].includes(x.svc) ? x.svc : "Other"; svcMix[k] = (svcMix[k] || 0) + 1; });
-  const mix = Object.entries(svcMix).sort((a, b) => b[1] - a[1]); const mixC = ["var(--vg-due)", "var(--vg-done)", "#3b66d6", "#7fcfc8", "#8a93a3", "#b9c3e6"];
+  const mix = Object.entries(svcMix).sort((a, b) => b[1] - a[1]); const mixC = ["#3b66d6", "#7a5cc4", "#4a9bd4", "#c58b3c", "#8a93a3", "#b9c3e6"];
   return `<div class="card ch-card"><div class="card-h"><h3>Open work</h3><div class="right small muted">${tot} items</div></div><div class="card-b">
     <div class="ch-sub">By location</div>${hbars(rows)}
     <div class="ch-sub" style="margin-top:14px">By service</div><div class="mixbar">${mix.map(([k, v], i) => `<i style="flex:${v};background:${mixC[i % mixC.length]}" title="${esc(k)}: ${v}"></i>`).join("")}</div>
@@ -1239,7 +1242,7 @@ function vatYearView(base){
   ${rows.map(c => `<tr><td class="cname nowrap">${state.loc ? "" : locTag(c) + " "}${esc(c.Title)}</td><td class="small faint nowrap">${esc(CYCLES[c.VATCycle].short)}</td>
     ${months.map(m => { if(!isPeriodEnd(c.VATCycle, m)) return `<td class="cell off"></td>`; if(m < vatStart(c)) return `<td class="cell"><span class="faint small">–</span></td>`;
       const st = vatStatus(c.id, m); const dd = daysUntil(dueOf(m, c)); const over = !VAT_DONE.has(st) && dd < 0; const fut = st === "Not started" && dd > 45;
-      return `<td class="cell"><span class="yc chip ${VAT_COLOR[st]} ${over ? "overdue" : ""} ${fut ? "future" : ""}" data-act="editVat" data-c="${c.id}" data-pe="${m}" title="${esc(periodLabel(c.VATCycle, m))} · ${esc(st)} · due ${fmtDate(dueOf(m, c))}">${VAT_SHORT[st]}</span></td>`; }).join("")}</tr>`).join("")}
+      return `<td class="cell"><span class="yc chip ${stCls(st, VAT_DONE)} ${over ? "overdue" : ""} ${fut ? "future" : ""}" data-act="editVat" data-c="${c.id}" data-pe="${m}" title="${esc(periodLabel(c.VATCycle, m))} · ${esc(st)} · due ${fmtDate(dueOf(m, c))}">${VAT_SHORT[st]}</span></td>`; }).join("")}</tr>`).join("")}
   </tbody></table>${rows.length ? "" : `<div class="empty">No clients with a VAT cycle.</div>`}</div></div>`;
 }
 
@@ -1343,7 +1346,7 @@ function mwYearView(base){
   ${rows.map(c => `<tr><td class="cname nowrap">${state.loc ? "" : locTag(c) + " "}${esc(c.Title)}</td>
     ${months.map(m => { if(m < MW_START || m > cur) return `<td class="cell off"></td>`; if(freqAt(c, f.svc, m) !== "Monthly") return `<td class="cell"><span class="faint small">Annual</span></td>`;
       const st = mwStatus(c.id, f.svc, m); const d = daysUntil(mwDue(c, f.svc, m)); const over = !MW_DONE.has(st) && d < 0;
-      return `<td class="cell"><span class="yc chip ${MW_COLOR[st]} ${over ? "overdue" : ""}" data-act="editMw" data-c="${c.id}" data-s="${esc(f.svc)}" data-m="${m}" data-f="Monthly" title="${ymLabel(m)} · ${esc(st)} · due ${fmtDate(mwDue(c, f.svc, m))}">${MW_SHORT[st]}</span></td>`; }).join("")}</tr>`).join("")}
+      return `<td class="cell"><span class="yc chip ${stCls(st, MW_DONE)} ${over ? "overdue" : ""}" data-act="editMw" data-c="${c.id}" data-s="${esc(f.svc)}" data-m="${m}" data-f="Monthly" title="${ymLabel(m)} · ${esc(st)} · due ${fmtDate(mwDue(c, f.svc, m))}">${MW_SHORT[st]}</span></td>`; }).join("")}</tr>`).join("")}
   </tbody></table>${rows.length ? "" : `<div class="empty">No monthly clients in ${y}.</div>`}</div></div>`;
 }
 
@@ -1378,7 +1381,7 @@ VIEWS.ct = () => {
 const OTH_STATUSES = ["Not started","In progress","Awaiting client","Under review","On hold","Completed","Not applicable"];
 const OTH_DONE = new Set(["Completed","Not applicable"]);
 const OTH_COLOR = {"Not started":"grey","In progress":"blue","Awaiting client":"amber","Under review":"purple","On hold":"amber","Completed":"green","Not applicable":"grey"};
-function othChip(st){ return chip(OTH_COLOR[st] || "grey", esc(st), true); }
+function othChip(st){ return chip(stCls(st, OTH_DONE), esc(st), true); }
 function otherNamesText(c){ return otherServiceText(c).split(/[,;\/\n]+/).map(x => x.trim()).filter(Boolean); }
 const curYear = () => String(new Date().getFullYear());
 function othYear(x){ return x.Year || String(x.UpdatedOn || "").slice(0, 4) || curYear(); }
