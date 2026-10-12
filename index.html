@@ -438,6 +438,20 @@ ul.att{list-style:none;margin:0;padding:6px 0}ul.att li{display:flex;gap:12px;al
 .ch-legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
 .ch-legend .lg-b{background:var(--line)} .ch-legend .lg-a{background:var(--accent)}
 #finDueHint{text-transform:none}
+.fsheet-wrap{max-height:78vh}
+.fsheet{font-size:12.5px}
+.fsheet th,.fsheet td{white-space:nowrap;padding:4px 7px}
+.fsheet .pl{position:sticky;left:0;background:var(--panel);z-index:1;min-width:210px;max-width:260px;overflow:hidden;text-overflow:ellipsis}.fsheet tr.sec td.pl{overflow:visible;white-space:nowrap}
+.fsheet thead th{position:sticky;top:0;background:var(--panel-2);z-index:2}.fsheet thead tr:nth-child(2) th{top:29px}
+.fsheet thead th.pl{z-index:3;background:var(--panel-2)}
+.fsheet th.mh{text-align:center;border-left:1px solid var(--line)}
+.fsheet td.b,.fsheet th.num:nth-child(even){border-left:1px solid var(--line-2)}
+.fsheet td.b{color:var(--muted)}
+.fsheet tr.sec td.pl{background:var(--panel-2)}
+.fsheet tr.tot td.pl{font-weight:700}.fsheet tr.net td,.fsheet tr.net td.pl{background:var(--brand-soft)}
+.fsheet .ind{padding-left:20px}
+.fsheet .fin-cell.chk{width:76px!important}
+.fsheet .fin-cell.chk::placeholder{color:var(--faint);font-style:italic}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
@@ -2341,7 +2355,7 @@ function feeSched(f, c, from, to){
   for(let ym = s; ym <= to && ym <= e; ym = ymAdd(ym, n)){ if(spread) for(let k = 0; k < n; k++) add(ymAdd(ym, k), amt / n); else add(ym, amt); }
   return out;
 }
-function feeLineText(f){ return `${esc(f.Service || "Fee")} ${money(fnum(f.Amount))}${FEE_FREQ_SHORT[f.Freq] || ""} <span class="faint">· due ${termsShort(termsOf(f))}</span>`; }
+function feeLineText(f){ if(lc(f.Service) === "opening ar") return `Opening AR ${money(fnum(f.Amount))} <span class="faint">· expected ${f.StartMonth ? ymLabel(f.StartMonth) : ""}</span>`; return `${esc(f.Service || "Fee")} ${money(fnum(f.Amount))}${FEE_FREQ_SHORT[f.Freq] || ""} <span class="faint">· due ${termsShort(termsOf(f))}</span>`; }
 function dueRuleText(t){ const off = termsOff(t); return `${FEE_TERMS_LABEL[t]}: an invoice for Jan is collected in ${MONTHS[off % 12]}${off ? ` (${off} month${off > 1 ? "s" : ""} later)` : " (same month)"}`; }
 function finHeads(){
   const extra = new Set(); (data.blines || []).forEach(b => b.Kind === "Expense" && b.Head && extra.add(b.Head)); (data.cash || []).forEach(x => x.Dir === "Out" && extra.add(headOf(x)));
@@ -2394,7 +2408,7 @@ function varCell(b, a, dir){ const v = (a - b) * dir; if(Math.abs(r3(v)) < 0.000
 /* ---------- view ---------- */
 const FIN_TABS = [["summary", "Budget vs Actual"], ["clients", "Inflow by client"], ["cash", "Cash book"], ["fees", "Fee budget"], ["exp", "Expense budget"]];
 const finDefMonth = () => { const m = ymAdd(curYM(), -1); return m < FIN.start ? FIN.start : m; };
-state.ff = { tab: "summary", mode: "month", month: finDefMonth(), period: "ytd", cq: "", cbMonth: curYM() < FIN.start ? FIN.start : curYM(), cbDir: "", cbQ: "", cbHead: "", fq: "", fshow: "all", year: String(Math.max(+FIN.start.slice(0, 4), new Date().getFullYear())) };
+state.ff = { tab: "summary", mode: "sheet", month: finDefMonth(), period: "ytd", cq: "", cbMonth: curYM() < FIN.start ? FIN.start : curYM(), cbDir: "", cbQ: "", cbHead: "", fq: "", fshow: "all", year: String(Math.max(+FIN.start.slice(0, 4), new Date().getFullYear())) };
 function finMonthOpts(sel, extra){ const last = ymAdd(curYM() < FIN.start ? FIN.start : curYM(), 3); const ms = finYms(FIN.start, last).reverse();
   return (extra || "") + ms.map(m => `<option value="${m}" ${sel === m ? "selected" : ""}>${ymLabel(m)}</option>`).join(""); }
 function finYearOpts(sel){ const ys = []; for(let y = +FIN.start.slice(0, 4); y <= new Date().getFullYear() + 1; y++) ys.push(String(y)); return ys.map(y => `<option ${String(sel) === y ? "selected" : ""}>${y}</option>`).join(""); }
@@ -2424,10 +2438,10 @@ function finSummaryView(){
       : `<button class="kpi ${noFee ? "warn" : ""}" data-act="finTab" data-v="fees"><div class="l">Bahrain clients without fee budget</div><div class="v">${noFee}</div><div class="s">Set fees so they count in the budget</div></button>`}
   </div>`;
   const toolbar = `<div class="toolbar"><select class="in" data-bind="ff.month" title="Month">${finMonthOpts(ym)}</select>
-    <div class="seg">${[["month", "Month & YTD"], ["year", "12-month view"]].map(([k, l]) => `<button class="${f.mode === k ? "on" : ""}" data-act="finMode" data-v="${k}">${l}</button>`).join("")}</div>
+    <div class="seg">${[["sheet", "Monthly sheet"], ["month", "Month & YTD"]].map(([k, l]) => `<button class="${f.mode === k ? "on" : ""}" data-act="finMode" data-v="${k}">${l}</button>`).join("")}</div>
     <span class="small muted">BHD · cash basis · incl. VAT${ym === curYM() ? " · <b>month in progress</b>" : ""}</span>
     <div class="right"><button class="btn" data-act="finCashAdd" data-v="In">${I.plus} Receipt</button><button class="btn" data-act="finCashAdd" data-v="Out">${I.plus} Payment</button><button class="btn ghost" data-act="finExport">Export to Excel</button></div></div>`;
-  const body = f.mode === "year" ? finYearGrid(S, Y) : `<div class="card"><div class="tw"><table class="tbl fin nosort"><thead>
+  const body = f.mode === "sheet" ? finSheetGrid(Y, ym) : `<div class="card"><div class="tw"><table class="tbl fin nosort"><thead>
       <tr><th></th><th colspan="4" class="grp">${ymLabel(ym)}</th><th colspan="4" class="grp sep">Year to date · ${ymLabel(ytd[0]).slice(0, 3)}–${ymLabel(ym).slice(0, 3)} ${Y}</th></tr>
       <tr><th>Particulars</th><th class="num">Budget</th><th class="num">Actual</th><th class="num">Variance</th><th class="num">%</th><th class="num sep">Budget</th><th class="num">Actual</th><th class="num">Variance</th><th class="num">%</th></tr></thead><tbody>
       ${lm.map((l, i) => { const y = ly[i]; if(l.sec) return `<tr class="sec"><td colspan="9">${l.sec}</td></tr>`;
@@ -2437,27 +2451,94 @@ function finSummaryView(){
             : `<td class="num">${moneyZ(l.b)}</td><td class="num">${moneyZ(l.a)}</td>${varCell(l.b, l.a, l.dir)}<td class="num sep">${moneyZ(y.b)}</td><td class="num">${moneyZ(y.a)}</td>${varCell(y.b, y.a, y.dir)}`}</tr>`; }).join("")}
     </tbody></table></div>
     <div class="card-b small muted">Variance is shown as favourable (green) or adverse (red, in brackets): more collected than budgeted, or less spent than budgeted, is favourable. ${ob == null ? `Set the opening cash & bank balance under <a href="#" data-act="finTab" data-v="exp">Expense budget</a> to see closing cash.` : ""}</div></div>`;
-  return kpis + toolbar + body + finChart(S, Y);
+  return kpis + toolbar + body + (f.mode === "sheet" ? "" : finChart(S, Y));
 }
 
-function finYearGrid(S, Y){
-  const yms = MM.map(m => `${Y}-${m}`); const cur = curYM(); const per = yms.map(ym => ym >= FIN.start ? finSum(S, [ym]) : null);
-  const tot = finSum(S, yms.filter(ym => ym >= FIN.start)); const lines = finLines(tot, null); const perL = per.map(t => t ? finLines(t, null) : null);
-  const ob = openingBal(); const closeRow = ob == null ? "" : (() => { const cs = yms.map(ym => ym >= FIN.start ? finClosing(S, ym) : null);
-    return `<tr class="sec"><td colspan="14">Closing cash & bank</td></tr>` + [["Budget", "b"], ["Actual", "a"]].map(([lab, k]) => `<tr class="${k === "a" ? "act" : "bud"}"><td class="ind">${lab}</td>${cs.map((c, i) => `<td class="num">${c && (k === "b" || yms[i] <= cur) ? money(c[k], 0) : `<span class="faint">—</span>`}</td>`).join("")}<td class="num">${cs[11] && k === "b" ? money(cs[11].b, 0) : ""}</td></tr>`).join(""); })();
-  return `<div class="card"><div class="tw"><table class="tbl fin fin-grid nosort"><thead><tr><th>Particulars</th>${yms.map(ym => `<th class="num ${ym === cur ? "curm" : ""}">${MONTHS[+ym.slice(5) - 1]}</th>`).join("")}<th class="num">Total ${Y}</th></tr></thead><tbody>
-    ${lines.map((l, i) => { if(l.sec) return `<tr class="sec"><td colspan="14">${l.sec}</td></tr>`; if(l.sub) return "";
-      const cells = k => perL.map((pl, j) => { if(!pl) return `<td class="num faint">·</td>`; const x = pl[i]; if(k === "a" && yms[j] > cur) return `<td class="num faint">—</td>`;
-        if(k === "v"){ if(yms[j] > cur) return `<td class="num faint">—</td>`; const v = (x.a - x.b) * x.dir; return `<td class="num ${Math.abs(v) < 0.0005 ? "faint" : v > 0 ? "fav" : "adv"}">${Math.abs(v) < 0.0005 ? "—" : money(v, 0)}</td>`; }
-        return `<td class="num">${Math.abs(x[k]) < 0.0005 ? `<span class="faint">—</span>` : money(x[k], 0)}</td>`; }).join("");
-      const tv = perL.reduce((s, pl, j) => pl && yms[j] <= cur ? s + (pl[i].a - pl[i].b) * pl[i].dir : s, 0);
-      return `<tr class="lhead ${l.tot ? "tot" : ""}"><td colspan="14">${esc(l.label)}</td></tr>
-        <tr class="bud"><td class="ind">Budget</td>${cells("b")}<td class="num">${money(l.b, 0)}</td></tr>
-        <tr class="act"><td class="ind">Actual</td>${cells("a")}<td class="num">${money(l.a, 0)}</td></tr>
-        <tr class="var"><td class="ind">Variance</td>${cells("v")}<td class="num ${tv > 0.0005 ? "fav" : tv < -0.0005 ? "adv" : "faint"}">${money(tv, 0)}</td></tr>`; }).join("")}
-    ${closeRow}</tbody></table></div>
-    <div class="card-b small muted">Whole BHD. Totals cover ${yms.filter(ym => ym >= FIN.start)[0] ? ymLabel(yms.filter(ym => ym >= FIN.start)[0]) : "—"} to Dec ${Y}; budget and actual totals are for the full year; the variance total covers months up to ${ymLabel(cur)} only.</div></div>`;
+/* ---------- Monthly sheet: Opening balance · Income by client · Expenses · Closing · Check ---------- */
+const CASH_ACCTS = Array.isArray(CFG.cashAccounts) && CFG.cashAccounts.length ? CFG.cashAccounts : ["Cash", "Petty Cash", "Beyon", "Ila Bank", "SBI Bank", "Flexi Deposit", "BBK Bank"];
+const AR_SVC = "Opening AR";
+const isAR = f => lc(f && f.Service) === lc(AR_SVC);
+function arOf(cid){ return feesOf(cid).filter(isAR).reduce((s, f) => s + fnum(f.Amount), 0); }
+function arCollected(cid){ return (data.cash || []).filter(x => x.Dir === "In" && x.ClientId === cid && lc(x.Service) === lc(AR_SVC)).reduce((s, x) => s + fnum(x.Amount), 0); }
+function chkRec(acct, year){ return (data.blines || []).find(b => b.Kind === "Check" && lc(b.Head) === lc(acct) && String(b.Year) === String(year)); }
+/* keyed balance for the month, or the last keyed balance carried forward (as in "=previous month") */
+function chkVal(acct, ym){ for(let m = ym; m >= FIN.start; m = ymAdd(m, -1)){ const r = chkRec(acct, m.slice(0, 4)); const v = r ? r["M" + m.slice(5)] : ""; if(v !== "" && v != null) return { v: fnum(v), keyed: m === ym }; } return null; }
+function chkTotal(ym){ let t = 0, any = false; for(const a of CASH_ACCTS){ const x = chkVal(a, ym); if(x){ t += x.v; any = true; } } return any ? t : null; }
+function chkSave(acct, year, patch){ return finQueue(`chk|${lc(acct)}|${year}`, async () => { const r = chkRec(acct, year);
+  await saveRec("blines", r ? r.id : null, Object.assign(r ? {} : { Title: acct, Kind: "Check", Head: acct, Year: String(year) }, patch, { UpdatedBy: me.email, UpdatedOn: nowISO() })); }); }
+
+/* opening/closing per month: actual chains on actual closing; budget opens on last month's actual closing once that month is over */
+function finSheetModel(Y){
+  const S = finSeries(`${Y}-12`); const cur = curYM(); const ob = openingBal() || 0; const M = {}; let prev = null;
+  for(const ym of finYms(FIN.start, `${Y}-12`)){ const s = S[ym];
+    const o = { ym, oa: prev ? prev.ca : ob, ob: prev ? (prev.ym < cur ? prev.ca : prev.cb) : ob };
+    o.ca = o.oa + s.inA - s.outAt; o.cb = o.ob + s.inB - s.outBt; M[ym] = o; prev = o; }
+  return { S, M };
 }
+function finIncomeRows(S, yms){
+  const ids = new Set(); for(const ym of yms) for(const k in S[ym].byC){ const x = S[ym].byC[k]; if(Math.abs(x.b) > 0.0005 || Math.abs(x.a) > 0.0005) ids.add(k); }
+  const cl = finClients().filter(c => ids.has(c.id)).sort((a, b) => a.Title.localeCompare(b.Title));
+  const other = [...ids].filter(k => !cl.some(c => c.id === k));
+  const rows = cl.map(c => ({ label: c.Title, cid: c.id, get: (ym, k) => ((S[ym].byC[c.id] || {})[k] || 0) }));
+  if(other.length) rows.push({ label: "Other receipts (not linked to a client)", get: (ym, k) => other.reduce((s, id) => s + ((S[ym].byC[id] || {})[k] || 0), 0) });
+  return rows;
+}
+function finSheetGrid(Y, upto){
+  const { S, M } = finSheetModel(Y); const cur = curYM();
+  const yms = MM.map(m => `${Y}-${m}`).filter(ym => ym >= FIN.start); if(!yms.length) return `<div class="card"><div class="empty">Tracking starts ${ymLabel(FIN.start)}.</div></div>`;
+  const tot = yms.filter(ym => ym <= upto); const last = tot[tot.length - 1] || yms[0];
+  const clients = finIncomeRows(S, yms); const heads = finHeads().filter(h => h !== UNCLASSIFIED || yms.some(ym => headAmt(S[ym].outA, h)));
+  const isAct = ym => ym <= cur;
+  const n = (v, cls) => `<td class="num ${cls || ""}">${Math.abs(r3(v)) < 0.0005 ? `<span class="faint">–</span>` : money(v)}</td>`;
+  const pair = (fb, fa) => yms.map(ym => n(fb(ym), "b") + (isAct(ym) ? n(fa(ym), "a") : `<td class="num a"></td>`)).join("");
+  const sumOver = f => tot.reduce((s, ym) => s + f(ym), 0);
+  const totCells = (b, a, dir) => { const v = (a - b) * dir; return n(b, "b sep") + n(a, "a") + `<td class="num ${Math.abs(v) < 0.0005 ? "faint" : v > 0 ? "fav" : "adv"}">${Math.abs(v) < 0.0005 ? "–" : money(v)}</td>`; };
+  const line = (label, fb, fa, dir, cls, act) => `<tr class="${cls || ""}"><td class="pl">${act || esc(label)}</td>${pair(fb, fa)}${totCells(sumOver(fb), sumOver(fa), dir)}</tr>`;
+  const W = yms.length * 2 + 4;
+  const inB = ym => S[ym].inB, inA = ym => S[ym].inA, oB = ym => S[ym].outBt, oA = ym => S[ym].outAt;
+  const o0 = M[tot[0] || yms[0]], cT = M[last];
+  const chkRows = CASH_ACCTS.map((a, i) => `<tr><td class="pl ind">${esc(a)}</td>${yms.map(ym => { if(!isAct(ym)) return `<td></td><td></td>`; const x = chkVal(a, ym); const own = x && x.keyed;
+      return `<td></td><td class="num a"><input id="chk-${i}-${ym}" class="in fin-cell chk" inputmode="decimal" data-fin="chk" data-h="${esc(a)}" data-y="${ym.slice(0, 4)}" data-m="${ym.slice(5)}" value="${own ? esc(String(r3(x.v))) : ""}" placeholder="${x && !own ? esc(money(x.v)) : ""}" title="${x && !own ? "Carried forward from an earlier month — type to change" : ""}"></td>`; }).join("")}
+      <td class="sep"></td>${(() => { const x = chkVal(a, last); return n(x ? x.v : 0, "a"); })()}<td></td></tr>`).join("");
+  const chkTot = yms.map(ym => { const t = isAct(ym) ? chkTotal(ym) : null; return `<td></td>${t == null ? `<td class="num a"></td>` : n(t, "a")}`; }).join("");
+  const diff = yms.map(ym => { const t = isAct(ym) ? chkTotal(ym) : null; if(t == null) return `<td></td><td class="num a"></td>`; const d = r3(t - M[ym].ca);
+      return `<td></td><td class="num a ${Math.abs(d) < 0.0005 ? "fav" : "adv"}" title="${Math.abs(d) < 0.0005 ? "Matches the closing balance" : "Check total minus actual closing balance"}">${Math.abs(d) < 0.0005 ? "0.000 ✓" : money(d)}</td>`; }).join("");
+  const tChk = chkTotal(last); const tDiff = tChk == null ? null : r3(tChk - cT.ca);
+  return `<div class="card"><div class="tw fsheet-wrap"><table class="tbl fin fsheet nosort"><thead>
+    <tr><th class="pl"></th>${yms.map(ym => `<th colspan="2" class="mh ${ym === cur ? "curm" : ""}">${MONTHS[+ym.slice(5) - 1]}</th>`).join("")}<th colspan="3" class="mh sep">Total ${MONTHS[+tot[0].slice(5) - 1]}–${MONTHS[+last.slice(5) - 1]}</th></tr>
+    <tr><th class="pl">Particulars</th>${yms.map(() => `<th class="num">Bud</th><th class="num">Act</th>`).join("")}<th class="num sep">Bud</th><th class="num">Act</th><th class="num">Var</th></tr></thead><tbody>
+    <tr class="tot"><td class="pl">Opening Balance</td>${pair(ym => M[ym].ob, ym => M[ym].oa)}${n(o0.ob, "b sep")}${n(o0.oa, "a")}<td></td></tr>
+    <tr class="sec"><td class="pl">Income</td><td colspan="${W - 1}"></td></tr>
+    ${clients.map(r => line(r.label, ym => r.get(ym, "b"), ym => r.get(ym, "a"), 1, "", r.cid ? `<a href="#" data-act="finFees" data-id="${r.cid}">${esc(r.label)}</a>` : "")).join("")}
+    ${line("Total income", inB, inA, 1, "tot")}
+    <tr class="sec"><td class="pl">Expenses</td><td colspan="${W - 1}"></td></tr>
+    ${heads.map(h => line(h, ym => headAmt(S[ym].outB, h), ym => headAmt(S[ym].outA, h), -1, "", `<a href="#" data-act="finGoHead" data-h="${esc(h)}" data-m="${last}">${esc(h)}</a>`)).join("")}
+    ${line("Total expenses", oB, oA, -1, "tot")}
+    <tr class="tot net"><td class="pl">Closing Balance</td>${pair(ym => M[ym].cb, ym => M[ym].ca)}${totCells(cT.cb, cT.ca, 1)}</tr>
+    <tr class="sec"><td class="pl">Check — cash &amp; bank balances (key in at month end)</td><td colspan="${W - 1}"></td></tr>
+    ${chkRows}
+    <tr class="tot"><td class="pl">Total cash &amp; bank</td>${chkTot}<td class="sep"></td>${tChk == null ? "<td></td>" : n(tChk, "a")}<td></td></tr>
+    <tr class="tot"><td class="pl">Difference (check − closing)</td>${diff}<td class="sep"></td>${tDiff == null ? "<td></td>" : `<td class="num ${Math.abs(tDiff) < 0.0005 ? "fav" : "adv"}">${Math.abs(tDiff) < 0.0005 ? "0.000 ✓" : money(tDiff)}</td>`}<td></td></tr>
+  </tbody></table></div>
+  <div class="card-b small muted">BHD incl. VAT · Income is cash collected per client, including collections of opening receivables (AR); budget is by due date. Each month's budget opens on the previous month's <b>actual</b> closing once that month is over. In the Check rows, key in each balance at month end; a blank cell carries the last balance forward (shown in grey). The Difference row should be 0.000. Accounts are set in <code>config.js</code> (<i>cashAccounts</i>).</div></div>`;
+}
+
+/* ---------- opening receivables ---------- */
+MODALS.finArForm = ({ id, cid }) => {
+  const f = id ? (data.fees.find(x => x.id === id) || {}) : {}; const c = clientById(f.ClientId || cid); if(!c) return "";
+  return `<form class="modal" style="max-width:520px" data-form="finAr" data-id="${id || ""}" data-c="${c.id}">${mHead(`Opening receivable — ${esc(c.Title)}`)}<div class="mb"><div class="form">
+    <label>Amount due on 1 ${ymLabel(FIN.start)} (BHD, incl. VAT)<input class="in" name="Amount" inputmode="decimal" required value="${esc(f.Amount || "")}" placeholder="as per debtors ledger"></label>
+    <label>Expected to be collected in<input class="in" type="month" name="StartMonth" min="${FIN.start}" required value="${esc(f.StartMonth || FIN.start)}"></label>
+    <label class="full">Notes<input class="in" name="Notes" value="${esc(f.Notes || "")}" placeholder="optional — e.g. invoices INV-0981, INV-0990"></label>
+  </div><p class="small muted">Split across months by adding more than one line. Record the receipt with service <b>${AR_SVC}</b> so it is set off against this balance.</p></div>
+  <div class="mf">${id ? `<button type="button" class="btn danger" data-act="finFeeDel" data-id="${id}" style="margin-right:auto">Delete</button>` : ""}<button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
+};
+SUBMIT.finAr = async (form, o) => {
+  if(!canFin()) return; const id = form.dataset.id, cid = form.dataset.c; const amt = fnum(o.Amount);
+  if(!(amt > 0)) return toast("Enter the amount", true); if(!o.StartMonth || o.StartMonth < FIN.start) return toast(`Collection month must be ${ymLabel(FIN.start)} or later`, true);
+  await saveRec("fees", id || null, { Title: `${cid}|${AR_SVC}`, ClientId: cid, Service: AR_SVC, Amount: r3s(amt), Freq: "One-off", StartMonth: o.StartMonth, EndMonth: "", Timing: "Lump", VAT: "No", Terms: "0", Notes: o.Notes || "", UpdatedBy: me.email, UpdatedOn: nowISO() });
+  closeModal(); render(); renderModals(); toast(id ? "Opening receivable updated" : "Opening receivable added");
+};
 
 function finChart(S, Y){
   const yms = MM.map(m => `${Y}-${m}`).filter(ym => ym >= FIN.start); if(!yms.length) return ""; const cur = curYM();
@@ -2487,15 +2568,15 @@ function finClientsView(){
     <input id="ff-cq" class="in search" placeholder="Search client…" value="${esc(f.cq)}" data-bind="ff.cq">
     <div class="right"><button class="btn pri" data-act="finCashAdd" data-v="In">${I.plus} Record receipt</button></div></div>
   <div class="strip"><div class="st fu"><div class="ic">B</div><div><b>${money(t.inB, 0)}</b><span>budgeted collections · ${esc(per)}</span></div></div><div class="st ok"><div class="ic">✓</div><div><b>${money(t.inA, 0)}</b><span>collected</span></div></div><div class="st ${t.inA - t.inB < 0 ? "ba" : "ok"}"><div class="ic">±</div><div><b>${money(t.inA - t.inB, 0)}</b><span>variance</span></div></div><div class="st wa"><div class="ic">!</div><div><b>${behind}</b><span>clients behind budget</span></div></div></div>
-  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Fee budget</th><th class="num">Budget (by due date)</th><th class="num">Collected</th><th class="num">Variance</th><th class="num">% collected</th><th>Last receipt</th><th></th></tr></thead><tbody>
+  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Fee budget</th><th class="num">Budget (by due date)</th><th class="num">Collected</th><th class="num">Variance</th><th class="num">% collected</th><th class="num">Opening AR outstanding</th><th>Last receipt</th><th></th></tr></thead><tbody>
   ${rows.map(r => { const lr = lastRcpt(r.c.id); return `<tr>
     <td class="cname"><a href="#" data-act="finFees" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a>${isDeact(r.c) ? ` ${chip("grey", "Deactivated")}` : ""}</td>
     <td class="small">${r.fees.length ? r.fees.map(feeLineText).join("<br>") : `<a href="#" data-act="finFees" data-id="${r.c.id}">${chip("amber", "Not set")}</a>`}</td>
     <td class="num">${moneyZ(r.b)}</td><td class="num">${moneyZ(r.a)}</td><td class="num ${r.v < -0.0005 ? "adv" : r.v > 0.0005 ? "fav" : "faint"}">${Math.abs(r.v) < 0.0005 ? "—" : money(r.v)}</td>
-    <td class="num">${r.b > 0.0005 ? Math.round(r.a / r.b * 100) + "%" : "—"}</td><td class="small nowrap">${lr ? fmtDate(lr) : `<span class="faint">—</span>`}</td>
+    <td class="num">${r.b > 0.0005 ? Math.round(r.a / r.b * 100) + "%" : "—"}</td><td class="num small">${arOf(r.c.id) ? `${money(arOf(r.c.id) - arCollected(r.c.id))}<div class="faint">of ${money(arOf(r.c.id))}</div>` : `<span class="faint">—</span>`}</td><td class="small nowrap">${lr ? fmtDate(lr) : `<span class="faint">—</span>`}</td>
     <td><button class="btn sm" data-act="finCashAdd" data-v="In" data-c="${r.c.id}">Receipt</button></td></tr>`; }).join("")}
-  ${other ? `<tr><td class="cname faint">Receipts not linked to a Bahrain client</td><td></td><td class="num">—</td><td class="num">${money(other)}</td><td></td><td></td><td></td><td></td></tr>` : ""}
-  </tbody><tfoot><tr class="tot"><td>Total</td><td></td><td class="num">${money(t.inB)}</td><td class="num">${money(t.inA)}</td><td class="num ${t.inA - t.inB < 0 ? "adv" : "fav"}">${money(t.inA - t.inB)}</td><td class="num">${t.inB ? Math.round(t.inA / t.inB * 100) + "%" : "—"}</td><td></td><td></td></tr></tfoot></table>
+  ${other ? `<tr><td class="cname faint">Receipts not linked to a Bahrain client</td><td></td><td class="num">—</td><td class="num">${money(other)}</td><td></td><td></td><td></td><td></td><td></td></tr>` : ""}
+  </tbody><tfoot><tr class="tot"><td>Total</td><td></td><td class="num">${money(t.inB)}</td><td class="num">${money(t.inA)}</td><td class="num ${t.inA - t.inB < 0 ? "adv" : "fav"}">${money(t.inA - t.inB)}</td><td class="num">${t.inB ? Math.round(t.inA / t.inB * 100) + "%" : "—"}</td><td class="num">${(() => { const ar = finClients().reduce((s, c) => s + arOf(c.id) - arCollected(c.id), 0); return ar ? money(ar) : ""; })()}</td><td></td><td></td></tr></tfoot></table>
   ${rows.length || other ? "" : `<div class="empty">No Bahrain clients yet.</div>`}</div></div>`;
 }
 
@@ -2526,21 +2607,21 @@ function finCashView(){
 function finFeesView(){
   const f = state.ff; const Y = f.year; const q = lc(f.fq); const from = finYtdFrom(`${Y}-01`), to = `${Y}-12`;
   let cl = finClients().filter(c => !isDeact(c) || feesOf(c.id).length).filter(c => !q || lc(c.Title).includes(q)).sort((a, b) => a.Title.localeCompare(b.Title));
-  const rows = cl.map(c => { const fs = feesOf(c.id); let net = 0, vat = 0; fs.forEach(x => { const sc = feeSched(x, c, from, to); const n = Object.values(sc).reduce((s, v) => s + v, 0); net += n; if(feeVat(x)) vat += n * FIN.vat; }); return { c, fs, net, vat }; });
-  const act = rows.filter(r => !isDeact(r.c)); const missing = act.filter(r => !r.fs.length).length;
-  const shown = rows.filter(r => f.fshow === "missing" ? !r.fs.length && !isDeact(r.c) : f.fshow === "set" ? r.fs.length : true);
-  const T = shown.reduce((s, r) => ({ net: s.net + r.net, vat: s.vat + r.vat }), { net: 0, vat: 0 });
+  const rows = cl.map(c => { const fs = feesOf(c.id); let net = 0, vat = 0, ar = 0; fs.forEach(x => { const sc = feeSched(x, c, from, to); const n = Object.values(sc).reduce((s, v) => s + v, 0); if(isAR(x)){ ar += n; return; } net += n; if(feeVat(x)) vat += n * FIN.vat; }); return { c, fs, net, vat, ar, set: fs.some(x => !isAR(x)) }; });
+  const act = rows.filter(r => !isDeact(r.c)); const missing = act.filter(r => !r.set).length;
+  const shown = rows.filter(r => f.fshow === "missing" ? !r.set && !isDeact(r.c) : f.fshow === "set" ? r.set : true);
+  const T = shown.reduce((s, r) => ({ net: s.net + r.net, vat: s.vat + r.vat, ar: s.ar + r.ar }), { net: 0, vat: 0, ar: 0 });
   return `<div class="toolbar"><select class="in" data-bind="ff.year" title="Budget year">${finYearOpts(Y)}</select>
     <input id="ff-fq" class="in search" placeholder="Search client…" value="${esc(f.fq)}" data-bind="ff.fq">
     <select class="in" data-bind="ff.fshow"><option value="all">All Bahrain clients</option><option value="missing" ${f.fshow === "missing" ? "selected" : ""}>Fee budget not set</option><option value="set" ${f.fshow === "set" ? "selected" : ""}>Fee budget set</option></select>
     <div class="right"><button class="btn" data-act="finFeeTemplate">Download fee sheet</button><button class="btn" data-act="finImport" data-v="fees">Upload fee sheet</button></div></div>
-  <div class="strip"><div class="st fu"><div class="ic">BH</div><div><b>${act.length}</b><span>active Bahrain clients</span></div></div><div class="st ok"><div class="ic">✓</div><div><b>${act.length - missing}</b><span>with a fee budget</span></div></div><div class="st ${missing ? "wa" : "ok"}"><div class="ic">!</div><div><b>${missing}</b><span>fee budget not set</span></div></div><div class="st fu"><div class="ic">Σ</div><div><b>${money(T.net + T.vat, 0)}</b><span>budgeted ${Y} incl. VAT${from > `${Y}-01` ? ` (from ${ymLabel(from)})` : ""}</span></div></div></div>
-  <div class="banner info"><div>New Bahrain clients added in the Client Desk appear here automatically. Set a fee line for each service you bill — the amount <b>excluding VAT</b>, how often it is billed, from which month and its <b>due date</b> (immediate, 30, 45, 60 or 90 days). Collections are budgeted in the month each invoice falls due, and VAT at ${vatPct()} is added.</div></div>
-  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Services</th><th>Fee lines</th><th class="num">${Y} net</th><th class="num">VAT</th><th class="num">${Y} incl. VAT</th><th></th></tr></thead><tbody>
+  <div class="strip"><div class="st fu"><div class="ic">BH</div><div><b>${act.length}</b><span>active Bahrain clients</span></div></div><div class="st ok"><div class="ic">✓</div><div><b>${act.length - missing}</b><span>with a fee budget</span></div></div><div class="st ${missing ? "wa" : "ok"}"><div class="ic">!</div><div><b>${missing}</b><span>fee budget not set</span></div></div><div class="st fu"><div class="ic">Σ</div><div><b>${money(T.net + T.vat + T.ar, 0)}</b><span>budgeted ${Y} incl. VAT & opening AR${from > `${Y}-01` ? ` (from ${ymLabel(from)})` : ""}</span></div></div></div>
+  <div class="banner info"><div>New Bahrain clients added in the Client Desk appear here automatically. Set a fee line for each service you bill — the amount <b>excluding VAT</b>, how often it is billed, from which month and its <b>due date</b> (immediate, 30, 45, 60 or 90 days). Collections are budgeted in the month each invoice falls due, and VAT at ${vatPct()} is added. Use <b>Opening receivable (AR)</b> in a client's fees for amounts outstanding on 1 ${ymLabel(FIN.start)}, with the month you expect to collect them.</div></div>
+  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Services</th><th>Fee lines</th><th class="num">${Y} net</th><th class="num">VAT</th><th class="num">Opening AR</th><th class="num">${Y} total</th><th></th></tr></thead><tbody>
   ${shown.map(r => `<tr><td class="cname">${esc(r.c.Title)}${isDeact(r.c) ? ` ${chip("grey", "Deactivated")}` : ""}</td><td>${serviceTags(r.c) || `<span class="faint small">none ticked</span>`}</td>
-    <td class="small">${r.fs.length ? r.fs.map(feeLineText).join("<br>") : chip("amber", "Not set")}</td><td class="num">${moneyZ(r.net)}</td><td class="num small">${moneyZ(r.vat)}</td><td class="num"><b>${moneyZ(r.net + r.vat)}</b></td>
+    <td class="small">${r.fs.map(feeLineText).join("<br>")}${r.set ? "" : (r.fs.length ? "<br>" : "") + chip("amber", "Fees not set")}</td><td class="num">${moneyZ(r.net)}</td><td class="num small">${moneyZ(r.vat)}</td><td class="num small">${moneyZ(r.ar)}</td><td class="num"><b>${moneyZ(r.net + r.vat + r.ar)}</b></td>
     <td><button class="btn sm" data-act="finFees" data-id="${r.c.id}">${r.fs.length ? "Edit fees" : "Set fees"}</button></td></tr>`).join("")}
-  </tbody><tfoot><tr class="tot"><td>Total</td><td></td><td></td><td class="num">${money(T.net)}</td><td class="num">${money(T.vat)}</td><td class="num">${money(T.net + T.vat)}</td><td></td></tr></tfoot></table>
+  </tbody><tfoot><tr class="tot"><td>Total</td><td></td><td></td><td class="num">${money(T.net)}</td><td class="num">${money(T.vat)}</td><td class="num">${money(T.ar)}</td><td class="num">${money(T.net + T.vat + T.ar)}</td><td></td></tr></tfoot></table>
   ${shown.length ? "" : `<div class="empty">No clients match.</div>`}</div></div>`;
 }
 
@@ -2578,6 +2659,7 @@ document.addEventListener("change", async e => {
   try {
     if(k === "bl"){ const { h, y, m } = t.dataset; const r = blRec(h, y); if(r && String(r["M" + m] || "") === v) return; await blSave(h, y, { ["M" + m]: v }); finExpRefresh(); }
     if(k === "ob"){ await obSave(v); }
+    if(k === "chk"){ const { h, y, m } = t.dataset; const r = chkRec(h, y); if(r && String(r["M" + m] || "") === v) return; await chkSave(h, y, { ["M" + m]: v }); render(); }
   } catch(err){ console.error(err); }
 });
 
@@ -2590,9 +2672,9 @@ MODALS.finFees = ({ id }) => {
     <div class="tw"><table class="tbl nosort"><thead><tr><th>Service</th><th class="num">Amount (excl. VAT)</th><th>Billed</th><th>From</th><th>To</th><th>Timing</th><th>Due</th><th>VAT</th><th></th></tr></thead><tbody>
     ${fs.map(f => `<tr><td><b>${esc(f.Service)}</b>${f.Notes ? `<div class="small faint">${esc(f.Notes)}</div>` : ""}</td><td class="num">${money(fnum(f.Amount))}</td><td>${esc(f.Freq)}</td><td class="small nowrap">${f.StartMonth ? ymLabel(f.StartMonth) : ymLabel(FIN.start)}</td><td class="small nowrap">${f.EndMonth ? ymLabel(f.EndMonth) : `<span class="faint">ongoing</span>`}</td>
       <td class="small">${f.Freq === "Monthly" || f.Freq === "One-off" ? "—" : f.Timing === "Lump" ? "Billing month" : "Spread"}</td><td class="small nowrap">${FEE_TERMS_LABEL[termsOf(f)]}</td><td class="small">${feeVat(f) ? vatPct() : "No VAT"}</td>
-      <td class="nowrap"><button class="btn sm" data-act="finFeeEdit" data-id="${f.id}">Edit</button> <button class="btn sm ghost" data-act="finFeeDel" data-id="${f.id}">Delete</button></td></tr>`).join("")}
+      <td class="nowrap"><button class="btn sm" data-act="${isAR(f) ? "finArEdit" : "finFeeEdit"}" data-id="${f.id}">Edit</button> <button class="btn sm ghost" data-act="finFeeDel" data-id="${f.id}">Delete</button></td></tr>`).join("")}
     </tbody></table>${fs.length ? "" : `<div class="empty">No fee lines yet.</div>`}</div>
-    <div class="toolbar" style="margin-top:12px"><button class="btn pri" data-act="finFeeAdd" data-c="${id}">${I.plus} Add fee line</button></div>
+    <div class="toolbar" style="margin-top:12px"><button class="btn pri" data-act="finFeeAdd" data-c="${id}">${I.plus} Add fee line</button><button class="btn" data-act="finArAdd" data-c="${id}">${I.plus} Opening receivable (AR)</button>${arOf(id) ? `<span class="small muted">Opening AR ${money(arOf(id))} · collected ${money(arCollected(id))} · outstanding <b>${money(arOf(id) - arCollected(id))}</b></span>` : ""}</div>
     ${fs.length ? `<div class="lbl small" style="margin-top:8px"><b>Budgeted collections ${Y} by due date (incl. VAT)</b></div><div class="tw"><table class="tbl nosort"><thead><tr>${yms.map(ym => `<th class="num">${MONTHS[+ym.slice(5) - 1]}</th>`).join("")}<th class="num">Total</th></tr></thead><tbody><tr>${byM.map(v => `<td class="num small">${moneyZ(v, 0)}</td>`).join("")}<td class="num"><b>${money(byM.reduce((s, v) => s + v, 0))}</b></td></tr></tbody></table></div>` : ""}
   </div><div class="mf"><button type="button" class="btn" data-act="close">Close</button></div></div>`;
 };
@@ -2623,7 +2705,7 @@ SUBMIT.finFee = async (form, o) => {
 MODALS.finCash = ({ id, dir, cid }) => {
   const x = id ? (data.cash.find(r => r.id === id) || {}) : {}; const D = x.Dir || dir || "In";
   const cl = finClients().sort((a, b) => (isDeact(a) - isDeact(b)) || a.Title.localeCompare(b.Title)); const sel = x.ClientId || cid || "";
-  const svcList = [...new Set([...(sel ? feesOf(sel).map(f => f.Service) : []), ...SERVICES.filter(s => s !== "Others")])];
+  const svcList = [...new Set([...(sel ? feesOf(sel).map(f => f.Service) : []), AR_SVC, ...SERVICES.filter(s => s !== "Others")])];
   return `<form class="modal" data-form="finCash" data-id="${id || ""}" data-dir="${D}">${mHead(`${id ? "Edit" : "New"} ${D === "In" ? "receipt" : "payment"}`)}<div class="mb"><div class="form">
     <label>Date<input class="in" type="date" name="Date" required value="${esc(x.Date || todayISO())}" min="${FIN.start}-01"></label>
     <label>Mode<select class="in" name="Mode">${opt(PAY_MODES, x.Mode || "Bank transfer")}</select></label>
@@ -2688,7 +2770,8 @@ function finParseFees(buf){ const { col, rows } = finSheetRows(buf); if(!col) re
     const tRaw = lc(g(x, "Due")).replace(/\s*days?$/, ""); const Terms = tRaw === "" || /^(immediate|imm|0|on receipt|cash)$/.test(tRaw) ? "0" : FEE_TERMS.includes(String(parseInt(tRaw))) ? String(parseInt(tRaw)) : null;
     if(!Terms) errors.push("Due (days) must be Immediate, 30, 45, 60 or 90");
     const svc = String(g(x, "Service")).trim() || "Fee";
-    Object.assign(out, { id: ex ? ex.id : "", f: c ? { Title: `${c.id}|${svc}`, ClientId: c.id, Service: svc, Amount: r3s(amt), Freq: freq, StartMonth: from, EndMonth: to || "", Timing, VAT: vat, Terms: Terms || "0" } : null, desc: `${svc} ${money(amt)}${FEE_FREQ_SHORT[freq] || ""}` });
+    const ar = lc(svc) === lc(AR_SVC);
+    Object.assign(out, { id: ex ? ex.id : "", f: c ? (ar ? { Title: `${c.id}|${AR_SVC}`, ClientId: c.id, Service: AR_SVC, Amount: r3s(amt), Freq: "One-off", StartMonth: from < FIN.start ? FIN.start : from, EndMonth: "", Timing: "Lump", VAT: "No", Terms: "0" } : { Title: `${c.id}|${svc}`, ClientId: c.id, Service: svc, Amount: r3s(amt), Freq: freq, StartMonth: from, EndMonth: to || "", Timing, VAT: vat, Terms: Terms || "0" }) : null, desc: `${svc} ${money(amt)}${FEE_FREQ_SHORT[freq] || ""}` });
     let action = errors.length ? "Error" : ex ? "Update" : "New";
     if(action === "Update" && ["Service", "Amount", "Freq", "StartMonth", "EndMonth", "Timing", "VAT", "Terms"].every(k => (k === "Terms" && termsOf(ex) === out.f.Terms) || String(ex[k] || "") === String(out.f[k] || "") || (k === "Timing" && (ex.Timing || "Spread") === out.f.Timing) || (k === "VAT" && (ex.VAT || "Yes") === out.f.VAT))) action = "No change";
     return { ...out, errors, notes: [], action }; }); }
@@ -2712,12 +2795,48 @@ function finFeeSheet(){
     fs.forEach(f => rows.push([f.id, c.Title, f.Service, fnum(f.Amount), f.Freq, f.StartMonth ? ymLabel(f.StartMonth).replace(" ", "-") : "", f.EndMonth ? ymLabel(f.EndMonth).replace(" ", "-") : "", f.Timing === "Lump" ? "In billing month" : "Spread evenly", f.VAT || "Yes", +termsOf(f) ? +termsOf(f) : "Immediate"]));
     const have = new Set(fs.map(f => lc(f.Service))); servicesOf(c).map(s => s === "Others" && otherServiceText(c) ? otherServiceText(c) : s).filter(s => !have.has(lc(s))).forEach(s => rows.push(["", c.Title, s, "", "Monthly", ymLabel(FIN.start).replace(" ", "-"), "", "Spread evenly", "Yes", "Immediate"])); }
   const ws = XLSX.utils.aoa_to_sheet([FEE_COLS, ...rows]); ws["!cols"] = [{ wch: 12 }, { wch: 38 }, { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 6 }, { wch: 11 }];
-  const wi = XLSX.utils.aoa_to_sheet([["Column", "How to fill"], ["Fee ID", "Leave as is. Blank = new fee line."], ["Amount (excl. VAT)", "Fee in BHD before VAT. Leave blank to skip the row."], ["Frequency", "Monthly, Quarterly, Half-yearly, Annually or One-off"], ["From Month", "First billing month, e.g. Jan-2026"], ["To Month", "Last month (optional). Blank = ongoing"], ["Timing", "Spread evenly (default) or In billing month — for quarterly / half-yearly / annual fees"], ["VAT", `Yes = add ${vatPct()} VAT; No = no VAT`], ["Due (days)", "Immediate, 30, 45, 60 or 90 — cash is budgeted in the month the invoice falls due"]]); wi["!cols"] = [{ wch: 20 }, { wch: 90 }];
+  const wi = XLSX.utils.aoa_to_sheet([["Column", "How to fill"], ["Fee ID", "Leave as is. Blank = new fee line."], ["Amount (excl. VAT)", "Fee in BHD before VAT. Leave blank to skip the row."], ["Frequency", "Monthly, Quarterly, Half-yearly, Annually or One-off"], ["From Month", "First billing month, e.g. Jan-2026"], ["To Month", "Last month (optional). Blank = ongoing"], ["Timing", "Spread evenly (default) or In billing month — for quarterly / half-yearly / annual fees"], ["VAT", `Yes = add ${vatPct()} VAT; No = no VAT`], ["Due (days)", "Immediate, 30, 45, 60 or 90 — cash is budgeted in the month the invoice falls due"], ["Opening AR", `To add amounts outstanding on 1 ${ymLabel(FIN.start)}: Service = ${AR_SVC}, Amount = balance incl. VAT, From Month = month you expect to collect it.`]]); wi["!cols"] = [{ wch: 20 }, { wch: 90 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Fee budget"); XLSX.utils.book_append_sheet(wb, wi, "Instructions"); finDownload(wb, `Vinpro-Bahrain-Fee-Budget-${todayISO()}.xlsx`); }
 function finCashTemplate(){ const ws = XLSX.utils.aoa_to_sheet([CASH_COLS, [todayISO(), "Receipt", finClients()[0] ? finClients()[0].Title : "Client name", "Accounting", "", "INV-1001", 165, "", "Bank transfer", "FT123456", ""], [todayISO(), "Payment", "", "", FIN.heads[0], "Office rent", 450, 0, "Bank transfer", "FT123457", ""]]);
   ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 34 }, { wch: 16 }, { wch: 24 }, { wch: 28 }, { wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 24 }];
   const wl = XLSX.utils.aoa_to_sheet([["Expense heads"], ...finHeads().filter(h => h !== UNCLASSIFIED).map(h => [h])]); wl["!cols"] = [{ wch: 30 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Cash book"); XLSX.utils.book_append_sheet(wb, wl, "Expense heads"); finDownload(wb, "Vinpro-Bahrain-Cash-Book-Template.xlsx"); }
+/* Excel version of the monthly sheet, with formulas for totals, closing balance, check and difference */
+function finSheetWs(Y, upto){
+  const { S, M } = finSheetModel(Y); const cur = curYM(); const yms = MM.map(m => `${Y}-${m}`).filter(ym => ym >= FIN.start); const tot = yms.filter(ym => ym <= upto);
+  const E = (r, c) => XLSX.utils.encode_cell({ r, c }); const ws = {}; const NF = "#,##0.000;(#,##0.000);\"-\"";
+  const put = (r, c, v, f) => { if(f) ws[E(r, c)] = { t: "n", f, v: r3(v || 0), z: NF }; else if(typeof v === "number") ws[E(r, c)] = { t: "n", v: r3(v), z: NF }; else if(v != null && v !== "") ws[E(r, c)] = { t: "s", v: String(v) }; };
+  const bc = i => 1 + 2 * i, ac = i => 2 + 2 * i; const TB = 1 + 2 * yms.length, TA = TB + 1, TV = TB + 2; const ti = tot.map(ym => yms.indexOf(ym));
+  const sumCols = (r, colOf) => ti.length ? ti.map(i => E(r, colOf(i))).join("+") : "0";
+  put(0, 0, `Vinpro Global Services WLL — Budget vs Actual ${Y} (BHD incl. VAT)`); yms.forEach((ym, i) => put(1, bc(i), MONTHS[+ym.slice(5) - 1])); put(1, TB, `Total ${tot.length ? MONTHS[+tot[0].slice(5) - 1] + "–" + MONTHS[+tot[tot.length - 1].slice(5) - 1] : ""}`);
+  put(2, 0, "Particulars"); yms.forEach((ym, i) => { put(2, bc(i), "Bud"); put(2, ac(i), "Act"); }); put(2, TB, "Bud"); put(2, TA, "Act"); put(2, TV, "Var");
+  const merges = [...yms.map((ym, i) => ({ s: { r: 1, c: bc(i) }, e: { r: 1, c: ac(i) } })), { s: { r: 1, c: TB }, e: { r: 1, c: TV } }];
+  let r = 3; const OPEN = r; put(r, 0, "Opening Balance"); r++;
+  put(r++, 0, "Income"); const inc0 = r;
+  const rowLine = (label, fb, fa, dir) => { put(r, 0, label); yms.forEach((ym, i) => { const b = fb(ym), a = fa(ym); if(Math.abs(b) > 0.0005) put(r, bc(i), b); if(ym <= cur && Math.abs(a) > 0.0005) put(r, ac(i), a); });
+    put(r, TB, tot.reduce((s, ym) => s + fb(ym), 0), sumCols(r, bc)); put(r, TA, tot.reduce((s, ym) => s + (ym <= cur ? fa(ym) : 0), 0), sumCols(r, ac));
+    put(r, TV, 0, dir > 0 ? `${E(r, TA)}-${E(r, TB)}` : `${E(r, TB)}-${E(r, TA)}`); r++; };
+  finIncomeRows(S, yms).forEach(x => rowLine(x.label, ym => x.get(ym, "b"), ym => x.get(ym, "a"), 1)); const inc1 = r - 1;
+  const INC = r; put(r, 0, "Total income"); const sumRow = (c, a, b) => `SUM(${E(a, c)}:${E(b, c)})`;
+  [...yms.flatMap((ym, i) => [bc(i), ac(i)]), TB, TA].forEach(c => put(INC, c, 0, inc1 >= inc0 ? sumRow(c, inc0, inc1) : "0")); put(INC, TV, 0, `${E(INC, TA)}-${E(INC, TB)}`); r++;
+  put(r++, 0, "Expenses"); const ex0 = r;
+  finHeads().filter(h => h !== UNCLASSIFIED || yms.some(ym => headAmt(S[ym].outA, h))).forEach(h => rowLine(h, ym => headAmt(S[ym].outB, h), ym => headAmt(S[ym].outA, h), -1)); const ex1 = r - 1;
+  const EXP = r; put(r, 0, "Total expenses"); [...yms.flatMap((ym, i) => [bc(i), ac(i)]), TB, TA].forEach(c => put(EXP, c, 0, sumRow(c, ex0, ex1))); put(EXP, TV, 0, `${E(EXP, TB)}-${E(EXP, TA)}`); r++;
+  const CLOSE = r; put(r, 0, "Closing Balance"); r++;
+  yms.forEach((ym, i) => { const prev = i ? yms[i - 1] : null;
+    if(!i){ put(OPEN, bc(i), M[ym].ob); put(OPEN, ac(i), M[ym].oa); }
+    else { put(OPEN, ac(i), M[ym].oa, E(CLOSE, ac(i - 1))); put(OPEN, bc(i), M[ym].ob, prev < cur ? E(CLOSE, ac(i - 1)) : E(CLOSE, bc(i - 1))); }
+    for(const c of [bc(i), ac(i)]) put(CLOSE, c, 0, `${E(OPEN, c)}+${E(INC, c)}-${E(EXP, c)}`); });
+  if(ti.length){ put(OPEN, TB, 0, E(OPEN, bc(ti[0]))); put(OPEN, TA, 0, E(OPEN, ac(ti[0]))); }
+  put(CLOSE, TB, 0, `${E(OPEN, TB)}+${E(INC, TB)}-${E(EXP, TB)}`); put(CLOSE, TA, 0, `${E(OPEN, TA)}+${E(INC, TA)}-${E(EXP, TA)}`); put(CLOSE, TV, 0, `${E(CLOSE, TA)}-${E(CLOSE, TB)}`);
+  r++; put(r++, 0, "Check"); const ck0 = r; const lastI = ti.length ? ti[ti.length - 1] : 0;
+  CASH_ACCTS.forEach(a => { put(r, 0, a); yms.forEach((ym, i) => { if(ym > cur) return; const x = chkVal(a, ym); if(x) put(r, ac(i), x.v); }); put(r, TA, 0, E(r, ac(lastI))); r++; }); const ck1 = r - 1;
+  const CT = r; yms.forEach((ym, i) => { if(ym <= cur) put(CT, ac(i), 0, sumRow(ac(i), ck0, ck1)); }); put(CT, TA, 0, sumRow(TA, ck0, ck1)); put(CT, 0, "Total cash & bank"); r++;
+  put(r, 0, "Difference (check − closing)"); yms.forEach((ym, i) => { if(ym <= cur) put(r, ac(i), 0, `${E(CT, ac(i))}-${E(CLOSE, ac(i))}`); }); put(r, TA, 0, `${E(CT, TA)}-${E(CLOSE, TA)}`);
+  ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r, c: TV } }); ws["!merges"] = merges;
+  ws["!cols"] = [{ wch: 34 }, ...Array(TV).fill({ wch: 10 })]; ws["!freeze"] = { xSplit: 1, ySplit: 3 };
+  return ws;
+}
 function finExport(){
   const ym = state.ff.month; const Y = ym.slice(0, 4); const S = finSeries(`${Y}-12`); const ytd = finYms(finYtdFrom(ym), ym);
   const tm = finSum(S, [ym]), ty = finSum(S, ytd), cm = finClosing(S, ym); const lm = finLines(tm, cm), ly = finLines(ty, cm); const rd = n => r3(n);
@@ -2725,18 +2844,16 @@ function finExport(){
   const a1 = [[`Vinpro Global Services WLL — Budget vs Actual (cash basis, BHD incl. VAT)`], [`Month: ${ymLabel(ym)} · YTD: ${ymLabel(ytd[0])} – ${ymLabel(ym)}`], [],
     ["Particulars", "Month budget", "Month actual", "Variance (fav +)", "Var %", "YTD budget", "YTD actual", "Variance (fav +)", "Var %"],
     ...lm.map((l, i) => { const y = ly[i]; if(l.sec) return [l.sec]; return [(l.ind || l.sub ? "   " : "") + l.label, rd(l.b), rd(l.a), vv(l, l.b, l.a), pc(l, l.b, l.a), ...(l.close ? [] : [rd(y.b), rd(y.a), vv(y, y.b, y.a), pc(y, y.b, y.a)])]; })];
-  const yms = MM.map(m => `${Y}-${m}`).filter(x => x >= FIN.start); const per = yms.map(x => finLines(finSum(S, [x]), null)); const tl = finLines(finSum(S, yms), null);
-  const a2 = [[`12-month view ${Y}`], [], ["Particulars", "", ...yms.map(ymLabel), "Total"]];
-  tl.forEach((l, i) => { if(l.sec){ a2.push([l.sec]); return; } if(l.sub) return; for(const [lab, k] of [["Budget", "b"], ["Actual", "a"], ["Variance", "v"]]) a2.push([lab === "Budget" ? l.label : "", lab, ...per.map(p => k === "v" ? vv(p[i], p[i].b, p[i].a) : rd(p[i][k])), k === "v" ? vv(l, l.b, l.a) : rd(l[k])]); });
   const a3 = [["Client", "YTD budget", "YTD collected", "Variance", "% collected", "Fee lines"], ...finClients().map(c => ({ c, x: ty.byC[c.id] || { b: 0, a: 0 } })).filter(r => r.x.b || r.x.a || !isDeact(r.c)).sort((p, q) => p.c.Title.localeCompare(q.c.Title))
     .map(r => [r.c.Title, rd(r.x.b), rd(r.x.a), rd(r.x.a - r.x.b), r.x.b ? Math.round(r.x.a / r.x.b * 100) : "", feesOf(r.c.id).map(f => `${f.Service} ${f.Amount}${FEE_FREQ_SHORT[f.Freq] || ""} due ${termsShort(termsOf(f))}`).join("; ")])];
   const a4 = [["Date", "Type", "Client / Received from", "Service", "Expense head", "Description", "Amount (incl. VAT)", "VAT", "Mode", "Reference", "Notes", "Entered by", "Entered on"],
     ...(data.cash || []).filter(x => cashYm(x).slice(0, 4) === Y).sort((a, b) => (a.Date || "").localeCompare(b.Date || "")).map(x => [x.Date, x.Dir === "In" ? "Receipt" : "Payment", x.Dir === "In" ? ((clientById(x.ClientId) || {}).Title || x.ClientName || "") : "", x.Service || "", x.Dir === "Out" ? headOf(x) : "", x.Title || "", rd(fnum(x.Amount)), rd(fnum(x.VAT)), x.Mode || "", x.Ref || "", x.Notes || "", empName(x.UpdatedBy), (x.UpdatedOn || "").slice(0, 10)])];
   const a5 = [["Expense head", ...MM.map(m => MONTHS[+m - 1] + " " + Y), "Total"], ...finHeads().map(h => { const r = blRec(h, Y) || {}; const v = MM.map(m => rd(fnum(r["M" + m]))); return [h, ...v, rd(v.reduce((s, x) => s + x, 0))]; })];
   const wb = XLSX.utils.book_new(); const add = (aoa, name, w) => { const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = w; XLSX.utils.book_append_sheet(wb, ws, name); };
-  add(a1, "BvA " + ymLabel(ym), [{ wch: 50 }, ...Array(8).fill({ wch: 15 })]); add(a2, "12-month " + Y, [{ wch: 44 }, { wch: 10 }, ...Array(13).fill({ wch: 12 })]); add(a3, "Clients YTD", [{ wch: 40 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 60 }]);
+  add(a1, "BvA " + ymLabel(ym), [{ wch: 50 }, ...Array(8).fill({ wch: 15 })]); XLSX.utils.book_append_sheet(wb, finSheetWs(Y, ym), "Budget vs Actual " + Y); add(a3, "Clients YTD", [{ wch: 40 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 60 }]);
   add(a4, "Cash book " + Y, [{ wch: 12 }, { wch: 10 }, { wch: 36 }, { wch: 16 }, { wch: 24 }, { wch: 30 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 24 }, { wch: 18 }, { wch: 12 }]);
   add(a5, "Expense budget " + Y, [{ wch: 28 }, ...Array(13).fill({ wch: 11 })]);
+  wb.SheetNames.unshift(wb.SheetNames.splice(wb.SheetNames.indexOf("Budget vs Actual " + Y), 1)[0]);
   finDownload(wb, `Vinpro-Bahrain-Budget-vs-Actual-${ym}.xlsx`);
 }
 const needXlsx = () => { if(window.XLSX) return true; toast("Excel library still loading — try again in a moment", true); return false; };
@@ -2750,7 +2867,9 @@ Object.assign(ACT, {
   finFees: (d, e) => { if(e) e.preventDefault(); if(!canFin()) return; openModal("finFees", { id: d.id }); },
   finFeeAdd: d => openModal("finFeeForm", { cid: d.c }),
   finFeeEdit: d => openModal("finFeeForm", { id: d.id }),
-  finFeeDel: d => { const f = data.fees.find(x => x.id === d.id); if(!f) return; openModal("confirm", { text: `Delete the <b>${esc(f.Service)}</b> fee line (BHD ${money(fnum(f.Amount))} ${esc(f.Freq)})?`, onYes: async () => { await removeRec("fees", f.id); toast("Fee line deleted"); } }); },
+  finArAdd: d => openModal("finArForm", { cid: d.c }),
+  finArEdit: d => openModal("finArForm", { id: d.id }),
+  finFeeDel: d => { const f = data.fees.find(x => x.id === d.id); if(!f) return; openModal("confirm", { text: `Delete the <b>${esc(f.Service)}</b> fee line (BHD ${money(fnum(f.Amount))} ${esc(f.Freq)})?`, onYes: async () => { await removeRec("fees", f.id); state.modals = state.modals.filter(m => m.type !== "finArForm" && m.type !== "finFeeForm"); toast(isAR(f) ? "Opening receivable deleted" : "Fee line deleted"); } }); },
   finCashAdd: d => { if(!canFin()) return; openModal("finCash", { dir: d.v, cid: d.c || "" }); },
   finCashEdit: d => openModal("finCash", { id: d.id }),
   finCashDel: d => { const x = data.cash.find(r => r.id === d.id); if(!x) return; openModal("confirm", { text: `Delete this ${x.Dir === "In" ? "receipt" : "payment"} of <b>BHD ${money(fnum(x.Amount))}</b> dated ${fmtDate(x.Date)}?`, onYes: async () => { await removeRec("cash", x.id); state.modals = state.modals.filter(m => m.type !== "finCash"); toast("Entry deleted"); } }); },
@@ -2795,6 +2914,18 @@ function finDemoSeed(d){
       if(!due || rnd() < 0.15) continue; const amt = r3(due * (0.7 + rnd() * 0.6)); cash.push({ id: uid(), Title: `Fees ${ymLabel(ym)}`, Date: `${ym}-${pad(5 + Math.floor(rnd() * 22))}`, Dir: "In", ClientId: c.id, ClientName: "", Service: fs[0] ? fs[0].Service : "", Amount: r3s(amt), VAT: r3s(amt * FIN.vat / (1 + FIN.vat)), Mode: rnd() < .7 ? "Bank transfer" : "BenefitPay", Ref: "FT" + Math.floor(1e6 + rnd() * 8e6), Notes: "", UpdatedBy: "vignesh@vinproglobal.com", UpdatedOn: nowISO() }); }
     for(const r of blines.filter(b => b.Kind === "Expense")){ const b = fnum(r["M" + ym.slice(5)]); if(!b || ym.slice(0, 4) !== Y) continue; const amt = r3(b * (0.85 + rnd() * 0.3));
       cash.push({ id: uid(), Title: r.Head + " · " + ymLabel(ym), Date: `${ym}-${pad(1 + Math.floor(rnd() * 26))}`, Dir: "Out", ClientId: "", ClientName: "", Service: "", Head: r.Head, Amount: r3s(amt), VAT: "", Mode: "Bank transfer", Ref: "", Notes: "", UpdatedBy: "vignesh@vinproglobal.com", UpdatedOn: nowISO() }); } }
+  /* opening receivables, part collected */
+  bh.slice(0, 4).forEach((c, i) => { const amt = 300 + i * 150; const sm = ymAdd(FIN.start, i % 3);
+    fees.push({ id: uid(), Title: `${c.id}|Opening AR`, ClientId: c.id, Service: "Opening AR", Amount: String(amt), Freq: "One-off", StartMonth: sm, EndMonth: "", Timing: "Lump", VAT: "No", Terms: "0", Notes: "Dec 2025 invoices", UpdatedBy: "vignesh@vinproglobal.com", UpdatedOn: nowISO() });
+    if(i < 3 && sm < now) cash.push({ id: uid(), Title: "Opening AR", Date: `${sm}-18`, Dir: "In", ClientId: c.id, ClientName: "", Service: "Opening AR", Amount: String(i === 2 ? amt / 2 : amt), VAT: "", Mode: "Bank transfer", Ref: "AR" + i, Notes: "", UpdatedBy: "vignesh@vinproglobal.com", UpdatedOn: nowISO() }); });
+  /* month-end bank balances that reconcile to the actual closing */
+  let bal = 12500; const accts = ["Cash", "Petty Cash", "Beyon", "Ila Bank", "SBI Bank", "Flexi Deposit", "BBK Bank"]; const chk = {}; accts.forEach(a => chk[a] = { id: uid(), Title: a, Kind: "Check", Head: a, Year: Y, UpdatedBy: "vignesh@vinproglobal.com", UpdatedOn: nowISO() });
+  for(let ym = FIN.start; ym < now && ym.slice(0, 4) === Y; ym = ymAdd(ym, 1)){ for(const x of cash) if(cashYm(x) === ym) bal += (x.Dir === "In" ? 1 : -1) * fnum(x.Amount);
+    const m = "M" + ym.slice(5); const fixed = { Cash: r3(20 + rnd() * 60), "Petty Cash": r3(5 + rnd() * 15), Beyon: r3(rnd() * 30), "BBK Bank": r3(bal * 0.15) };
+    if(ym === FIN.start){ fixed["Ila Bank"] = 0.982; fixed["Flexi Deposit"] = 0.12; }
+    Object.entries(fixed).forEach(([a, v]) => chk[a][m] = String(v));
+    chk["SBI Bank"][m] = String(r3(bal - Object.values(fixed).reduce((s2, v) => s2 + v, 0) - (ym === FIN.start ? 0 : 1.102))); }
+  accts.forEach(a => blines.push(chk[a]));
   return { fees, blines, cash };
 }
 

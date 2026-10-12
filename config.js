@@ -36,12 +36,15 @@ window.VINPRO_CONFIG = {
   // Budget vs Actual (Vinpro Global Services WLL, Bahrain) — cash basis, BHD incl. VAT
   budgetStart: "2026-01",          // first month tracked, YYYY-MM
   vatRate: 0.10,                   // Bahrain VAT added to fee budgets and worked out on receipts
-  financeAccess: ["Admin"],
+  financeAccess: ["Admin"],        // roles that can open it; add "Manager" to share with managers
   invoiceAt: "end",                // invoices taken as raised at the "end" (or "start") of each billing month
-  defaultTerms: "0",               // due date for fee lines without one: "0" (immediate), "30", "45", "60" or "90"        // roles that can open it; add "Manager" to share with managers
+  defaultTerms: "0",               // due date for fee lines without one: "0" (immediate), "30", "45", "60" or "90"
   expenseHeads: [                  // cash outflow heads, in report order
     "Rent, EWA and LMRA", "Salary, Visa & Ticket", "Bahrain Exps - SG", "Car Rental", "Office Exps",
     "Reimbursement - Fees", "Accommodation", "Travel / Referral Fee", "Vinpro Dubai", "Vinpro Chennai",
     "Vignesh Chennai", "VAT paid to NBR"
+  ],
+  cashAccounts: [                  // "Check" block: month-end balances keyed in, should total the closing balance
+    "Cash", "Petty Cash", "Beyon", "Ila Bank", "SBI Bank", "Flexi Deposit", "BBK Bank"
   ]
 };
