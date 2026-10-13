@@ -593,7 +593,7 @@ const SCHEMA = {
   mw:        { list: "MonthlyWork", fields: { Title:"text", ClientId:"text", Service:"text", Freq:"text", Month:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", CompletedDate:"text", Hours:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   ct:        { list: "CorporateTax", fields: { Title:"text", ClientId:"text", FY:"text", Status:"text", Preparer:"text", Reviewer:"text", DueDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   other:     { list: "OtherWork", fields: { Title:"text", ClientId:"text", Service:"text", Year:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", FollowUp:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  fees:      { list: "FeeBudget", fields: { Title:"text", ClientId:"text", Service:"text", Amount:"text", Freq:"text", StartMonth:"text", EndMonth:"text", Timing:"text", VAT:"text", Terms:"text", Party:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  fees:      { list: "FeeBudget", fields: { Title:"text", ClientId:"text", Service:"text", Amount:"text", Freq:"text", StartMonth:"text", EndMonth:"text", Timing:"text", VAT:"text", Terms:"text", Party:"text", Revisions:"note", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   blines:    { list: "BudgetLines", fields: { Title:"text", Kind:"text", Head:"text", Year:"text", M01:"text", M02:"text", M03:"text", M04:"text", M05:"text", M06:"text", M07:"text", M08:"text", M09:"text", M10:"text", M11:"text", M12:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   cash:      { list: "CashBook", fields: { Title:"text", Date:"text", Dir:"text", ClientId:"text", ClientName:"text", Service:"text", Head:"text", Amount:"text", VAT:"text", Mode:"text", Ref:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   activity:  { list: "ActivityLog", fields: { Title:"text", ClientId:"text", ClientName:"text", UserEmail:"text", UserName:"text", Details:"note", At:"text" } }
@@ -2470,33 +2470,38 @@ const vatOn = ym => { const f = vatFrom(); return !!f && !!ym && ym >= f; };
 const vatAny = () => !!vatFrom();
 const vatTag = () => vatAny() ? "incl. VAT" : "no VAT (not VAT registered)";
 /* per cash month: n = net fee, v = VAT on it (only for invoices billed once VAT registered) */
+/* Fee revisions, stored per line as "YYYY-MM:amount;..." — the fee billed from that month on (excl. VAT) */
+function feeRevs(f){ return String((f && f.Revisions) || "").split(";").map(x => x.trim()).filter(Boolean).map(x => { const i = x.indexOf(":"); return { from: x.slice(0, i).trim(), amt: fnum(x.slice(i + 1)) }; }).filter(r => /^\d{4}-\d{2}$/.test(r.from)).sort((a, b) => a.from.localeCompare(b.from)); }
+function feeRevsStr(list){ return list.slice().sort((a, b) => a.from.localeCompare(b.from)).map(r => `${r.from}:${r3s(r.amt) || "0"}`).join(";"); }
+function feeAmtAt(f, bm){ let a = fnum(f.Amount); for(const r of feeRevs(f)) if(r.from <= bm) a = r.amt; return a; }
 function feeSchedV(f, c, from, to){
-  const out = {}; const amt = fnum(f.Amount); if(!amt) return out; const vr = feeVat(f) ? FIN.vat : 0;
+  const out = {}; const amt = fnum(f.Amount); if(!amt && !feeRevs(f).length) return out; const vr = feeVat(f) ? FIN.vat : 0;
   const n = FEE_FREQ[f.Freq] != null ? FEE_FREQ[f.Freq] : 1;
   const s = /^\d{4}-\d{2}$/.test(f.StartMonth || "") ? f.StartMonth : FIN.start;
   let e = /^\d{4}-\d{2}$/.test(f.EndMonth || "") ? f.EndMonth : "9999-12"; const d = deactYM(c); if(d && d < e) e = d;
   const off = termsOff(termsOf(f));
   const add = (bm, v) => { if(bm > e) return; const ym = ymAdd(bm, off); if(ym >= from && ym <= to && ym >= FIN.start){ const x = out[ym] || (out[ym] = { n: 0, v: 0 }); x.n += v; x.v += vr && vatOn(bm) ? v * vr : 0; } };
-  if(n === 0){ add(s, amt); return out; }
+  if(n === 0){ add(s, feeAmtAt(f, s)); return out; }
   const spread = f.Timing !== "Lump" && n > 1;
-  for(let ym = s; ym <= to && ym <= e; ym = ymAdd(ym, n)){ if(spread) for(let k = 0; k < n; k++) add(ymAdd(ym, k), amt / n); else add(ym, amt); }
+  for(let ym = s; ym <= to && ym <= e; ym = ymAdd(ym, n)){ const A = feeAmtAt(f, ym); if(spread) for(let k = 0; k < n; k++) add(ymAdd(ym, k), A / n); else add(ym, A); }
   return out;
 }
 function feeGross(f, c, from, to){ const o = feeSchedV(f, c, from, to); let t = 0; for(const k in o) t += o[k].n + o[k].v; return t; }
 function feeSched(f, c, from, to){
-  const out = {}; const amt = fnum(f.Amount); if(!amt) return out;
+  const out = {}; const amt = fnum(f.Amount); if(!amt && !feeRevs(f).length) return out;
   const n = FEE_FREQ[f.Freq] != null ? FEE_FREQ[f.Freq] : 1;
   const s = /^\d{4}-\d{2}$/.test(f.StartMonth || "") ? f.StartMonth : FIN.start;
   let e = /^\d{4}-\d{2}$/.test(f.EndMonth || "") ? f.EndMonth : "9999-12"; const d = deactYM(c); if(d && d < e) e = d;
   const off = termsOff(termsOf(f));
   /* bm = billing month (limited by the until month / deactivation); cash lands off months later */
   const add = (bm, v) => { if(bm > e) return; const ym = ymAdd(bm, off); if(ym >= from && ym <= to && ym >= FIN.start) out[ym] = (out[ym] || 0) + v; };
-  if(n === 0){ add(s, amt); return out; }
+  if(n === 0){ add(s, feeAmtAt(f, s)); return out; }
   const spread = f.Timing !== "Lump" && n > 1;
-  for(let ym = s; ym <= to && ym <= e; ym = ymAdd(ym, n)){ if(spread) for(let k = 0; k < n; k++) add(ymAdd(ym, k), amt / n); else add(ym, amt); }
+  for(let ym = s; ym <= to && ym <= e; ym = ymAdd(ym, n)){ const A = feeAmtAt(f, ym); if(spread) for(let k = 0; k < n; k++) add(ymAdd(ym, k), A / n); else add(ym, A); }
   return out;
 }
-function feeLineText(f){ if(lc(f.Service) === "opening ar") return `Opening AR ${money(fnum(f.Amount))} <span class="faint">· expected ${f.StartMonth ? ymLabel(f.StartMonth) : ""}</span>`; return `${esc(f.Service || "Fee")} ${money(fnum(f.Amount))}${FEE_FREQ_SHORT[f.Freq] || ""} <span class="faint">· due ${termsShort(termsOf(f))}</span>`; }
+function feeLineText(f){ if(lc(f.Service) === "opening ar") return `Opening AR ${money(fnum(f.Amount))} <span class="faint">· expected ${f.StartMonth ? ymLabel(f.StartMonth) : ""}</span>`; const rv = feeRevs(f); const nowA = feeAmtAt(f, curYM()); const last = rv.filter(r => r.from <= curYM()).pop(); const next = rv.find(r => r.from > curYM());
+  return `${esc(f.Service || "Fee")} ${money(nowA)}${FEE_FREQ_SHORT[f.Freq] || ""} <span class="faint">· due ${termsShort(termsOf(f))}${last ? ` · revised ${ymLabel(last.from)}` : ""}${next ? ` · ${money(next.amt)} from ${ymLabel(next.from)}` : ""}</span>`; }
 function dueRuleText(t){ const off = termsOff(t); return `${FEE_TERMS_LABEL[t]}: an invoice for Jan is collected in ${MONTHS[off % 12]}${off ? ` (${off} month${off > 1 ? "s" : ""} later)` : " (same month)"}`; }
 function finHeads(){
   const extra = new Set(); (data.blines || []).forEach(b => b.Kind === "Expense" && b.Head && extra.add(b.Head)); (data.cash || []).forEach(x => x.Dir === "Out" && extra.add(headOf(x)));
@@ -2965,9 +2970,9 @@ MODALS.finFees = ({ id }) => {
   return `<div class="modal wide">${mHead(`Fee budget — ${esc(c.Title)}`)}<div class="mb">
     <p class="muted" style="margin-top:0">Services ticked in the Client Desk: ${serviceTags(c) || "none"}. Add one line per fee you bill this client; amounts exclude VAT.${isDeact(c) ? ` <b>Client deactivated${c.DeactivatedOn ? " on " + fmtDate(c.DeactivatedOn) : ""}</b> — budget stops after that month.` : ""}</p>
     <div class="tw"><table class="tbl nosort"><thead><tr><th>Service</th><th class="num">Amount (excl. VAT)</th><th>Billed</th><th>From</th><th>To</th><th>Timing</th><th>Due</th><th>VAT</th><th></th></tr></thead><tbody>
-    ${fs.map(f => `<tr><td><b>${esc(f.Service)}</b>${f.Notes ? `<div class="small faint">${esc(f.Notes)}</div>` : ""}</td><td class="num">${money(fnum(f.Amount))}</td><td>${esc(f.Freq)}</td><td class="small nowrap">${f.StartMonth ? ymLabel(f.StartMonth) : ymLabel(FIN.start)}</td><td class="small nowrap">${f.EndMonth ? ymLabel(f.EndMonth) : `<span class="faint">ongoing</span>`}</td>
+    ${fs.map(f => `<tr><td><b>${esc(f.Service)}</b>${f.Notes ? `<div class="small faint">${esc(f.Notes)}</div>` : ""}</td><td class="num">${isAR(f) ? money(fnum(f.Amount)) : `${money(feeAmtAt(f, curYM()))}${feeRevs(f).length ? `<div class="small faint nowrap">${[{ from: f.StartMonth || FIN.start, amt: fnum(f.Amount) }, ...feeRevs(f)].map(r => `${money(r.amt)} from ${ymLabel(r.from)}`).join("<br>")}</div>` : ""}`}</td><td>${esc(f.Freq)}</td><td class="small nowrap">${f.StartMonth ? ymLabel(f.StartMonth) : ymLabel(FIN.start)}</td><td class="small nowrap">${f.EndMonth ? ymLabel(f.EndMonth) : `<span class="faint">ongoing</span>`}</td>
       <td class="small">${f.Freq === "Monthly" || f.Freq === "One-off" ? "—" : f.Timing === "Lump" ? "Billing month" : "Spread"}</td><td class="small nowrap">${FEE_TERMS_LABEL[termsOf(f)]}</td><td class="small">${feeVat(f) ? (vatAny() ? vatPct() : `<span class="faint" title="Applies once VAT registered">${vatPct()} once registered</span>`) : "No VAT"}</td>
-      <td class="nowrap"><button class="btn sm" data-act="${isAR(f) ? "finArEdit" : "finFeeEdit"}" data-id="${f.id}">Edit</button> <button class="btn sm ghost" data-act="finFeeDel" data-id="${f.id}">Delete</button></td></tr>`).join("")}
+      <td class="nowrap">${isAR(f) ? "" : `<button class="btn sm pri" data-act="finFeeRevise" data-id="${f.id}" title="Record a new fee from a given month">Revise fee</button> `}<button class="btn sm" data-act="${isAR(f) ? "finArEdit" : "finFeeEdit"}" data-id="${f.id}">Edit</button> <button class="btn sm ghost" data-act="finFeeDel" data-id="${f.id}">Delete</button></td></tr>`).join("")}
     </tbody></table>${fs.length ? "" : `<div class="empty">No fee lines yet.</div>`}</div>
     <div class="toolbar" style="margin-top:12px"><button class="btn pri" data-act="finFeeAdd" data-c="${id}">${I.plus} Add fee line</button><button class="btn" data-act="finArAdd" data-c="${id}">${I.plus} Opening receivable (AR)</button>${arOf(id) ? `<span class="small muted">Opening AR ${money(arOf(id))} · collected ${money(arCollected(id))} · outstanding <b>${money(arOf(id) - arCollected(id))}</b></span>` : ""}</div>
     ${fs.length ? `<div class="lbl small" style="margin-top:8px"><b>Budgeted collections ${Y} by due date${vatAny() ? " (incl. VAT)" : ""}</b></div><div class="tw"><table class="tbl nosort"><thead><tr>${yms.map(ym => `<th class="num">${MONTHS[+ym.slice(5) - 1]}</th>`).join("")}<th class="num">Total</th></tr></thead><tbody><tr>${byM.map(v => `<td class="num small">${moneyZ(v, 0)}</td>`).join("")}<td class="num"><b>${money(byM.reduce((s, v) => s + v, 0))}</b></td></tr></tbody></table></div>` : ""}
@@ -2979,7 +2984,7 @@ MODALS.finFeeForm = ({ id, cid }) => {
   const startDef = f.StartMonth || (curYM() > FIN.start ? FIN.start : FIN.start);
   return `<form class="modal" data-form="finFee" data-id="${id || ""}" data-c="${c.id}">${mHead(`${id ? "Edit" : "Add"} fee line — ${esc(c.Title)}`)}<div class="mb"><div class="form">
     <label class="full">Service<input class="in" name="Service" list="finSvcs" required value="${esc(f.Service || "")}" placeholder="e.g. Accounting"><datalist id="finSvcs">${svcs.map(s => `<option value="${esc(s)}">`).join("")}</datalist></label>
-    <label>Fee amount (BHD, excl. VAT)<input class="in" name="Amount" inputmode="decimal" required value="${esc(f.Amount || "")}" placeholder="e.g. 150"></label>
+    <label>${feeRevs(f).length ? "Original fee" : "Fee amount"} (BHD, excl. VAT)<input class="in" name="Amount" inputmode="decimal" required value="${esc(f.Amount || "")}" placeholder="e.g. 150"></label>
     <label>Billed<select class="in" name="Freq">${opt(Object.keys(FEE_FREQ), f.Freq || "Monthly")}</select></label>
     <label>From month (first billing)<input class="in" type="month" name="StartMonth" value="${esc(startDef)}" required></label>
     <label>Until month <span class="faint">(blank = ongoing)</span><input class="in" type="month" name="EndMonth" value="${esc(f.EndMonth || "")}"></label>
@@ -2987,7 +2992,28 @@ MODALS.finFeeForm = ({ id, cid }) => {
     <label>Due date (credit period)<select class="in" name="Terms" data-act="finTermsPick">${opt(FEE_TERMS, termsOf(f), FEE_TERMS_LABEL)}</select><span class="hint small faint" id="finDueHint">${esc(dueRuleText(termsOf(f)))}</span></label>
     <label>VAT${vatAny() ? "" : ` <span class="faint">(applies once VAT registered)</span>`}<select class="in" name="VAT">${opt(["Yes", "No"], f.VAT || "Yes", { Yes: `Standard rated — add ${vatPct()}${vatAny() ? "" : " once registered"}`, No: "No VAT (exempt / out of scope)" })}</select></label>
     <label class="full">Notes<input class="in" name="Notes" value="${esc(f.Notes || "")}" placeholder="optional — e.g. per engagement letter dated…"></label>
+    ${id && feeRevs(f).length ? `<div class="full"><div class="lbl">Fee revisions</div><div class="tw"><table class="tbl nosort"><thead><tr><th>Effective from</th><th class="num">New fee (excl. VAT)</th><th></th></tr></thead><tbody>
+      ${feeRevs(f).map(r => `<tr><td>${ymLabel(r.from)}</td><td class="num">${money(r.amt)}</td><td class="nowrap"><button type="button" class="btn sm ghost" data-act="finRevDel" data-id="${f.id}" data-m="${r.from}">Remove</button></td></tr>`).join("")}</tbody></table></div></div>` : ""}
   </div><p class="small muted">Cash is budgeted in the month the invoice falls due, taking the invoice as raised at the ${INVOICE_AT === "start" ? "start" : "end"} of each billing month. For a fee already running before ${ymLabel(FIN.start)} with credit days, set the From month earlier (e.g. ${ymLabel(ymAdd(FIN.start, -3))}) so collections due in early ${FIN.start.slice(0, 4)} are included — only cash due from ${ymLabel(FIN.start)} counts.</p></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
+};
+MODALS.finRevise = ({ id }) => {
+  const f = data.fees.find(x => x.id === id); if(!f) return ""; const c = clientById(f.ClientId); const nowA = feeAmtAt(f, curYM()); const def = ymAdd(curYM(), 1);
+  return `<form class="modal" style="max-width:520px" data-form="finRevise" data-id="${id}">${mHead(`Revise fee — ${esc(f.Service)}${c ? " · " + esc(c.Title) : ""}`)}<div class="mb">
+    <p class="muted" style="margin-top:0">Current fee <b>BHD ${money(nowA)}</b>${FEE_FREQ_SHORT[f.Freq] || ""} (excl. VAT), billed ${esc(lc(f.Freq))}, due ${esc(lc(FEE_TERMS_LABEL[termsOf(f)]))}.</p>
+    <div class="form"><label>New fee (BHD, excl. VAT)<input class="in" name="Amt" inputmode="decimal" required placeholder="e.g. ${esc(money(nowA * 1.1))}"></label>
+    <label>Effective from (first invoice at the new fee)<input class="in" type="month" name="From" required min="${esc(f.StartMonth || FIN.start)}" value="${def}"></label></div>
+    <p class="small muted">Invoices billed before this month stay at the old fee. Cash moves to the new amount from the month these invoices fall due (${esc(lc(FEE_TERMS_LABEL[termsOf(f)]))}). To stop the service instead, edit the line and set an <i>Until</i> month.</p></div>
+  <div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save revision</button></div></form>`;
+};
+SUBMIT.finRevise = async (form, o) => {
+  if(!canFin()) return; const f = data.fees.find(x => x.id === form.dataset.id); if(!f) return; const amt = fnum(o.Amt);
+  if(!(amt >= 0) || String(o.Amt || "").trim() === "") return toast("Enter the new fee", true); if(!/^\d{4}-\d{2}$/.test(o.From || "")) return toast("Pick the effective month", true);
+  if(o.From < (f.StartMonth || FIN.start)) return toast("Effective month is before the line starts", true);
+  const list = feeRevs(f).filter(r => r.from !== o.From); list.push({ from: o.From, amt });
+  const old = feeAmtAt(f, ymAdd(o.From, -1));
+  await saveRec("fees", f.id, { Revisions: feeRevsStr(list), UpdatedBy: me.email, UpdatedOn: nowISO() });
+  await logAct("Fee revised", clientById(f.ClientId) || null, `${f.Service}: BHD ${money(old)} → ${money(amt)} from ${ymLabel(o.From)}`);
+  closeModal(); render(); renderModals(); toast(`Fee revised to BHD ${money(amt)} from ${ymLabel(o.From)}`);
 };
 SUBMIT.finFee = async (form, o) => {
   if(!canFin()) return; const id = form.dataset.id; const cid = form.dataset.c; const amt = fnum(o.Amount);
@@ -3168,6 +3194,8 @@ Object.assign(ACT, {
   finFees: (d, e) => { if(e) e.preventDefault(); if(!canFin()) return; openModal("finFees", { id: d.id }); },
   finFeeAdd: d => openModal("finFeeForm", { cid: d.c }),
   finFeeEdit: d => openModal("finFeeForm", { id: d.id }),
+  finFeeRevise: d => openModal("finRevise", { id: d.id }),
+  finRevDel: d => { const f = data.fees.find(x => x.id === d.id); if(!f) return; openModal("confirm", { text: `Remove the fee revision effective <b>${ymLabel(d.m)}</b>?`, onYes: async () => { await saveRec("fees", f.id, { Revisions: feeRevsStr(feeRevs(f).filter(r => r.from !== d.m)), UpdatedBy: me.email, UpdatedOn: nowISO() }); await logAct("Fee revision removed", clientById(f.ClientId) || null, `${f.Service} from ${ymLabel(d.m)}`); toast("Revision removed"); } }); },
   finArAdd: d => openModal("finArForm", { cid: d.c }),
   finArEdit: d => openModal("finArForm", { id: d.id }),
   finFeeDel: d => { const f = data.fees.find(x => x.id === d.id); if(!f) return; openModal("confirm", { text: `Delete the <b>${esc(f.Service)}</b> fee line (BHD ${money(fnum(f.Amount))} ${esc(f.Freq)})?`, onYes: async () => { await removeRec("fees", f.id); state.modals = state.modals.filter(m => m.type !== "finArForm" && m.type !== "finFeeForm"); toast(isAR(f) ? "Opening receivable deleted" : "Fee line deleted"); } }); },
