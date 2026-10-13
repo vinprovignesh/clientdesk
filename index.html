@@ -891,7 +891,11 @@ const fltWho = () => isMgr() ? "" : lc(me.email);
 const ownF = x => { const e = fltWho(); return !e || (x.own || []).includes(e); };
 function isMine(c){ return true; }
 function isDeact(c){ return !!c && c.Status === "Deactivated"; }
-function canSee(c){ return isMgr() || !isDeact(c); }
+/* region access: an employee mapped to one location (Employees page → Works in) sees only that location; "Both" (or blank) sees both. Admins always see both. */
+function myLocs(){ if(!me || !me.role || me.role === "Admin" || !data) return LOCATIONS; const e = data.employees.find(x => lc(x.Email) === lc(me.email)); const L = e && e.Location;
+  return LOCATIONS.includes(L) ? [L] : LOCATIONS; }
+const inMyLoc = c => myLocs().includes(locOf(c));
+function canSee(c){ return inMyLoc(c) && (isMgr() || !isDeact(c)); }
 function dialOf(c){ return c.ContactCode || LOC[locOf(c)].dial; }
 function phoneOf(c){ const n = String(c.ContactNo || "").trim(); if(!n) return ""; return n.startsWith("+") ? n : `${dialOf(c)} ${n}`; }
 function normDial(v){ const d = String(v == null ? "" : v).replace(/[^\d]/g, "").replace(/^00/, ""); if(!d) return ""; if(d.length > 4) throw "Country code not recognised: " + v; return "+" + d; }
@@ -1017,6 +1021,7 @@ const TITLES = { dashboard:"Dashboard", clients:"Client Master", vat:"VAT Return
 function render(){
   const app = $("#app");
   if(!me.role){ app.innerHTML = noAccessScreen(); return; }
+  { const ml = myLocs(); if(ml.length === 1) state.loc = ml[0]; else if(state.loc && !ml.includes(state.loc)) state.loc = ""; }
   const ae = document.activeElement; const fid = ae && ae.id && app.contains(ae) ? ae.id : null; const pos = fid && ae.selectionStart;
   const locName = state.loc || "Bahrain & UAE";
   const sub = { dashboard: (isMgr() ? "All clients" : "Your assigned clients") + " · " + locName, mw: `Monthly or annual per client · due on the last day of the following month (annual: month after year end)`, ct: "Corporate tax returns by financial year · UAE (FTA): 9 months after year end · Bahrain (DMTT): 15 months", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
@@ -1036,7 +1041,7 @@ function render(){
       <div class="top">
         <div><h1>${TITLES[state.view]}</h1><div class="sub">${sub || ""}</div></div>
         <div class="right">
-          ${state.view === "bva" ? "" : `<div class="seg locsw" role="group" aria-label="Location">${[["", "All"], ["Bahrain", "Bahrain"], ["UAE", "UAE"]].map(([v, l]) => `<button class="${state.loc === v ? "on" : ""}" data-act="setloc" data-v="${v}">${l}</button>`).join("")}</div>`}
+          ${state.view === "bva" ? "" : myLocs().length === 1 ? `<div class="seg locsw" role="group" aria-label="Location"><button class="on" title="Your access is limited to this location">${myLocs()[0] === "UAE" ? "UAE" : "Bahrain"}</button></div>` : `<div class="seg locsw" role="group" aria-label="Location">${[["", "All"], ["Bahrain", "Bahrain"], ["UAE", "UAE"]].map(([v, l]) => `<button class="${state.loc === v ? "on" : ""}" data-act="setloc" data-v="${v}">${l}</button>`).join("")}</div>`}
           <button class="btn ghost" data-act="reload" title="Reload latest data">${I.refresh}<span>Refresh</span></button>
           ${DEMO ? "" : `<button class="btn ghost" data-act="signout" title="Sign out">${I.logout}</button>`}
         </div>
@@ -1622,7 +1627,7 @@ VIEWS.other = () => {
 };
 
 VIEWS.team = () => {
-  const cl = data.clients.filter(c => c.Status !== "Deactivated");
+  const cl = visibleClients().filter(c => c.Status !== "Deactivated");
   const emps = [...data.employees].sort((a,b) => (a.Active === "No") - (b.Active === "No") || a.Title.localeCompare(b.Title));
   const wk = openItemsAll(cl, { vat: workSum(vatWork(cl)), mw: workSum(mwDueWork(cl)), ct: workSum(ctWork(cl)), aud: workSum(auditWork(cl, state.af.fy)), oth: othWork(cl) });
   const unassigned = wk.filter(x => !(x.own || []).length).length;
@@ -1782,7 +1787,7 @@ MODALS.clientForm = ({ id }) => {
   return `<form class="modal" data-form="client" data-id="${id || ""}">${mHead(id ? "Edit client" : "Add client")}
   <div class="mb"><div class="form">
     <label>Client name *<input class="in" name="Title" required value="${esc(c.Title)}"></label>
-    <label>Location *<select class="in" name="Location" data-act="locPick">${opt(LOCATIONS, locOf(c), { Bahrain:"Bahrain", UAE:"UAE (Dubai)" })}</select></label>
+    <label>Location *<select class="in" name="Location" data-act="locPick">${opt(myLocs(), myLocs().includes(locOf(c)) ? locOf(c) : myLocs()[0], { Bahrain:"Bahrain", UAE:"UAE (Dubai)" })}</select></label>
     <label>CR / Trade licence no<input class="in" name="CRNo" value="${esc(c.CRNo)}"></label>
     <label>CR / licence expiry date<input class="in" type="date" name="CRExpiry" value="${/^\d{4}-\d{2}-\d{2}$/.test(c.CRExpiry || "") ? c.CRExpiry : ""}"></label>
     <label>Status<select class="in" name="Status">${opt(["Active","Dormant"], isDeact(c) ? "Active" : (c.Status || "Active"))}</select>${isAdmin() ? `<span class="hint" style="display:flex;gap:6px;align-items:center;margin-top:4px;color:var(--bad);font-weight:600"><input type="checkbox" name="Deact" ${isDeact(c) ? "checked" : ""}> Deactivated (admin only)</span>` : ""}</label>
@@ -1889,7 +1894,7 @@ MODALS.empForm = ({ id }) => {
     <label>Microsoft login email *<input class="in" type="email" name="Email" required value="${esc(e.Email)}" placeholder="name@vinproglobal.com"></label>
     <label>Role<select class="in" name="Role">${opt(ROLES, e.Role || "Staff")}</select></label>
     <label>Access<select class="in" name="Active">${opt(["Yes","No"], e.Active || "Yes", { Yes:"Active", No:"Disabled (no access)" })}</select></label>
-    <label class="full">Works in<select class="in" name="Location">${opt(["Bahrain","UAE","Both"], e.Location || "Bahrain", { Bahrain:"Bahrain", UAE:"UAE (Dubai)", Both:"Both locations" })}</select><span class="hint">For reporting. Staff see all clients, but only the work they are preparer, reviewer or assignee on; Admins and Managers see both locations.</span></label>
+    <label class="full">Works in<select class="in" name="Location">${opt(["Bahrain","UAE","Both"], e.Location || "Bahrain", { Bahrain:"Bahrain", UAE:"UAE (Dubai)", Both:"Both locations" })}</select><span class="hint">For reporting. Staff and Managers mapped to one location see only that location\'s clients and work; choose Both locations to give access to Bahrain and UAE. Admins always see both.</span></label>
   </div></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
 
@@ -2247,7 +2252,7 @@ function bulkParse(buf, fileName){
     const idv = txt("id"); const crv = txt("CRNo");
     let c = (idv && data.clients.find(x => x.id === idv)) || (crv && crv !== "-" && data.clients.find(x => lc(x.CRNo) === lc(crv))) || (row.title && data.clients.find(x => lc(x.Title) === lc(row.title)));
     if(idv && !data.clients.some(x => x.id === idv)) row.errors.push("Client ID " + idv + " not found — leave blank for a new client");
-    if(c && !canSee(c)) { row.errors.push(isDeact(c) ? "This client is deactivated — only an Admin can change it" : "This client exists but isn't assigned to you"); c = null; }
+    if(c && !canSee(c)) { row.errors.push(isDeact(c) ? "This client is deactivated — only an Admin can change it" : (!inMyLoc(c) ? "This client is in " + locOf(c) + ", which isn't one of your locations" : "This client isn't available to you")); c = null; }
     if(c && seen.has(c.id)) row.errors.push("Same client appears more than once in the file");
     if(c) seen.add(c.id);
     row.client = c; if(!row.title && c) row.title = c.Title;
@@ -2268,6 +2273,7 @@ function bulkParse(buf, fileName){
     if(f.Status === "Deactivated" && !isDeact(c)) { f.DeactivatedOn = todayISO(); f.DeactivatedBy = me.email; }
     if(f.Status && f.Status !== "Deactivated" && isDeact(c)) { f.DeactivatedOn = ""; f.DeactivatedBy = ""; } if(f.Title === "") { row.errors.push("Client name can't be cleared"); delete f.Title; }
     row.loc = f.Location || (c ? locOf(c) : (state.loc || DEFAULT_LOC));
+    if(!myLocs().includes(row.loc)) { row.errors.push("You can only add or move clients within " + myLocs().join(" / ")); }
     if(c){
       for(const [k2, v] of Object.entries(f)){ const cur = k2 === "Location" ? locOf(c) : k2 === "ContactCode" ? dialOf(c) : String(c[k2] || ""); if(String(v) !== cur) { row.fields[k2] = v; const col = BULK_COLS.find(x => x[1] === k2 || (k2 === "AcctFreq" && x[1] === "AcctFreqX") || (k2 === "ConsFreq" && x[1] === "ConsFreqX")); if(col) row.changes.push(col[0].replace(" *", "")); else if(k2 === "Services") row.changes.push("Services"); } }
       row.action = row.errors.length ? "Error" : Object.keys(row.fields).length ? "Update" : "No change";
@@ -2368,7 +2374,7 @@ const ACT = {
   mwsvc: d => { state.mf.svc = d.v; render(); },
   mwmode: d => { state.mf.mode = d.v; if(d.v === "annual" && !state.mf.yearSet){ state.mf.year = new Date().getFullYear(); } render(); },
   editCt: d => { const c = clientById(d.c); if(!c || !canSee(c) || isDeact(c)) return; openModal("ctForm", { cid: d.c, fy: d.fy }); },
-  setloc: d => { state.loc = d.v || ""; try { localStorage.setItem("vinpro-loc", state.loc); } catch(e){} state.cf.sel.clear(); render(); },
+  setloc: d => { if(myLocs().length === 1) return; state.loc = d.v || ""; try { localStorage.setItem("vinpro-loc", state.loc); } catch(e){} state.cf.sel.clear(); render(); },
   editEmp: d => openModal("empForm", { id: d.id }),
   bulk: () => openModal("bulk"),
   sel: (d, e) => { e.stopPropagation(); const s = state.cf.sel; s.has(d.id) ? s.delete(d.id) : s.add(d.id); render(); },
