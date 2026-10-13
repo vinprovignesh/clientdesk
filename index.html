@@ -300,6 +300,10 @@ tr.click-row:hover td{background:var(--panel-2)}
 .dl.ok{background:var(--vg-done-bg)!important;color:var(--vg-done)!important}.dl.wa{background:var(--vg-due-bg)!important;color:var(--vg-due)!important;box-shadow:inset 0 0 0 1.5px var(--vg-due)!important}
 .dl.ba{background:var(--vg-over-bg)!important;color:var(--vg-over)!important;box-shadow:inset 0 0 0 1.5px var(--vg-over)!important}.dl.fu{background:var(--vg-fut)!important;color:var(--vg-fut-ink)!important}
 .chip.st-done{background:var(--vg-done-bg);color:var(--vg-done)}.chip.st-pend{background:var(--vg-due-bg);color:var(--vg-due)}
+.chip.st-new{background:#eceef3;color:#5b6475}.chip.st-wait{background:#fdf0dc;color:#a65e00}.chip.st-recv{background:#e1effc;color:#1f6fb8}
+.chip.st-rev{background:#efe7fb;color:#6b3fb0}.chip.st-sign{background:#dcf2e4;color:#19733f}.chip.st-na{background:transparent;color:#7a8396;box-shadow:inset 0 0 0 1px #c9cfda}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip.st-new{background:#2a2f3a;color:#b4bccb}:root:not([data-theme="light"]) .chip.st-wait{background:#3a2a10;color:#f3b35a}:root:not([data-theme="light"]) .chip.st-recv{background:#14304d;color:#7fb8f0}:root:not([data-theme="light"]) .chip.st-rev{background:#2e2147;color:#bf9df2}:root:not([data-theme="light"]) .chip.st-sign{background:#123826;color:#6fd39a}:root:not([data-theme="light"]) .chip.st-na{color:#8e97a8;box-shadow:inset 0 0 0 1px #3b4252}}
+:root[data-theme="dark"] .chip.st-new{background:#2a2f3a;color:#b4bccb}:root[data-theme="dark"] .chip.st-wait{background:#3a2a10;color:#f3b35a}:root[data-theme="dark"] .chip.st-recv{background:#14304d;color:#7fb8f0}:root[data-theme="dark"] .chip.st-rev{background:#2e2147;color:#bf9df2}:root[data-theme="dark"] .chip.st-sign{background:#123826;color:#6fd39a}:root[data-theme="dark"] .chip.st-na{color:#8e97a8;box-shadow:inset 0 0 0 1px #3b4252}
 .steps i.on{background:var(--vg-done)!important}.bar i{background:var(--vg-done)!important}
 .segbar .ok{background:var(--vg-done)}.segbar .wa{background:var(--vg-due)}.segbar .ba{background:var(--vg-over)}
 body{background:radial-gradient(1200px 500px at 100% -10%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 60%),var(--bg)}
@@ -944,7 +948,16 @@ function mwRec(cid, svc, ym, freq){ freq = freq || "Monthly"; return data.mw.fin
 function mwStatus(cid, svc, ym, freq){ const r = mwRec(cid, svc, ym, freq); return (r && r.Status) || "Not started"; }
 function mwDue(c, svc, ym, freq){ const r = mwRec(c.id, svc, ym, freq); return (r && r.DueDate) || mwDefaultDue(svc, ym, freq); }
 function mwLabel(c, ym, freq){ return freq === "Annually" ? fyLabelOf(c, ym) : ymLabel(ym); }
-function stCls(st, done){ return done.has(st) ? "st-done" : "st-pend"; }
+/* one colour per stage, so statuses are easy to tell apart; completed stays navy */
+function stCls(st, done){ const k = lc(st);
+  if(/not applicable/.test(k)) return "st-na";
+  if(done.has(st)) return "st-done";
+  if(!k || /not started/.test(k)) return "st-new";
+  if(/request|awaiting|pending at|on hold/.test(k)) return "st-wait";
+  if(/received|pre audit|engagement|planning/.test(k)) return "st-recv";
+  if(/review|draft|manager\/partner/.test(k)) return "st-rev";
+  if(/signed|filed$/.test(k)) return "st-sign";
+  return "st-pend"; }
 function mwChip(st){ return chip(stCls(st, MW_DONE), esc(st), true); }
 function mwPeriods(c, svc, fromYm, toYm){ const out = []; if(fromYm < MW_START) fromYm = MW_START;
   for(let ym = fromYm; ym <= toYm; ym = ymAdd(ym, 1)){ const f = freqAt(c, svc, ym); if(f === "Monthly") out.push({ ym, freq: "Monthly" }); else if(ym.slice(5, 7) === fyEndMM(c)) out.push({ ym, freq: "Annually" }); }
