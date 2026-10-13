@@ -867,17 +867,31 @@ const isAdmin = () => me.role === "Admin";
 function empName(email){ if(!email) return ""; const e = data.employees.find(x => lc(x.Email) === lc(email)); return e ? e.Title : email; }
 function activeEmployees(){ return data.employees.filter(e => e.Active !== "No").sort((a,b) => a.Title.localeCompare(b.Title)); }
 function clientById(id){ return data.clients.find(c => c.id === id); }
-function teamOf(c){ const t = splitEmails(c.AssignedTo); return t; }
-/* clients a person works on through any task record (preparer / reviewer / assignee), not just the client team */
-let _workIx = { key: "", ids: new Set() };
-function myWorkClients(){ const e = lc(me && me.email); if(!e || !data) return _workIx.ids;
-  const L = ["vat", "ct", "mw", "audits", "other"].map(k => (data[k] || []));
-  const key = e + "|" + L.map(a => a.length).join(",") + "|" + (window.__dataVer || 0); if(_workIx.key === key) return _workIx.ids;
-  const ids = new Set(); for(const a of L) for(const r of a){ if([r.Preparer, r.Reviewer, r.AssignedTo].some(v => lc(v) === e)) ids.add(String(r.ClientId)); }
-  _workIx = { key, ids }; return ids; }
-function isMine(c){ const e = lc(me.email); return teamOf(c).includes(e) || lc(c.Reviewer) === e || myWorkClients().has(String(c.id)); }
+function teamOf(c){ return []; } /* client teams retired: work is assigned per task (data in the old team field is kept, not used) */
+/* ---------- work ownership: who a task belongs to ----------
+   VAT / Corporate tax: preparer or reviewer · Accounting/Consultation, Audit, Other services: assigned to.
+   A period with nothing saved yet inherits the people from the client's previous period of the same work. */
+let _ownIx = { key: "", m: null };
+function ownIndex(){ const key = ["vat", "ct", "mw", "audits", "other"].map(k => (data[k] || []).length).join(",") + "|" + (window.__dataVer || 0); if(_ownIx.key === key) return _ownIx.m;
+  const m = {}; const add = (k, r, ord) => { (m[k] = m[k] || []).push([ord, r]); };
+  for(const r of data.vat || []) add("vat|" + r.ClientId, r, r.PeriodEnd || "");
+  for(const r of data.ct || []) add("ct|" + r.ClientId, r, String(r.FY || ""));
+  for(const r of data.audits || []) add("aud|" + r.ClientId, r, String(r.FY || ""));
+  for(const r of data.mw || []) add("mw|" + r.ClientId + "|" + r.Service, r, r.Month || "");
+  for(const k in m) m[k].sort((a, b) => a[0].localeCompare(b[0]));
+  _ownIx = { key, m }; return m; }
+function inherit(k, ord, fields){ const L = ownIndex()[k] || []; const out = {}; for(const f of fields){ let v = ""; for(let i = L.length - 1; i >= 0; i--){ if(L[i][0] <= ord && L[i][1][f]){ v = L[i][1][f]; break; } } out[f] = lc(v); } return out; }
+function vatPeople(c, pe){ const x = inherit("vat|" + c.id, pe, ["Preparer", "Reviewer"]); return { prep: x.Preparer, rev: x.Reviewer }; }
+function ctPeople(c, fy){ const x = inherit("ct|" + c.id, String(fy), ["Preparer", "Reviewer"]); return { prep: x.Preparer, rev: x.Reviewer }; }
+function mwPeople(c, svc, ym){ const x = inherit("mw|" + c.id + "|" + svc, ym, ["AssignedTo", "Reviewer"]); return { asg: x.AssignedTo, rev: x.Reviewer }; }
+function audPeople(c, fy){ const x = inherit("aud|" + c.id, String(fy), ["AssignedTo"]); return { asg: x.AssignedTo }; }
+function ownersOf(kind, p){ return (kind === "vat" || kind === "ct" ? [p.prep, p.rev] : [p.asg]).filter(Boolean); }
+function workMine(kind, p, who){ const e = who || (isMgr() ? "" : lc(me.email)); return !e || ownersOf(kind, p).includes(e); }
+const fltWho = () => isMgr() ? "" : lc(me.email);
+const ownF = x => { const e = fltWho(); return !e || (x.own || []).includes(e); };
+function isMine(c){ return true; }
 function isDeact(c){ return !!c && c.Status === "Deactivated"; }
-function canSee(c){ return isMgr() || (isMine(c) && !isDeact(c)); }
+function canSee(c){ return isMgr() || !isDeact(c); }
 function dialOf(c){ return c.ContactCode || LOC[locOf(c)].dial; }
 function phoneOf(c){ const n = String(c.ContactNo || "").trim(); if(!n) return ""; return n.startsWith("+") ? n : `${dialOf(c)} ${n}`; }
 function normDial(v){ const d = String(v == null ? "" : v).replace(/[^\d]/g, "").replace(/^00/, ""); if(!d) return ""; if(d.length > 4) throw "Country code not recognised: " + v; return "+" + d; }
@@ -996,9 +1010,9 @@ function renderBusy(){ let b = document.getElementById("busy"); if(state.busy &&
 
 const NAV = [
   ["dashboard", "Dashboard", "dash"], ["clients", "Clients", "clients"], ["vat", "VAT Tracker", "vat"], ["ct", "Corporate Tax", "ct"], ["mw", "Accounting/Consultation", "mw"], ["audit", "Audit Tracker", "audit"], ["other", "Other Services", "other"],
-  ["bva", "Budget vs Actual", "bva", () => canFin()], ["team", "Team", "team", () => isMgr()], ["activity", "Activity Log", "log"], ["admin", "Admin & Import", "admin", () => isAdmin()]
+  ["bva", "Budget vs Actual", "bva", () => canFin()], ["team", "Employees", "team", () => isMgr()], ["activity", "Activity Log", "log"], ["admin", "Admin & Import", "admin", () => isAdmin()]
 ];
-const TITLES = { dashboard:"Dashboard", clients:"Client Master", vat:"VAT Return Tracker", ct:"Corporate Tax Tracker", mw:"Accounting/Consultation", audit:"Audit Tracker", other:"Other Services Tracker", bva:"Budget vs Actual · Bahrain", team:"Team & Assignments", activity:"Activity Log", admin:"Admin, Import & Export" };
+const TITLES = { dashboard:"Dashboard", clients:"Client Master", vat:"VAT Return Tracker", ct:"Corporate Tax Tracker", mw:"Accounting/Consultation", audit:"Audit Tracker", other:"Other Services Tracker", bva:"Budget vs Actual · Bahrain", team:"Employees", activity:"Activity Log", admin:"Admin, Import & Export" };
 
 function render(){
   const app = $("#app");
@@ -1008,7 +1022,7 @@ function render(){
   const sub = { dashboard: (isMgr() ? "All clients" : "Your assigned clients") + " · " + locName, mw: `Monthly or annual per client · due on the last day of the following month (annual: month after year end)`, ct: "Corporate tax returns by financial year · UAE (FTA): 9 months after year end · Bahrain (DMTT): 15 months", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
     vat: "Due date: Bahrain (NBR) last day of the following month · UAE (FTA) 28th of the following month", audit: "Statutory audit progress by financial year", other: "Work listed under Others on each client — owner, due date, follow-ups and work log",
     bva: `Vinpro Global Services WLL · monthly cash budget vs actual from ${ymLabel(FIN.start)} · BHD ${vatTag()}`,
-    team: "Employees, roles and client assignments", activity: "Every change and every password view is recorded", admin: "Import the client master, export, and SharePoint setup" }[state.view];
+    team: "Employees, roles and the work assigned to each", activity: "Every change and every password view is recorded", admin: "Import the client master, export, and SharePoint setup" }[state.view];
   app.innerHTML = `
   <div class="shell">
     <aside class="side">
@@ -1083,34 +1097,35 @@ function vatWork(clients, ym){ const out = []; const cur = ym || curYM();
   for(const c of clients){ if(isDeact(c)) continue;
     for(const pe of periodsFor(c, ymAdd(cur, -36), cur)){ const due = dueOf(pe, c); const dm = due.slice(0, 7); if(dm > cur) continue;
       const st = vatStatus(c.id, pe); const done = VAT_DONE.has(st); const isCur = dm === cur; if(!isCur && done) continue;
-      out.push({ c, pe, due, st, done, cur: isCur, prev: !isCur && !done, over: !done && daysUntil(due) < 0, label: periodLabel(c.VATCycle, pe) }); } }
-  return out.sort((a, b) => a.due.localeCompare(b.due) || a.c.Title.localeCompare(b.c.Title)); }
+      out.push({ c, pe, due, st, done, cur: isCur, prev: !isCur && !done, over: !done && daysUntil(due) < 0, label: periodLabel(c.VATCycle, pe), own: ownersOf("vat", vatPeople(c, pe)) }); } }
+  return out.filter(ownF).sort((a, b) => a.due.localeCompare(b.due) || a.c.Title.localeCompare(b.c.Title)); }
 /* accounting/consultation by DUE date: work falling due this month, plus earlier work still open */
 function mwDueWork(clients, ym){ const out = []; const cur = ym || curYM();
   for(const c of clients){ if(isDeact(c)) continue; for(const svc of MW_SERVICES){ if(!hasService(c, svc)) continue;
     for(const p of mwPeriods(c, svc, MW_START, cur)){ const due = mwDue(c, svc, p.ym, p.freq); const dm = due.slice(0, 7); if(dm > cur) continue;
       const st = mwStatus(c.id, svc, p.ym, p.freq); const done = MW_DONE.has(st); const isCur = dm === cur; if(!isCur && done) continue;
-      out.push({ c, svc, ym: p.ym, freq: p.freq, due, st, done, cur: isCur, prev: !isCur && !done, over: !done && daysUntil(due) < 0, label: mwLabel(c, p.ym, p.freq) }); } } }
-  return out.sort((a, b) => a.due.localeCompare(b.due) || a.c.Title.localeCompare(b.c.Title)); }
+      out.push({ c, svc, ym: p.ym, freq: p.freq, due, st, done, cur: isCur, prev: !isCur && !done, over: !done && daysUntil(due) < 0, label: mwLabel(c, p.ym, p.freq), own: ownersOf("mw", mwPeople(c, svc, p.ym)) }); } } }
+  return out.filter(ownF).sort((a, b) => a.due.localeCompare(b.due) || a.c.Title.localeCompare(b.c.Title)); }
 function mwWork(clients){ const out = []; const cur = curYM();
   for(const c of clients){ if(isDeact(c)) continue; for(const svc of MW_SERVICES){ if(!hasService(c, svc)) continue;
     const ps = mwPeriods(c, svc, MW_START, ymAdd(cur, 12)); const nowA = (ps.find(p => p.freq === "Annually" && p.ym >= cur) || {}).ym;
     for(const p of ps){ const isCur = p.freq === "Monthly" ? p.ym === cur : p.ym === nowA; const past = p.freq === "Monthly" ? p.ym < cur : p.ym < cur;
       if(!isCur && !past) continue; const st = mwStatus(c.id, svc, p.ym, p.freq); const done = MW_DONE.has(st); if(!isCur && done) continue;
-      const due = mwDue(c, svc, p.ym, p.freq); out.push({ c, svc, ym: p.ym, freq: p.freq, due, st, done, cur: isCur, prev: !isCur && !done, over: !isCur && !done && daysUntil(due) < 0, label: mwLabel(c, p.ym, p.freq) }); } } }
+      const due = mwDue(c, svc, p.ym, p.freq); out.push({ c, svc, ym: p.ym, freq: p.freq, due, st, done, cur: isCur, prev: !isCur && !done, over: !isCur && !done && daysUntil(due) < 0, label: mwLabel(c, p.ym, p.freq), own: ownersOf("mw", mwPeople(c, svc, p.ym)) }); } } }
+  if(fltWho()){ const keep = out.filter(ownF); out.length = 0; out.push(...keep); }
   return out.sort((a, b) => (b.prev - a.prev) || a.ym.localeCompare(b.ym) || a.c.Title.localeCompare(b.c.Title)); }
 /* corporate tax: the latest financial year that has ended; an earlier year shows only if it was started and is still open */
 function ctWork(clients){ const out = []; const t = todayISO(); const y = +t.slice(0, 4);
   for(const c of ctClients(clients)){ if(isDeact(c)) continue; const ended = [y - 2, y - 1, y].map(String).filter(fy => `${fy}-${c.FYEnd || "12-31"}` < t); const now = ended[ended.length - 1]; if(!now) continue;
     for(const fy of ended){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; const done = CT_DONE.has(st); const isCur = fy === now;
-      if(!isCur && (done || !r)) continue; out.push({ c, fy, due: ctDue(c, fy), st, done, cur: isCur, prev: !isCur && !done, over: !isCur && !done }); } }
-  return out.sort((a, b) => (b.prev - a.prev) || a.fy.localeCompare(b.fy) || a.c.Title.localeCompare(b.c.Title)); }
+      if(!isCur && (done || !r)) continue; out.push({ c, fy, due: ctDue(c, fy), st, done, cur: isCur, prev: !isCur && !done, over: !isCur && !done, own: ownersOf("ct", ctPeople(c, fy)) }); } }
+  return out.filter(ownF).sort((a, b) => (b.prev - a.prev) || a.fy.localeCompare(b.fy) || a.c.Title.localeCompare(b.c.Title)); }
 /* audit: the financial year chosen in the Audit tracker; the year before shows only if it was started and is still open */
 function auditWork(clients, fy){ const out = []; const prev = String(+fy - 1);
   for(const c of auditClients(clients)){ if(isDeact(c)) continue;
-    for(let k = 4; k >= 1; k--){ const pf = String(+fy - k); const rp = auditRec(c.id, pf); if(rp){ const st = auditSt(c, rp); if(!AUDIT_DONE.has(st)) out.push({ c, fy: pf, st, done: false, cur: false, prev: true, over: true, due: rp.DueDate || "" }); } }
-    const r = auditRec(c.id, fy); const st = auditSt(c, r); const done = AUDIT_DONE.has(st); out.push({ c, fy, st, done, cur: true, prev: false, over: false, due: (r && r.DueDate) || "" }); }
-  return out.sort((a, b) => (b.prev - a.prev) || a.c.Title.localeCompare(b.c.Title)); }
+    for(let k = 4; k >= 1; k--){ const pf = String(+fy - k); const rp = auditRec(c.id, pf); if(rp){ const st = auditSt(c, rp); if(!AUDIT_DONE.has(st)) out.push({ c, fy: pf, st, done: false, cur: false, prev: true, over: true, due: rp.DueDate || "", own: ownersOf("audit", audPeople(c, pf)) }); } }
+    const r = auditRec(c.id, fy); const st = auditSt(c, r); const done = AUDIT_DONE.has(st); out.push({ c, fy, st, done, cur: true, prev: false, over: false, due: (r && r.DueDate) || "", own: ownersOf("audit", audPeople(c, fy)) }); }
+  return out.filter(ownF).sort((a, b) => (b.prev - a.prev) || a.c.Title.localeCompare(b.c.Title)); }
 function workSum(items){ const now = items.filter(x => x.cur); return { total: now.length, doneN: now.filter(x => x.done).length, curP: now.filter(x => !x.done).length, prevN: items.filter(x => x.prev).length, over: items.filter(x => x.over).length, pending: items.filter(x => !x.done) }; }
 function prevChip(x, label){ return x.over ? chip("red", "Overdue · " + esc(label)) : x.prev ? chip("st-pend", "Previous period · " + esc(label)) : ""; }
 function dueTag(due){ const d = daysUntil(due); return d == null ? "" : d < 0 ? `<span class="over">past due</span>` : d === 0 ? `<span class="soon">today</span>` : d <= 7 ? `<span class="soon">in ${d} day${d === 1 ? "" : "s"}</span>` : ""; }
@@ -1121,15 +1136,16 @@ const DL_RANK = { over: 3, due: 2, future: 1, done: 0 };
 /* review stages: with the reviewer / manager / partner (everything else open is work in progress) */
 function isReviewStage(st){ return /review|draft fs|manager\/partner/i.test(String(st || "")); }
 function deadlineItems(clients, year){ const Y = String(year); const out = []; const t = todayISO(); const cur = curYM(); const jan = `${Y}-01`;
-  const push = (c, svc, due, done, label, act, stat) => { if(!due || String(due).slice(0, 4) !== Y) return; const ym = due.slice(0, 7);
-    out.push({ c, svc, due, ym, done, st: done ? "done" : due < t ? "over" : ym === cur ? "due" : "future", rv: !done && isReviewStage(stat), label, act }); };
+  const push = (c, svc, due, done, label, act, stat, own) => { if(!due || String(due).slice(0, 4) !== Y) return; const ym = due.slice(0, 7);
+    if(own && !ownF({ own })) return;
+    out.push({ c, svc, due, ym, done, st: done ? "done" : due < t ? "over" : ym === cur ? "due" : "future", rv: !done && isReviewStage(stat), label, act, own: own || [] }); };
   for(const c of clients){ if(isDeact(c)) continue;
-    for(const pe of periodsFor(c, ymAdd(jan, -2), `${Y}-12`)){ const st = vatStatus(c.id, pe); push(c, "VAT", dueOf(pe, c), VAT_DONE.has(st), `VAT ${periodLabel(c.VATCycle, pe)} · ${st}`, `data-act="editVat" data-c="${c.id}" data-pe="${pe}"`, st); }
+    for(const pe of periodsFor(c, ymAdd(jan, -2), `${Y}-12`)){ const st = vatStatus(c.id, pe); push(c, "VAT", dueOf(pe, c), VAT_DONE.has(st), `VAT ${periodLabel(c.VATCycle, pe)} · ${st}`, `data-act="editVat" data-c="${c.id}" data-pe="${pe}"`, st, ownersOf("vat", vatPeople(c, pe))); }
     for(const svc of MW_SERVICES){ if(!hasService(c, svc)) continue;
-      for(const p of mwPeriods(c, svc, ymAdd(jan, -14), `${Y}-12`)){ const st = mwStatus(c.id, svc, p.ym, p.freq); push(c, svc, mwDue(c, svc, p.ym, p.freq), MW_DONE.has(st), `${svc} ${mwLabel(c, p.ym, p.freq)} · ${st}`, `data-act="editMw" data-c="${c.id}" data-s="${svc}" data-m="${p.ym}" data-f="${p.freq}"`, st); } }
-    if(hasService(c, "Corporate Tax")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; push(c, "Corporate Tax", ctDue(c, fy), CT_DONE.has(st), `Corporate tax FY${fy} · ${st}`, `data-act="editCt" data-c="${c.id}" data-fy="${fy}"`, st); }
-    if(hasService(c, "Audit")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = auditRec(c.id, fy); if(!r || !r.DueDate) continue; const st = auditSt(c, r); push(c, "Audit", r.DueDate, AUDIT_DONE.has(st), `Audit FY${fy} · ${st}`, `data-act="editAudit" data-c="${c.id}" data-fy="${fy}"`, st); }
-    for(const x of otherItems([c], Y)) if(x.due) push(c, "Other", x.due, x.done, `${x.name} · ${x.st}`, `data-act="editOther" data-id="${x.rec.id}"`, x.st);
+      for(const p of mwPeriods(c, svc, ymAdd(jan, -14), `${Y}-12`)){ const st = mwStatus(c.id, svc, p.ym, p.freq); push(c, svc, mwDue(c, svc, p.ym, p.freq), MW_DONE.has(st), `${svc} ${mwLabel(c, p.ym, p.freq)} · ${st}`, `data-act="editMw" data-c="${c.id}" data-s="${svc}" data-m="${p.ym}" data-f="${p.freq}"`, st, ownersOf("mw", mwPeople(c, svc, p.ym))); } }
+    if(hasService(c, "Corporate Tax")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; push(c, "Corporate Tax", ctDue(c, fy), CT_DONE.has(st), `Corporate tax FY${fy} · ${st}`, `data-act="editCt" data-c="${c.id}" data-fy="${fy}"`, st, ownersOf("ct", ctPeople(c, fy))); }
+    if(hasService(c, "Audit")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = auditRec(c.id, fy); if(!r || !r.DueDate) continue; const st = auditSt(c, r); push(c, "Audit", r.DueDate, AUDIT_DONE.has(st), `Audit FY${fy} · ${st}`, `data-act="editAudit" data-c="${c.id}" data-fy="${fy}"`, st, ownersOf("audit", audPeople(c, fy))); }
+    for(const x of otherItems([c], Y)) if(x.due) push(c, "Other", x.due, x.done, `${x.name} · ${x.st}`, `data-act="editOther" data-id="${x.rec.id}"`, x.st, [lc(x.rec.AssignedTo)].filter(Boolean));
     if(/^\d{4}-\d{2}-\d{2}$/.test(c.CRExpiry || "")) push(c, "CR", c.CRExpiry, false, `${locOf(c) === "UAE" ? "Trade licence" : "CR"} expiry`, `data-act="openClient" data-id="${c.id}"`);
   }
   return out; }
@@ -1188,11 +1204,11 @@ function donutCard(view, title, sub, w, doneWord){ const over = w.pending.filter
     <div class="dc-ring">${donutSvg([{ v: done, c: ST_CLR.done, l: doneWord }, { v: pend, c: ST_CLR.pend, l: "pending" }, { v: over, c: ST_CLR.over, l: "overdue" }])}<div class="dc-c"><b>${pct}%</b><span>${tot ? `${done}/${tot}` : "—"}</span></div></div>
     <div class="dc-cap ${over ? "bad" : !pend && tot ? "ok" : ""}">${cap}</div></button>`; }
 function openItemsAll(cl, w){ const L = [];
-  w.vat.pending.forEach(x => L.push({ c: x.c, svc: "VAT", label: x.label, due: x.due, over: x.over, act: `data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}"` }));
-  w.mw.pending.forEach(x => L.push({ c: x.c, svc: x.svc === "Consultancy" ? "Consultation" : "Accounting", label: x.label, due: x.due, over: x.over, act: `data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}"` }));
-  w.ct.pending.forEach(x => L.push({ c: x.c, svc: "Corporate tax", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}"` }));
-  w.aud.pending.forEach(x => L.push({ c: x.c, svc: "Audit", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editAudit" data-c="${x.c.id}" data-fy="${x.fy}"` }));
-  w.oth.pending.forEach(x => L.push({ c: x.c, svc: x.name, label: x.year, due: x.due, over: x.over, act: `data-act="editOther" data-id="${x.rec.id}"` }));
+  w.vat.pending.forEach(x => L.push({ c: x.c, svc: "VAT", label: x.label, due: x.due, over: x.over, act: `data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}"`, own: x.own }));
+  w.mw.pending.forEach(x => L.push({ c: x.c, svc: x.svc === "Consultancy" ? "Consultation" : "Accounting", label: x.label, due: x.due, over: x.over, act: `data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}"` , own: x.own }));
+  w.ct.pending.forEach(x => L.push({ c: x.c, svc: "Corporate tax", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own }));
+  w.aud.pending.forEach(x => L.push({ c: x.c, svc: "Audit", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editAudit" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own }));
+  w.oth.pending.forEach(x => L.push({ c: x.c, svc: x.name, label: x.year, due: x.due, over: x.over, act: `data-act="editOther" data-id="${x.rec.id}"`, own: [lc(x.rec.AssignedTo)].filter(Boolean) }));
   return L; }
 function svcMonthChart(items, Y, title, sub, view){ const cur = curYM(); const months = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
   const data = months.map(m => { const a = items.filter(x => x.ym === m); const open = a.filter(x => !x.done); const w = open.filter(x => !x.rv), r = open.filter(x => x.rv);
@@ -1227,11 +1243,11 @@ function locChart(pend){ const rows = LOCATIONS.map(L => { const a = pend.filter
     <div class="ch-sub" style="margin-top:14px">By service</div><div class="mixbar">${mix.map(([k, v], i) => `<i style="flex:${v};background:${mixC[i % mixC.length]}" title="${esc(k)}: ${v}"></i>`).join("")}</div>
     ${chartLegend(mix.map(([k, v], i) => [`${k} ${v}`, mixC[i % mixC.length]]))}
     <div class="ch-cap">${tot ? `${esc(top.name)} carries ${Math.round((top.over + top.pend) / tot * 100)}% of open work${mix[0] ? ` · most is <b>${esc(mix[0][0])}</b>` : ""}` : "No open work 🎉"}</div></div></div>`; }
-function teamChart(cl, pend){ const rows = activeEmployees().map(e => { const em = lc(e.Email); const a = pend.filter(x => teamOf(x.c).includes(em)); return { name: e.Title, over: a.filter(x => x.over).length, pend: a.filter(x => !x.over).length }; }).filter(r => r.over + r.pend).sort((a, b) => (b.over + b.pend) - (a.over + a.pend)).slice(0, 8);
-  const top = rows[0]; const unass = pend.filter(x => !teamOf(x.c).length).length;
+function teamChart(cl, pend){ const rows = activeEmployees().map(e => { const em = lc(e.Email); const a = pend.filter(x => (x.own || []).includes(em)); return { name: e.Title, over: a.filter(x => x.over).length, pend: a.filter(x => !x.over).length }; }).filter(r => r.over + r.pend).sort((a, b) => (b.over + b.pend) - (a.over + a.pend)).slice(0, 8);
+  const top = rows[0]; const unass = pend.filter(x => !(x.own || []).length).length;
   return `<div class="card ch-card ch-wide"><div class="card-h"><h3>Team workload</h3><div class="right">${chartLegend([["Overdue", ST_CLR.over], ["Pending", ST_CLR.pend]])}</div></div><div class="card-b">
     ${rows.length ? hbars(rows) : `<div class="empty">No open items assigned.</div>`}
-    <div class="ch-cap">${top ? `<b>${esc(top.name)}</b> has the most open items (${top.over + top.pend}${top.over ? `, ${top.over} overdue` : ""})` : ""}${unass ? ` · <span class="over">${unass} item${unass > 1 ? "s" : ""} on clients with no team</span>` : ""}</div></div></div>`; }
+    <div class="ch-cap">${top ? `<b>${esc(top.name)}</b> has the most open items (${top.over + top.pend}${top.over ? `, ${top.over} overdue` : ""})` : ""}${unass ? ` · <span class="over">${unass} item${unass > 1 ? "s" : ""} not assigned to anyone</span>` : ""}</div></div></div>`; }
 function attentionCard(pend){ const a = pend.filter(x => x.over).sort((p, q) => (p.due || "").localeCompare(q.due || "")); const show = a.slice(0, 6);
   return `<div class="card ch-card"><div class="card-h"><h3>Needs attention</h3><div class="right small ${a.length ? "over" : "muted"}">${a.length} overdue</div></div>
     ${show.length ? `<ul class="att">${show.map(x => { const d = daysUntil(x.due); return `<li ${x.act}><span class="att-d">${d != null ? -d + "d" : "!"}</span><div><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${x.due ? " · due " + fmtDate(x.due) : ""}</div></div></li>`; }).join("")}</ul>${a.length > 6 ? `<div class="card-b small muted">+ ${a.length - 6} more — open the trackers</div>` : ""}` : `<div class="empty">Nothing overdue — well done.</div>`}</div>`; }
@@ -1243,7 +1259,7 @@ VIEWS.dashboard = () => {
   const cr = active.map(c => ({ c, i: crInfo(c) })).filter(x => x.i.d != null && x.i.d <= 30).sort((a,b) => a.i.d - b.i.d);
   const unsetCycle = active.filter(c => !c.VATCycle && hasService(c, "VAT")).length;
   const hour = new Date().getHours(); const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const acts = data.activity.filter(a => isMgr() || !a.ClientId || cl.some(c => c.id === a.ClientId)).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 8);
+  const acts = data.activity.filter(a => isMgr() || lc(a.UserEmail) === lc(me.email)).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 8);
   const tile = (view, label, w, doneWord) => `<button class="kpi" data-act="nav" data-v="${view}"><div class="l">${label}</div><div class="v">${w.pending.length}</div><div class="s">${w.curP} of ${w.total} pending this period · ${w.doneN} ${doneWord}</div>${w.prevN ? `<div class="s ${w.over ? "over" : ""}">+ ${w.prevN} from earlier period${w.prevN > 1 ? "s" : ""}${w.over ? ` (${w.over} overdue)` : ""}</div>` : ""}</button>`;
   const who = x => `${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b>`;
   const more = (n, where) => n > 0 ? `<div class="card-b small muted">+ ${n} more in ${where}</div>` : "";
@@ -1310,8 +1326,9 @@ function locationCard(all){
 function feedItem(a){ return `<li><b>${esc(a.UserName || a.UserEmail)}</b> · ${esc(a.Title)}${a.ClientName ? ` — <span class="cname">${esc(a.ClientName)}</span>` : ""}${a.Details ? `<div class="small muted">${esc(a.Details)}</div>` : ""}<div class="when">${fmtDT(a.At)}</div></li>`; }
 function teamWorkloadCard(cl){
   const cur = curYM(); const fy = state.af.fy;
-  const rows = activeEmployees().map(e => { const mine = cl.filter(c => !isDeact(c) && teamOf(c).includes(lc(e.Email)));
-    return { e, n: mine.length, vat: workCell(workSum(vatWork(mine))), mw: workCell(workSum(mwDueWork(mine))), aud: workCell(workSum(auditWork(mine, fy))) }; });
+  const V = vatWork(cl), M = mwDueWork(cl), A = auditWork(cl, fy);
+  const rows = activeEmployees().map(e => { const em = lc(e.Email); const f = a => a.filter(x => (x.own || []).includes(em)); const n = new Set([...f(V), ...f(M), ...f(A)].map(x => x.c.id)).size;
+    return { e, n, vat: workCell(workSum(f(V))), mw: workCell(workSum(f(M))), aud: workCell(workSum(f(A))) }; });
   return `<div class="card"><div class="card-h"><h3>Team workload</h3><div class="right"><button class="btn sm" data-act="nav" data-v="team">Manage</button></div></div>
   <div class="tw"><table class="tbl hwrap"><thead><tr><th>Employee</th><th>Role</th><th class="num">Clients</th><th class="num">VAT pending<br><span class="faint">due ${ymLabel(cur)}</span></th><th class="num">Acc./Consultation pending<br><span class="faint">${ymLabel(cur)}</span></th><th class="num">Audit pending<br><span class="faint">FY${esc(fy)}</span></th></tr></thead><tbody>
   ${rows.map(r => `<tr><td class="cname">${esc(r.e.Title)}<div class="small muted">${esc(r.e.Location || "")}</div></td><td class="muted">${esc(r.e.Role)}</td><td class="num">${r.n}</td><td class="num">${r.vat}</td><td class="num">${r.mw}</td><td class="num">${r.aud}</td></tr>`).join("")}
@@ -1322,7 +1339,6 @@ VIEWS.clients = () => {
   const f = state.cf; const q = lc(f.q);
   let list = visibleClients().filter(c =>
     (!f.status || (f.status === "Active" ? c.Status !== "Deactivated" : c.Status === f.status)) &&
-    (!f.who || (f.who === "__none" ? !teamOf(c).length : teamOf(c).includes(f.who))) &&
     (!f.cycle || (f.cycle === "__unset" ? !c.VATCycle : c.VATCycle === f.cycle)) &&
     (!f.svc || (f.svc === "__none" ? !servicesOf(c).length : hasService(c, f.svc))) &&
     (!f.crMonth || String(c.CRExpiry || "").slice(0, 7) === f.crMonth) &&
@@ -1330,7 +1346,7 @@ VIEWS.clients = () => {
   const credsBy = {}; data.creds.forEach(x => (credsBy[x.ClientId] = credsBy[x.ClientId] || []).push(x.Title));
   const SK = { Title: c => lc(c.Title), Location: c => locOf(c), CRNo: c => { const m = /\d+/.exec(c.CRNo || ""); return m ? m[0].padStart(12, "0") + lc(c.CRNo) : "~"; }, CRExpiry: c => c.CRExpiry || "9999", Contact: c => lc(c.ContactName) || "~",
     Services: c => servicesOf(c).length ? servicesOf(c).join(", ") : "~", VATCycle: c => c.VATCycle ? (CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].short : c.VATCycle) : "~",
-    Team: c => teamOf(c).map(e => lc(empName(e))).join(", ") || "~", Logins: c => (credsBy[c.id] || []).length, Deact: c => isDeact(c) ? 1 : 0 };
+    Logins: c => (credsBy[c.id] || []).length, Deact: c => isDeact(c) ? 1 : 0 };
   const kf = SK[f.sk] || SK.Title; list = list.slice().sort((a, b) => { const x = kf(a), y = kf(b); return (x < y ? -1 : x > y ? 1 : lc(a.Title).localeCompare(lc(b.Title))) * f.sd; });
   const th = (k, label, extra) => `<th class="sortable ${f.sk === k ? "sorted" : ""}" data-act="csort" data-v="${k}" ${extra || ""}>${label}<span class="sarr">${f.sk === k ? (f.sd > 0 ? "▲" : "▼") : "↕"}</span></th>`;
   const sel = f.sel; const allSel = list.length && list.every(c => sel.has(c.id));
@@ -1338,7 +1354,6 @@ VIEWS.clients = () => {
   <div class="toolbar">
     <input id="cf-q" class="in search" placeholder="Search name, CR / licence no, contact, VAT / TRN…" value="${esc(f.q)}" data-bind="cf.q">
     <select class="in" data-bind="cf.status"><option value="">All statuses</option>${["Active","Dormant","Deactivated"].map(s => `<option ${f.status === s ? "selected" : ""}>${s}</option>`).join("")}</select>
-    ${isMgr() ? `<select class="in" data-bind="cf.who"><option value="">All employees</option><option value="__none" ${f.who === "__none" ? "selected" : ""}>— Unassigned —</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
     <select class="in" data-bind="cf.cycle"><option value="">Any VAT cycle</option><option value="__unset" ${f.cycle === "__unset" ? "selected" : ""}>— Not set —</option>${Object.keys(CYCLES).map(k => `<option value="${k}" ${f.cycle === k ? "selected" : ""}>${CYCLES[k].short}</option>`).join("")}</select>
     <select class="in" data-bind="cf.svc"><option value="">Any service</option><option value="__none" ${f.svc === "__none" ? "selected" : ""}>— No service set —</option>${SERVICES.map(sv => `<option ${f.svc === sv ? "selected" : ""}>${esc(sv)}</option>`).join("")}</select>
     <div class="right">
@@ -1352,14 +1367,13 @@ VIEWS.clients = () => {
   ${f.crMonth ? `<div class="banner info"><b>CR / licence expiring in ${ymLabel(f.crMonth)}</b> — ${list.length} client${list.length === 1 ? "" : "s"} <button class="btn sm" data-act="clearCrMonth" style="margin-left:auto">✕ Show all clients</button></div>` : ""}
   <div class="card"><div class="tw"><table class="tbl"><thead><tr>
     ${isMgr() ? `<th style="width:30px"><input type="checkbox" data-act="selAll" ${allSel ? "checked" : ""} aria-label="Select all"></th>` : ""}
-    ${th("Title", "Client")}${th("Location", "Location")}${th("CRNo", "CR / Licence")}${th("CRExpiry", "Expiry")}${th("Contact", "Contact")}${th("Services", "Services")}${th("Team", "Team")}${th("Logins", "Logins")}${isAdmin() ? th("Deact", "Deactivated", 'title="Admin only"') : ""}</tr></thead><tbody>
+    ${th("Title", "Client")}${th("Location", "Location")}${th("CRNo", "CR / Licence")}${th("CRExpiry", "Expiry")}${th("Contact", "Contact")}${th("Services", "Services")}${th("Logins", "Logins")}${isAdmin() ? th("Deact", "Deactivated", 'title="Admin only"') : ""}</tr></thead><tbody>
     ${list.map(c => { const cr = crInfo(c); return `<tr class="click" data-act="openClient" data-id="${c.id}">
       ${isMgr() ? `<td data-stop="1"><input type="checkbox" data-act="sel" data-id="${c.id}" ${sel.has(c.id) ? "checked" : ""} aria-label="Select"></td>` : ""}
       <td><span class="cname">${esc(c.Title)}</span>${c.Status && c.Status !== "Active" ? ` ${chip("grey", esc(c.Status))}` : ""}</td>
       <td>${locTag(c)}</td><td class="nowrap">${esc(c.CRNo)}</td><td>${chip(cr.cls, cr.txt)}</td>
       <td class="small">${esc(c.ContactName)}${c.ContactNo ? `<div class="faint nowrap">${esc(phoneOf(c))}</div>` : ""}</td>
       <td>${serviceTags(c) || `<span class="soon small">Not set</span>`}</td>
-      <td>${teamOf(c).length ? avatars(teamOf(c)) : `<span class="faint small">Unassigned</span>`}</td>
       <td>${(credsBy[c.id] || []).map(p => `<span class="tag">${esc(p)}</span>`).join("") || `<span class="faint small">—</span>`}</td>
       ${isAdmin() ? `<td data-stop="1" style="text-align:center"><input type="checkbox" data-act="toggleDeact" data-id="${c.id}" ${isDeact(c) ? "checked" : ""} aria-label="Deactivated" title="${isDeact(c) ? "Deactivated — untick to reactivate" : "Tick to deactivate"}"></td>` : ""}</tr>`; }).join("")}
   </tbody></table>${list.length ? "" : `<div class="empty">No clients match these filters.</div>`}</div></div>`;
@@ -1367,7 +1381,7 @@ VIEWS.clients = () => {
 
 VIEWS.vat = () => {
   const f = state.vf; const q = lc(f.q);
-  const base = visibleClients().filter(c => c.Status !== "Deactivated" && (!q || lc(c.Title).includes(q)) && (!f.who || teamOf(c).includes(f.who)));
+  const base = visibleClients().filter(c => c.Status !== "Deactivated" && (!q || lc(c.Title).includes(q)));
   const unset = base.filter(c => !c.VATCycle && hasService(c, "VAT")).length;
   const regd = Object.keys(CYCLES).filter(k => CYCLES[k].n);
   if(f.cycle == null){ const n = {}; base.forEach(c => { if(regd.includes(c.VATCycle)) n[c.VATCycle] = (n[c.VATCycle] || 0) + 1; }); f.cycle = Object.keys(n).sort((a, b) => n[b] - n[a])[0] || ""; }
@@ -1392,7 +1406,7 @@ VIEWS.vat = () => {
 };
 function vatMonthView(base){
   const f = state.vf; const pe = ymAdd(f.month, -1);
-  let rows = base.filter(c => periodsFor(c, pe, pe).length).map(c => ({ c, st: vatStatus(c.id, pe), rec: vatRec(c.id, pe) }));
+  let rows = base.filter(c => periodsFor(c, pe, pe).length).map(c => ({ c, st: vatStatus(c.id, pe), rec: vatRec(c.id, pe), pp: vatPeople(c, pe) })).filter(r => workMine("vat", r.pp, f.who || fltWho()));
   const total = rows.length, done = rows.filter(r => VAT_DONE.has(r.st)).length;
   if(f.show === "pending") rows = rows.filter(r => !VAT_DONE.has(r.st)); if(f.show === "done") rows = rows.filter(r => VAT_DONE.has(r.st));
   const pct = total ? Math.round(done / total * 100) : 0;
@@ -1406,7 +1420,7 @@ function vatMonthView(base){
       <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
       <td class="nowrap small">${periodLabel(r.c.VATCycle, pe)}</td>
       <td>${vatChip(r.st)}${late ? ` ${chip("red", "Overdue")}` : ""}</td>
-      <td class="small">${esc(empName((r.rec && r.rec.Preparer) || ""))}</td>
+      <td class="small">${esc(empName(r.pp.prep))}${r.pp.rev ? `<div class="faint">rev. ${esc(empName(r.pp.rev).split(" ")[0])}</div>` : ""}</td>
       <td class="small nowrap">${fmtDate(r.rec && r.rec.FiledDate)}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td><td class="num">${r.rec && r.rec.Amount ? esc(r.rec.Amount) + ` <span class="faint small">${curOf(r.c)}</span>` : ""}</td>
       <td class="small faint nowrap">${updCell(r.rec)}</td>
       <td><button class="btn sm" data-act="editVat" data-c="${r.c.id}" data-pe="${pe}">Update</button></td></tr>`; }).join("")}
@@ -1414,7 +1428,7 @@ function vatMonthView(base){
 }
 function vatYearView(base){
   const y = +state.vf.year; const months = Array.from({length:12}, (_, i) => `${y}-${pad(i+1)}`);
-  const rows = base.filter(c => CYCLES[c.VATCycle] && CYCLES[c.VATCycle].n);
+  const who = state.vf.who || fltWho(); const rows = base.filter(c => CYCLES[c.VATCycle] && CYCLES[c.VATCycle].n && (!who || months.some(m => isPeriodEnd(c.VATCycle, m) && workMine("vat", vatPeople(c, m), who))));
   return `<div class="card"><div class="card-b small muted">Each cell is the VAT period <b>ending</b> in that month (filing due the following month). Click a cell to update. Red outline = past due and not filed.</div>
   <div class="tw"><table class="tbl ygrid"><thead><tr><th>Client</th><th>Cycle</th>${months.map(m => `<th class="m">${MONTHS[+m.slice(5)-1]}</th>`).join("")}</tr></thead><tbody>
   ${rows.map(c => `<tr><td class="cname nowrap">${state.loc ? "" : locTag(c) + " "}${esc(c.Title)}</td><td class="small faint nowrap">${esc(CYCLES[c.VATCycle].short)}</td>
@@ -1426,13 +1440,13 @@ function vatYearView(base){
 
 VIEWS.audit = () => {
   const f = state.af; const q = lc(f.q); const y = new Date().getFullYear();
-  let rows = auditClients(visibleClients()).filter(c => (!q || lc(c.Title).includes(q)) && (!f.who || teamOf(c).includes(f.who) || lc((auditRec(c.id, f.fy) || {}).AssignedTo) === f.who))
+  let rows = auditClients(visibleClients()).filter(c => (!q || lc(c.Title).includes(q)) && workMine("audit", audPeople(c, f.fy), f.who || fltWho()))
     .map(c => ({ c, fy: f.fy, rec: auditRec(c.id, f.fy), st: auditSt(c, auditRec(c.id, f.fy)) }));
   const total = rows.length, done = rows.filter(r => AUDIT_DONE.has(r.st)).length;
   /* audits of earlier financial years that were started but not completed stay in view */
   const carried = []; const base = auditClients(visibleClients()).filter(c => !isDeact(c) && (!q || lc(c.Title).includes(q)));
   for(const c of base) for(let k = 1; k <= 4; k++){ const fy = String(+f.fy - k); const r = auditRec(c.id, fy); if(!r) continue; const st = auditSt(c, r);
-    if(AUDIT_DONE.has(st)) continue; if(f.who && !(teamOf(c).includes(f.who) || lc(r.AssignedTo) === f.who)) continue; carried.push({ c, fy, rec: r, st, carried: true }); }
+    if(AUDIT_DONE.has(st)) continue; if(!workMine("audit", audPeople(c, fy), f.who || fltWho())) continue; carried.push({ c, fy, rec: r, st, carried: true }); }
   carried.sort((a, b) => a.fy.localeCompare(b.fy) || a.c.Title.localeCompare(b.c.Title));
   if(f.show === "pending") rows = rows.filter(r => !AUDIT_DONE.has(r.st)); if(f.show === "done") rows = rows.filter(r => AUDIT_DONE.has(r.st));
   if(f.show !== "done") rows = carried.concat(rows);
@@ -1448,7 +1462,7 @@ VIEWS.audit = () => {
   ${rows.map(r => { const idx = auditStatuses(r.c).indexOf(r.st); const steps = auditStatuses(r.c).length - 1; const d = daysUntil(r.rec && r.rec.DueDate); return `<tr>
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a>${r.carried ? ` ${chip("red", "Carried · FY" + esc(r.fy))}` : ""}</td>
     <td class="small nowrap">${fmtDate(r.fy + "-" + (r.c.FYEnd || "12-31"))}</td><td class="small">${esc(r.rec && r.rec.Auditor)}</td>
-    <td class="small">${esc(empName((r.rec && r.rec.AssignedTo) || teamOf(r.c)[0] || ""))}</td><td>${auditChip(r.st)}</td>
+    <td class="small">${esc(empName(audPeople(r.c, r.fy).asg))}</td><td>${auditChip(r.st)}</td>
     <td style="min-width:80px"><div class="steps" title="${esc(r.st)}">${Array.from({length:steps - 1}, (_, i) => `<i class="${/^not applicable$/i.test(r.st) || i < idx ? "on" : ""}"></i>`).join("")}</div></td>
     <td class="small nowrap">${fmtDate(r.rec && r.rec.DueDate)}${d != null && !AUDIT_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
     <td class="small nowrap">${fmtDate(r.rec && r.rec.CompletedDate)}</td>
@@ -1459,7 +1473,7 @@ VIEWS.audit = () => {
 
 VIEWS.mw = () => {
   const f = state.mf; const q = lc(f.q);
-  const base = visibleClients().filter(c => !isDeact(c) && hasService(c, f.svc) && (!q || lc(c.Title).includes(q)) && (!f.who || teamOf(c).includes(f.who)));
+  const base = visibleClients().filter(c => !isDeact(c) && hasService(c, f.svc) && (!q || lc(c.Title).includes(q)));
   const y = new Date().getFullYear();
   const head = `<div class="toolbar">
     <div class="seg">${MW_SERVICES.map(sv => `<button class="${f.svc === sv ? "on" : ""}" data-act="mwsvc" data-v="${sv}">${sv}</button>`).join("")}</div>
@@ -1478,7 +1492,7 @@ function mwTable(rows, svc, labelCol){
   ${rows.map(r => { const d = daysUntil(r.due); return `<tr>
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
     ${labelCol ? `<td class="small nowrap">${esc(mwLabel(r.c, r.ym, r.freq))}</td>` : ""}
-    <td>${mwChip(r.st)}</td><td class="small">${esc(empName((r.rec && r.rec.AssignedTo) || teamOf(r.c)[0] || ""))}</td><td class="small">${esc(empName((r.rec && r.rec.Reviewer) || r.c.Reviewer))}</td>
+    <td>${mwChip(r.st)}</td><td class="small">${esc(empName(mwPeople(r.c, svc, r.ym).asg))}</td><td class="small">${esc(empName(mwPeople(r.c, svc, r.ym).rev || r.c.Reviewer))}</td>
     <td class="small nowrap">${fmtDate(r.due)}${!MW_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 3 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
     <td class="small nowrap">${fmtDate(r.rec && r.rec.CompletedDate)}</td>${svc === "Consultancy" ? `<td class="num">${esc(r.rec && r.rec.Hours)}</td>` : ""}
     <td class="small muted" style="max-width:260px">${esc(wlLast(r.rec).slice(0, 90))}</td>
@@ -1490,7 +1504,7 @@ function mwMonthView(base){
   const f = state.mf; const ym = f.month;
   if(ym < MW_START) return `<div class="card"><div class="empty">Tracking starts from ${ymLabel(MW_START)}. Pick a later month.</div></div>`;
   const annualCount = base.filter(c => freqAt(c, f.svc, ym) === "Annually").length;
-  let rows = base.filter(c => freqAt(c, f.svc, ym) === "Monthly").map(c => ({ c, ym, freq: "Monthly", rec: mwRec(c.id, f.svc, ym), st: mwStatus(c.id, f.svc, ym), due: mwDue(c, f.svc, ym) }));
+  let rows = base.filter(c => freqAt(c, f.svc, ym) === "Monthly" && workMine("mw", mwPeople(c, f.svc, ym), f.who || fltWho())).map(c => ({ c, ym, freq: "Monthly", rec: mwRec(c.id, f.svc, ym), st: mwStatus(c.id, f.svc, ym), due: mwDue(c, f.svc, ym) }));
   const total = rows.length, done = rows.filter(r => MW_DONE.has(r.st)).length; rows = mwFilterShow(rows);
   const carried = f.show === "done" ? [] : mwCarried(base, f.svc, ym);
   const pct = total ? Math.round(done / total * 100) : 0; const dd = daysUntil(mwDefaultDue(f.svc, ym));
@@ -1500,14 +1514,14 @@ function mwMonthView(base){
 }
 /* earlier periods (any frequency) still not completed — kept in view until closed */
 function mwCarried(base, svc, beforeYm){ const out = [];
-  for(const c of base) for(const p of mwPeriods(c, svc, MW_START, ymAdd(beforeYm, -1))){ const st = mwStatus(c.id, svc, p.ym, p.freq); if(MW_DONE.has(st)) continue;
+  for(const c of base) for(const p of mwPeriods(c, svc, MW_START, ymAdd(beforeYm, -1))){ const st = mwStatus(c.id, svc, p.ym, p.freq); if(MW_DONE.has(st)) continue; if(!workMine("mw", mwPeople(c, svc, p.ym), state.mf.who || fltWho())) continue;
     out.push({ c, ym: p.ym, freq: p.freq, rec: mwRec(c.id, svc, p.ym, p.freq), st, due: mwDue(c, svc, p.ym, p.freq) }); }
   return out.sort((a, b) => a.ym.localeCompare(b.ym) || a.c.Title.localeCompare(b.c.Title)); }
 function mwCarriedCard(rows, svc, when){ if(!rows.length) return "";
   return `<div class="card" style="margin-top:18px;border-left:4px solid var(--bad)"><div class="card-h"><h3>Carried forward · ${rows.length} pending from periods ${esc(when)}</h3><div class="right small muted">Not completed — stays here until closed</div></div>${mwTable(rows, svc, true)}</div>`; }
 function mwAnnualView(base){
   const f = state.mf; const fy = String(f.year);
-  let rows = base.map(c => { const ym = `${fy}-${fyEndMM(c)}`; return { c, ym }; }).filter(x => x.ym >= MW_START && freqAt(x.c, f.svc, x.ym) === "Annually")
+  let rows = base.map(c => { const ym = `${fy}-${fyEndMM(c)}`; return { c, ym }; }).filter(x => x.ym >= MW_START && freqAt(x.c, f.svc, x.ym) === "Annually" && workMine("mw", mwPeople(x.c, f.svc, x.ym), f.who || fltWho()))
     .map(x => ({ ...x, freq: "Annually", rec: mwRec(x.c.id, f.svc, x.ym, "Annually"), st: mwStatus(x.c.id, f.svc, x.ym, "Annually"), due: mwDue(x.c, f.svc, x.ym, "Annually") }));
   const total = rows.length, done = rows.filter(r => MW_DONE.has(r.st)).length; rows = mwFilterShow(rows).sort((a, b) => a.due.localeCompare(b.due));
   const pct = total ? Math.round(done / total * 100) : 0;
@@ -1517,7 +1531,7 @@ function mwAnnualView(base){
 }
 function mwYearView(base){
   const f = state.mf; const y = +f.year; const months = Array.from({length:12}, (_, i) => `${y}-${pad(i+1)}`); const cur = curYM();
-  const rows = base.filter(c => months.some(m => m >= MW_START && m <= cur && freqAt(c, f.svc, m) === "Monthly"));
+  const rows = base.filter(c => months.some(m => m >= MW_START && m <= cur && freqAt(c, f.svc, m) === "Monthly" && workMine("mw", mwPeople(c, f.svc, m), f.who || fltWho())));
   const prevPend = mwCarried(base, f.svc, `${y}-01`);
   return `${prevPend.length ? `<div class="banner bad"><b>${prevPend.length} ${esc(f.svc.toLowerCase())} item${prevPend.length > 1 ? "s" : ""} from before ${y} still pending.</b> <span class="small">${esc(prevPend.slice(0, 6).map(r => r.c.Title + " · " + mwLabel(r.c, r.ym, r.freq)).join("; "))}${prevPend.length > 6 ? "…" : ""}</span> <button class="btn sm" data-act="mwmode" data-v="month">Open in month view</button></div>` : ""}<div class="card"><div class="card-b small muted">${esc(f.svc)} status for monthly clients. Click a cell to update. Red outline = past due and not completed. Grey "Annual" = months when the client was on annual frequency.</div>
   <div class="tw"><table class="tbl ygrid"><thead><tr><th>Client</th>${months.map(m => `<th class="m">${MONTHS[+m.slice(5)-1]}</th>`).join("")}</tr></thead><tbody>
@@ -1530,7 +1544,7 @@ function mwYearView(base){
 
 VIEWS.ct = () => {
   const f = state.tf; const q = lc(f.q); const y = new Date().getFullYear();
-  let rows = ctClients(visibleClients()).filter(c => (!q || [c.Title, c.CTNo].some(v => lc(v).includes(q))) && (!f.who || teamOf(c).includes(f.who) || lc((ctRec(c.id, f.fy) || {}).Preparer) === f.who))
+  let rows = ctClients(visibleClients()).filter(c => (!q || [c.Title, c.CTNo].some(v => lc(v).includes(q))) && workMine("ct", ctPeople(c, f.fy), f.who || fltWho()))
     .map(c => { const rec = ctRec(c.id, f.fy); return { c, rec, st: (rec && rec.Status) || "Not started", due: ctDue(c, f.fy) }; });
   const total = rows.length, done = rows.filter(r => CT_DONE.has(r.st)).length;
   if(f.show === "pending") rows = rows.filter(r => !CT_DONE.has(r.st)); if(f.show === "done") rows = rows.filter(r => CT_DONE.has(r.st));
@@ -1548,7 +1562,7 @@ VIEWS.ct = () => {
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
     <td class="small">${esc(r.c.CTNo) || '<span class="faint">—</span>'}</td>
     <td class="small nowrap" title="Tax period ends ${fmtDate(f.fy + "-" + (r.c.FYEnd || "12-31"))}">${fmtDate(r.due)}${!CT_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
-    <td>${ctChip(r.st)}</td><td class="small">${esc(empName((r.rec && r.rec.Preparer) || ""))}</td>
+    <td>${ctChip(r.st)}</td><td class="small">${esc(empName(ctPeople(r.c, f.fy).prep))}</td>
     <td class="small nowrap">${fmtDate(r.rec && r.rec.FiledDate)}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td>
     <td class="num">${r.rec && r.rec.Amount ? esc(r.rec.Amount) + ` <span class="faint small">${curOf(r.c)}</span>` : ""}</td>
     <td><button class="btn sm" data-act="editCt" data-c="${r.c.id}" data-fy="${esc(f.fy)}">Update</button></td></tr>`; }).join("")}
@@ -1567,11 +1581,11 @@ function othFind(cid, name, year){ return data.other.find(x => x.ClientId === ci
 /* client "Others" text only creates tracker items; editing or clearing it later never removes them */
 async function syncOthers(c, anyYear){ if(!c || isDeact(c) || !data.other) return 0; let n = 0; const Y = curYear();
   for(const name of otherNamesText(c)){ if(othFind(c.id, name, anyYear ? null : Y)) continue;
-    const r = await store.create("other", { Title: `${c.id}|${Y}|${name}`, ClientId: c.id, Service: name, Year: Y, Status: "Not started", AssignedTo: teamOf(c)[0] || "", Reviewer: c.Reviewer || "", UpdatedBy: me.email, UpdatedOn: nowISO() });
+    const r = await store.create("other", { Title: `${c.id}|${Y}|${name}`, ClientId: c.id, Service: name, Year: Y, Status: "Not started", AssignedTo: "", Reviewer: c.Reviewer || "", UpdatedBy: me.email, UpdatedOn: nowISO() });
     data.other.push(r); n++; }
   if(n) await logAct("Other services added", c, otherNamesText(c).join(", ") + ` · tracked for ${Y}`); return n; }
 function otherItems(clients, year){ const out = []; const t = todayISO(); const ids = new Map(clients.filter(c => !isDeact(c)).map(c => [c.id, c])); const Y = String(year || curYear());
-  for(const r of data.other){ const c = ids.get(r.ClientId); if(!c || othYear(r) !== Y) continue; const st = r.Status || "Not started"; const done = OTH_DONE.has(st);
+  const meE = fltWho(); for(const r of data.other){ const c = ids.get(r.ClientId); if(!c || othYear(r) !== Y) continue; if(meE && lc(r.AssignedTo) !== meE) continue; const st = r.Status || "Not started"; const done = OTH_DONE.has(st);
     out.push({ c, name: r.Service, year: Y, rec: r, st, done, due: r.DueDate || "", fu: r.FollowUp || "", over: !done && !!r.DueDate && r.DueDate < t, fuOver: !done && !!r.FollowUp && r.FollowUp <= t }); }
   return out; }
 function othWork(clients){ const its = otherItems(clients); return { total: its.length, doneN: its.filter(x => x.done).length, curP: its.filter(x => !x.done).length, prevN: 0, over: its.filter(x => x.over).length, pending: its.filter(x => !x.done) }; }
@@ -1580,7 +1594,7 @@ VIEWS.other = () => {
   const f = state.of; const q = lc(f.q); const Y = String(f.year || curYear());
   const all = otherItems(visibleClients(), Y); const names = [...new Set(all.map(x => x.name))].sort((a, b) => a.localeCompare(b));
   const prevAll = otherItems(visibleClients(), +Y - 1).filter(x => x.st !== "Not applicable" && !othFind(x.c.id, x.name, Y));
-  let rows = all.filter(x => (!q || lc(x.c.Title).includes(q) || lc(x.name).includes(q)) && (!f.svc || x.name === f.svc) && (!f.who || lc(x.rec.AssignedTo || teamOf(x.c)[0] || "") === f.who || teamOf(x.c).includes(f.who)));
+  let rows = all.filter(x => (!q || lc(x.c.Title).includes(q) || lc(x.name).includes(q)) && (!f.svc || x.name === f.svc) && (!f.who || lc(x.rec.AssignedTo) === f.who));
   const total = rows.length, done = rows.filter(x => x.done).length; const pct = total ? Math.round(done / total * 100) : 0;
   if(f.show === "pending") rows = rows.filter(x => !x.done); if(f.show === "done") rows = rows.filter(x => x.done); if(f.show === "fu") rows = rows.filter(x => x.fuOver);
   rows.sort((a, b) => (b.over - a.over) || (b.fuOver - a.fuOver) || (a.done - b.done) || (a.due || "9999").localeCompare(b.due || "9999") || a.c.Title.localeCompare(b.c.Title));
@@ -1598,7 +1612,7 @@ VIEWS.other = () => {
   ${rows.map(x => { const d = daysUntil(x.due); return `<tr>
     <td class="cname">${state.loc ? "" : locTag(x.c) + " "}<a href="#" data-act="openClient" data-id="${x.c.id}" style="color:inherit;text-decoration:none">${esc(x.c.Title)}</a></td>
     <td><b>${esc(x.name)}</b></td><td>${othChip(x.st)}</td>
-    <td class="small">${esc(empName(x.rec.AssignedTo || teamOf(x.c)[0] || ""))}</td>
+    <td class="small">${x.rec.AssignedTo ? esc(empName(x.rec.AssignedTo)) : `<span class="soon">Unassigned</span>`}</td>
     <td class="small nowrap">${x.due ? fmtDate(x.due) : `<span class="faint">not set</span>`}${x.due && !x.done ? `<div class="${d < 0 ? "over" : d <= 10 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
     <td class="small nowrap">${fuCell(x)}</td>
     <td class="small muted" style="max-width:240px">${esc(wlLast(x.rec).slice(0, 90))}</td>
@@ -1610,21 +1624,22 @@ VIEWS.other = () => {
 VIEWS.team = () => {
   const cl = data.clients.filter(c => c.Status !== "Deactivated");
   const emps = [...data.employees].sort((a,b) => (a.Active === "No") - (b.Active === "No") || a.Title.localeCompare(b.Title));
-  const unassigned = cl.filter(c => !teamOf(c).length).length;
-  return `<div class="toolbar"><div class="muted">${activeEmployees().length} active employees · ${unassigned} unassigned client${unassigned===1?"":"s"}</div>
+  const wk = openItemsAll(cl, { vat: workSum(vatWork(cl)), mw: workSum(mwDueWork(cl)), ct: workSum(ctWork(cl)), aud: workSum(auditWork(cl, state.af.fy)), oth: othWork(cl) });
+  const unassigned = wk.filter(x => !(x.own || []).length).length;
+  return `<div class="toolbar"><div class="muted">${activeEmployees().length} active employees · ${unassigned} open job${unassigned===1?"":"s"} not assigned to anyone</div>
     <div class="right">${isAdmin() ? `<button class="btn pri" data-act="editEmp">${I.plus} Add employee</button>` : ""}</div></div>
-  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Name</th><th>Microsoft login (email)</th><th>Role</th><th>Location</th><th>Status</th><th class="num">Clients</th><th class="num">VAT due ≤45d</th><th class="num">VAT overdue</th><th></th></tr></thead><tbody>
-  ${emps.map(e => { const mine = cl.filter(c => teamOf(c).includes(lc(e.Email))); const it = vatItems(mine, 45); return `<tr>
+  <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>Name</th><th>Microsoft login (email)</th><th>Role</th><th>Location</th><th>Status</th><th class="num">Clients</th><th class="num">Open jobs</th><th class="num">Overdue</th><th></th></tr></thead><tbody>
+  ${emps.map(e => { const em = lc(e.Email); const it = wk.filter(x => (x.own || []).includes(em)); const mine = new Set(it.map(x => x.c.id)); return `<tr>
     <td class="cname">${esc(e.Title)}</td><td class="small">${esc(e.Email)}</td><td>${chip(e.Role === "Admin" ? "purple" : e.Role === "Manager" ? "blue" : "grey", esc(e.Role || "Staff"))}</td><td class="small">${esc(e.Location || "—")}</td>
-    <td>${e.Active === "No" ? chip("red", "Disabled") : chip("green", "Active")}</td><td class="num">${mine.length}</td><td class="num">${it.filter(x => x.d >= 0).length}</td><td class="num ${it.some(x => x.d < 0) ? "over" : ""}">${it.filter(x => x.d < 0).length}</td>
-    <td>${isAdmin() ? `<button class="btn sm" data-act="editEmp" data-id="${e.id}">Edit & assign</button>` : ""}</td></tr>`; }).join("")}
-  </tbody></table>${emps.length ? "" : `<div class="empty">No employees yet — add your team so you can assign clients.</div>`}</div></div>
-  <div class="card"><div class="card-b small muted"><b>How access works:</b> employees sign in with their Vinpro Microsoft account. The email here must match their Microsoft login exactly. <b>Staff</b> see only clients they are assigned to (as team member or reviewer) and can update VAT, audit and login details for them. <b>Managers</b> see and edit all clients in both Bahrain and UAE. <b>Admins</b> additionally manage employees, import and export. Set an employee to <i>Disabled</i> when they leave — they lose access immediately.</div></div>`;
+    <td>${e.Active === "No" ? chip("red", "Disabled") : chip("green", "Active")}</td><td class="num">${mine.size}</td><td class="num">${it.length}</td><td class="num ${it.some(x => x.over) ? "over" : ""}">${it.filter(x => x.over).length}</td>
+    <td>${isAdmin() ? `<button class="btn sm" data-act="editEmp" data-id="${e.id}">Edit</button>` : ""}</td></tr>`; }).join("")}
+  </tbody></table>${emps.length ? "" : `<div class="empty">No employees yet — add employees so work can be assigned to them.</div>`}</div></div>
+  <div class="card"><div class="card-b small muted"><b>How access works:</b> employees sign in with their Vinpro Microsoft account. The email here must match their Microsoft login exactly. <b>Staff</b> see all clients and their details, but only the work assigned to them: VAT and Corporate Tax returns where they are the preparer or reviewer, and Accounting/Consultation, Audit and Other Services where they are the person assigned. A client can have work assigned to several employees; a new period picks up the people from the previous period automatically. <b>Managers</b> see and edit all clients in both Bahrain and UAE. <b>Admins</b> additionally manage employees, import and export. Set an employee to <i>Disabled</i> when they leave — they lose access immediately.</div></div>`;
 };
 
 VIEWS.activity = () => {
   const f = state.lf; const q = lc(f.q); const cl = visibleClients(); const ids = new Set(cl.map(c => c.id));
-  const rows = data.activity.filter(a => (isMgr() || !a.ClientId || ids.has(a.ClientId)) && (!f.who || lc(a.UserEmail) === f.who) &&
+  const rows = data.activity.filter(a => (isMgr() || lc(a.UserEmail) === lc(me.email)) && (!f.who || lc(a.UserEmail) === f.who) &&
     (!q || [a.Title, a.ClientName, a.Details, a.UserName].some(v => lc(v).includes(q)))).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 500);
   return `<div class="toolbar"><input id="lf-q" class="in search" placeholder="Search action, client, details…" value="${esc(f.q)}" data-bind="lf.q">
     ${isMgr() ? `<select class="in" data-bind="lf.who"><option value="">All users</option>${data.employees.map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}</div>
@@ -1713,7 +1728,6 @@ MODALS.client = ({ id }) => {
         [locOf(c) === "UAE" ? "VAT TRN" : "VAT account no", esc(c.VATNo)], ["Corporate tax TRN", esc(c.CTNo)], ["VAT cycle", esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].label : (c.VATCycle || "Not set"))], ["Financial year end", esc(fyEndLabel(c.FYEnd))], ["Services", serviceTags(c) + (otherServiceText(c) ? ` <span class="small muted">Others: ${esc(otherServiceText(c))}</span>` : "")],
         ["Reviewer / manager", esc(empName(c.Reviewer))], ...MW_SERVICES.filter(sv => hasService(c, sv)).map(sv => [sv + " frequency", esc(freqText(c, sv))])].map(([k, v]) => `<div><span>${k}</span><b>${v || '<span class="faint">—</span>'}</b></div>`).join("")}
     </div>
-    <div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:capitalize">Assigned team</div><div style="margin-top:6px">${teamOf(c).length ? avatars(teamOf(c)) : '<span class="faint">Unassigned</span>'}</div></div>
     ${c.Notes ? `<div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:capitalize">Notes</div><div style="white-space:pre-wrap;margin-top:4px">${esc(c.Notes)}</div></div>` : ""}`;
   if(tab === "logins"){ const cs = data.creds.filter(x => x.ClientId === id).sort((a,b) => PORTALS.indexOf(a.Title) - PORTALS.indexOf(b.Title));
     body = `<div class="toolbar"><span class="small muted">Viewing or copying a password is recorded in the activity log.</span><div class="right"><button class="btn sm pri" data-act="editCred" data-c="${id}">${I.plus} Add login</button></div></div>
@@ -1764,7 +1778,7 @@ function fyEndLabel(v){ if(!v) return "31 Dec"; const [m, d] = v.split("-"); ret
 const FYENDS = ["12-31","03-31","06-30","09-30","01-31","02-28","04-30","05-31","07-31","08-31","10-31","11-30"];
 
 MODALS.clientForm = ({ id }) => {
-  const c = id ? clientById(id) : { Status:"Active", FYEnd:"12-31", Services:"", Location: state.loc || DEFAULT_LOC }; const team = teamOf(c);
+  const c = id ? clientById(id) : { Status:"Active", FYEnd:"12-31", Services:"", Location: state.loc || DEFAULT_LOC };
   return `<form class="modal" data-form="client" data-id="${id || ""}">${mHead(id ? "Edit client" : "Add client")}
   <div class="mb"><div class="form">
     <label>Client name *<input class="in" name="Title" required value="${esc(c.Title)}"></label>
@@ -1785,7 +1799,6 @@ MODALS.clientForm = ({ id }) => {
     <label>Corporate tax TRN<input class="in" name="CTNo" value="${esc(c.CTNo)}"></label>
     <label>VAT filing cycle<select class="in" name="VATCycle"><option value="">— Not set —</option>${Object.keys(CYCLES).map(k => `<option value="${k}" ${c.VATCycle === k ? "selected" : ""}>${CYCLES[k].label}</option>`).join("")}</select></label>
     <label>Track VAT from<input class="in" type="month" name="VATFrom" value="${esc(c.VATFrom)}"><span class="hint">First period-end month to track (blank = ${ymLabel(CFG.vatTrackingStart)})</span></label>
-    <div class="full lbl">Assigned team (can view & update this client)<div class="checks">${activeEmployees().map(e => `<label><input type="checkbox" name="AssignedTo" value="${esc(lc(e.Email))}" ${team.includes(lc(e.Email)) ? "checked" : ""}> ${esc(e.Title)} <span class="faint small">${esc(e.Role)}</span></label>`).join("") || '<span class="faint">Add employees under Team first</span>'}</div></div>
     <label class="full">Reviewer / manager<select class="in" name="Reviewer">${empOpts(c.Reviewer)}</select></label>
     <label class="full">Notes<textarea class="in" name="Notes" rows="3">${esc(c.Notes)}</textarea></label>
   </div></div>
@@ -1811,8 +1824,8 @@ MODALS.vatForm = ({ cid, pe }) => {
   <div class="mb"><div class="banner info" style="margin-bottom:14px">${locTag(c)} Period <b>${periodLabel(c.VATCycle, pe)}</b> · ${LOC[locOf(c)].auth} due date <b>${fmtDate(dueOf(pe, c))}</b> (${relDays(daysUntil(dueOf(pe, c)))})</div>
   <div class="form">
     <label class="full">Status<select class="in" name="Status">${opt(VAT_STATUSES, r.Status || "Not started")}</select></label>
-    <label>Preparer<select class="in" name="Preparer">${empOpts(r.Preparer || (teamOf(c).includes(lc(me.email)) ? me.email : teamOf(c)[0]))}</select></label>
-    <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || c.Reviewer)}</select></label>
+    <label>Preparer<select class="in" name="Preparer">${empOpts(r.Preparer || vatPeople(c, pe).prep || (isMgr() ? "" : me.email))}</select></label>
+    <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || vatPeople(c, pe).rev || c.Reviewer)}</select></label>
     <label>Filed on<input class="in" type="date" name="FiledDate" value="${esc(r.FiledDate)}"></label>
     <label>${LOC[locOf(c)].auth} acknowledgement / ref no<input class="in" name="RefNo" value="${esc(r.RefNo)}"></label>
     <label>Net VAT payable / (refundable), ${curOf(c)}<input class="in" name="Amount" value="${esc(r.Amount)}" inputmode="decimal" placeholder="e.g. 1250.50 or -300"></label>
@@ -1826,8 +1839,8 @@ MODALS.mwForm = ({ cid, svc, ym, freq }) => {
   return `<form class="modal" data-form="mw" data-c="${cid}" data-s="${esc(svc)}" data-m="${ym}" data-f="${freq}">${mHead(`${esc(svc)} · ${esc(mwLabel(c, ym, freq))} — ${esc(c.Title)}`)}
   <div class="mb"><div class="banner info" style="margin-bottom:14px">${locTag(c)} ${freq} engagement · frequency history: ${esc(freqText(c, svc))}</div><div class="form">
     <label class="full">Status<select class="in" name="Status">${opt(MW_STATUSES, r.Status || "Not started")}</select></label>
-    <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || (teamOf(c).includes(lc(me.email)) ? me.email : teamOf(c)[0]))}</select></label>
-    <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || c.Reviewer)}</select></label>
+    <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || mwPeople(c, svc, ym).asg || (isMgr() ? "" : me.email))}</select></label>
+    <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || mwPeople(c, svc, ym).rev || c.Reviewer)}</select></label>
     <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate || mwDefaultDue(svc, ym, freq))}"><span class="hint">Default: ${freq === "Annually" ? "last day of the month after year end" : "last day of the following month"}</span></label>
     <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
     ${svc === "Consultancy" ? `<label>Hours spent<input class="in" name="Hours" value="${esc(r.Hours)}" inputmode="decimal" placeholder="e.g. 6.5"></label>` : ""}
@@ -1842,8 +1855,8 @@ MODALS.ctForm = ({ cid, fy }) => {
   <div class="mb"><div class="banner info" style="margin-bottom:14px">${locTag(c)} Tax period ends <b>${fmtDate(fy + "-" + (c.FYEnd || "12-31"))}</b> · CT TRN <b>${esc(c.CTNo) || "not set"}</b><br><span class="small">${esc(LOC[locOf(c)].ctNote)} → default due ${fmtDate(ctDefaultDue(c, fy))}</span></div>
   <div class="form">
     <label class="full">Status<select class="in" name="Status">${opt(CT_STATUSES, r.Status || "Not started")}</select></label>
-    <label>Preparer<select class="in" name="Preparer">${empOpts(r.Preparer || (teamOf(c).includes(lc(me.email)) ? me.email : teamOf(c)[0]))}</select></label>
-    <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || c.Reviewer)}</select></label>
+    <label>Preparer<select class="in" name="Preparer">${empOpts(r.Preparer || ctPeople(c, fy).prep || (isMgr() ? "" : me.email))}</select></label>
+    <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || ctPeople(c, fy).rev || c.Reviewer)}</select></label>
     <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate || ctDefaultDue(c, fy))}"><span class="hint">Change only if the authority set a different date</span></label>
     <label>Filed on<input class="in" type="date" name="FiledDate" value="${esc(r.FiledDate)}"></label>
     <label>${LOC[locOf(c)].auth} acknowledgement / ref no<input class="in" name="RefNo" value="${esc(r.RefNo)}"></label>
@@ -1859,7 +1872,7 @@ MODALS.auditForm = ({ cid, fy }) => {
   <div class="mb"><div class="form">
     <label class="full">Status<select class="in" name="Status">${opt(auditStatuses(c), auditSt(c, r))}</select></label>
     <label>Auditor (firm)<input class="in" name="Auditor" value="${esc(r.Auditor)}"></label>
-    <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || teamOf(c)[0])}</select></label>
+    <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || audPeople(c, fy).asg || (isMgr() ? "" : me.email))}</select></label>
     <label>Target / due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate)}"></label>
     <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
     ${wlBlock(r)}
@@ -1876,8 +1889,7 @@ MODALS.empForm = ({ id }) => {
     <label>Microsoft login email *<input class="in" type="email" name="Email" required value="${esc(e.Email)}" placeholder="name@vinproglobal.com"></label>
     <label>Role<select class="in" name="Role">${opt(ROLES, e.Role || "Staff")}</select></label>
     <label>Access<select class="in" name="Active">${opt(["Yes","No"], e.Active || "Yes", { Yes:"Active", No:"Disabled (no access)" })}</select></label>
-    <label class="full">Works in<select class="in" name="Location">${opt(["Bahrain","UAE","Both"], e.Location || "Bahrain", { Bahrain:"Bahrain", UAE:"UAE (Dubai)", Both:"Both locations" })}</select><span class="hint">For reporting. Staff still see only the clients ticked below; Admins and Managers see both locations.</span></label>
-    <div class="full lbl">Assigned clients <span class="hint">Tick the clients this employee works on</span><div class="checks">${cl.map(c => `<label><input type="checkbox" name="clients" value="${c.id}" ${em && teamOf(c).includes(em) ? "checked" : ""}> ${locTag(c)} ${esc(c.Title)}</label>`).join("") || '<span class="faint">No clients yet</span>'}</div></div>
+    <label class="full">Works in<select class="in" name="Location">${opt(["Bahrain","UAE","Both"], e.Location || "Bahrain", { Bahrain:"Bahrain", UAE:"UAE (Dubai)", Both:"Both locations" })}</select><span class="hint">For reporting. Staff see all clients, but only the work they are preparer, reviewer or assignee on; Admins and Managers see both locations.</span></label>
   </div></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
 
@@ -1892,7 +1904,7 @@ MODALS.otherForm = ({ id, cid, year, name }) => {
     <label>Service<input class="in" name="Service" list="othNames" required placeholder="e.g. Company formation" value="${esc(name || "")}"><datalist id="othNames">${known.map(n => `<option value="${esc(n)}">`).join("")}</datalist></label>
     <label>Year<select class="in" name="Year">${yrs.map(y => `<option ${String(year || curYear()) === y ? "selected" : ""}>${y}</option>`).join("")}</select></label>`}
     <label class="full">Status<select class="in" name="Status">${opt(OTH_STATUSES, r.Status || "Not started")}</select></label>
-    <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || (c ? teamOf(c)[0] : ""))}</select></label>
+    <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || (isMgr() ? "" : me.email))}</select></label>
     <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || (c ? c.Reviewer : ""))}</select></label>
     <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate)}"></label>
     <label>Next follow-up<input class="in" type="date" name="FollowUp" value="${esc(r.FollowUp)}"></label>
@@ -1904,8 +1916,6 @@ MODALS.otherForm = ({ id, cid, year, name }) => {
 MODALS.bulk = () => `<form class="modal" data-form="bulk">${mHead(`Bulk update ${state.cf.sel.size} clients`)}
   <div class="mb"><div class="form">
     <label class="full">Location<select class="in" name="Location"><option value="">— no change —</option>${LOCATIONS.map(L => `<option>${L}</option>`).join("")}</select></label>
-    <label>Add team member<select class="in" name="add">${empOpts("", "— no change —")}</select></label>
-    <label>Remove team member<select class="in" name="remove">${empOpts("", "— no change —")}</select></label>
     <label>Reviewer<select class="in" name="Reviewer">${empOpts("", "— no change —")}</select></label>
     <label>VAT cycle<select class="in" name="VATCycle"><option value="">— no change —</option>${Object.keys(CYCLES).map(k => `<option value="${k}">${CYCLES[k].label}</option>`).join("")}</select></label>
     <label>Add service<select class="in" name="addSvc"><option value="">— no change —</option>${SERVICES.map(s => `<option>${esc(s)}</option>`).join("")}</select></label>
@@ -1944,11 +1954,11 @@ function formObj(form){ const fd = new FormData(form); const o = {}; for(const [
 
 function buildServices(o){ const picked = [].concat(o.Svc || []); const other = String(o.OtherSvc || "").trim(); return picked.map(s => s === "Others" && other ? "Others: " + other : s).join("; "); }
 SUBMIT.client = async (form, o) => {
-  const id = form.dataset.id; const team = [].concat(o.AssignedTo || []);
+  const id = form.dataset.id;
   let code = ""; try { code = normDial(o.ContactCode); } catch(e){ return toast(String(e), true); }
   const prevC = id ? clientById(id) : null; const wantDeact = isAdmin() ? !!o.Deact : isDeact(prevC);
   const f = { Title: o.Title.trim(), Location: o.Location, CTNo: o.CTNo.trim(), CRNo: o.CRNo.trim(), CRExpiry: o.CRExpiry, Status: wantDeact ? "Deactivated" : o.Status, ContactName: o.ContactName, ContactCode: code, ContactNo: o.ContactNo.trim(), ContactEmail: o.ContactEmail,
-    VATNo: o.VATNo, VATCycle: o.VATCycle, VATFrom: o.VATFrom, FYEnd: o.FYEnd, AssignedTo: team.join("; "), Reviewer: o.Reviewer, Services: buildServices(o), Notes: o.Notes };
+    VATNo: o.VATNo, VATCycle: o.VATCycle, VATFrom: o.VATFrom, FYEnd: o.FYEnd, Reviewer: o.Reviewer, Services: buildServices(o), Notes: o.Notes };
   if(wantDeact && !isDeact(prevC)){ f.DeactivatedOn = todayISO(); f.DeactivatedBy = me.email; }
   if(!wantDeact && isDeact(prevC)){ f.DeactivatedOn = ""; f.DeactivatedBy = ""; }
   const freqLog = [];
@@ -2027,13 +2037,7 @@ SUBMIT.emp = async (form, o) => {
   if(data.employees.some(e => lc(e.Email) === email && e.id !== id)) return toast("An employee with this email already exists", true);
   const old = id ? lc(data.employees.find(e => e.id === id).Email) : null;
   await saveRec("employees", id || null, { Title: o.Title.trim(), Email: email, Role: o.Role, Active: o.Active, Location: o.Location });
-  const want = new Set([].concat(o.clients || []));
   const changed = [];
-  for(const c of data.clients.filter(c => c.Status !== "Deactivated")){
-    let t = teamOf(c).map(x => x === old ? email : x); const has = t.includes(email);
-    if(want.has(c.id) && !has) t.push(email); if(!want.has(c.id) && has) t = t.filter(x => x !== email);
-    const nv = [...new Set(t)].join("; "); if(nv !== teamOf(c).join("; ")){ await saveRec("clients", c.id, { AssignedTo: nv }); changed.push(c.Title); }
-  }
   await logAct(id ? "Employee updated" : "Employee added", null, `${o.Title} (${email}, ${o.Role}${o.Active === "No" ? ", disabled" : ""})${changed.length ? " · assignments changed: " + changed.length + " client(s)" : ""}`);
   if(email === lc(me.email)) me.role = roleOf(me.email);
   closeModal(); render(); toast("Employee saved");
@@ -2041,8 +2045,6 @@ SUBMIT.emp = async (form, o) => {
 SUBMIT.bulk = async (form, o) => {
   const ids = [...state.cf.sel]; const prog = $("#bulkProg"); let n = 0;
   for(const id of ids){ const c = clientById(id); if(!c) continue; const f = {};
-    let t = teamOf(c); if(o.add && !t.includes(o.add)) t.push(o.add); if(o.remove) t = t.filter(x => x !== o.remove);
-    if(t.join("; ") !== teamOf(c).join("; ")) f.AssignedTo = t.join("; ");
     ["Reviewer","VATCycle","FYEnd","Location"].forEach(k => { if(o[k]) f[k] = o[k]; });
     if(o.addSvc || o.removeSvc){ let parts = String(c.Services || "").split(";").map(x => x.trim()).filter(Boolean); if(o.addSvc && !hasService(c, o.addSvc)) parts.push(o.addSvc); if(o.removeSvc) parts = parts.filter(x => !(x === o.removeSvc || (o.removeSvc === "Others" && /^others?\b/i.test(x)))); const nv = parts.join("; "); if(nv !== (c.Services || "")) f.Services = nv; }
     if(Object.keys(f).length) await saveRec("clients", id, f); n++; if(prog) prog.textContent = `Updated ${n} of ${ids.length}…`; }
@@ -2115,7 +2117,7 @@ const BULK_COLS = [
   ["Client ID", "id", 12], ["Client Name *", "Title", 32], ["Location", "Location", 10], ["CR / Licence No", "CRNo", 16], ["CR / Licence Expiry", "CRExpiry", 16],
   ["Status", "Status", 12], ["Financial Year End", "FYEnd", 14], ...SERVICES.map(sv => [sv, "Svc:" + sv, Math.max(11, sv.length + 3)]), ["Other Service Details", "OtherSvc", 26], ["Accounting Frequency", "AcctFreqX", 14], ["Consultancy Frequency", "ConsFreqX", 14],
   ["Contact Person", "ContactName", 18], ["Contact Country Code", "ContactCode", 12], ["Contact No", "ContactNo", 14], ["Contact Email", "ContactEmail", 24], ["VAT No / TRN", "VATNo", 18], ["Corporate Tax TRN", "CTNo", 18],
-  ["VAT Cycle", "VATCycle", 26], ["Track VAT From", "VATFrom", 14], ["Team (emails)", "AssignedTo", 34], ["Reviewer (email)", "Reviewer", 26], ["Notes", "Notes", 30]
+  ["VAT Cycle", "VATCycle", 26], ["Track VAT From", "VATFrom", 14], ["Reviewer (email)", "Reviewer", 26], ["Notes", "Notes", 30]
 ];
 const TICK_YES = "☑ Yes", TICK_NO = "☐ No";
 const CYCLE_TEXT = { "Q-Mar":"Quarterly Mar/Jun/Sep/Dec", "Q-Jan":"Quarterly Jan/Apr/Jul/Oct", "Q-Feb":"Quarterly Feb/May/Aug/Nov", "Monthly":"Monthly", "Not registered":"Not registered" };
@@ -2123,7 +2125,7 @@ function bulkRowOf(c){
   const svc = servicesOf(c);
   return { id: c.id, Title: c.Title, Location: locOf(c), CRNo: c.CRNo, CRExpiry: c.CRExpiry, Status: c.Status || "Active", FYEnd: fyEndLabel(c.FYEnd || "12-31"),
     ...Object.fromEntries(SERVICES.map(sv => ["Svc:" + sv, svc.includes(sv) ? TICK_YES : TICK_NO])), OtherSvc: otherServiceText(c), AcctFreqX: curFreq(c, "Accounting"), ConsFreqX: curFreq(c, "Consultancy"), ContactName: c.ContactName, ContactCode: dialOf(c), ContactNo: c.ContactNo, ContactEmail: c.ContactEmail, VATNo: c.VATNo, CTNo: c.CTNo,
-    VATCycle: CYCLE_TEXT[c.VATCycle] || c.VATCycle || "", VATFrom: c.VATFrom, AssignedTo: teamOf(c).join("; "), Reviewer: lc(c.Reviewer), Notes: c.Notes };
+    VATCycle: CYCLE_TEXT[c.VATCycle] || c.VATCycle || "", VATFrom: c.VATFrom, Reviewer: lc(c.Reviewer), Notes: c.Notes };
 }
 function bulkInstructions(){
   return [["Vinpro Client Desk — client bulk upload"], [],
@@ -2135,7 +2137,7 @@ function bulkInstructions(){
     ["Status", "Drop-down: Active or Dormant. Deactivated can be set (or removed) by Admins only"], ["Contact Country Code", "Drop-down of country codes (you can also type one) — blank uses +973 for Bahrain / +971 for UAE"], ["Financial Year End", "Drop-down: 31 Dec, 31 Mar, 30 Jun …"],
     ["Service columns", `One column per service (${SERVICES.join(", ")}). Pick ${TICK_YES} or ${TICK_NO} in each. Leave all of them blank to keep a client's services unchanged`], ["Other Service Details", "What the 'Others' work is, e.g. Company formation, PRO services — each item is added to the Other Services tracker"], ["Accounting / Consultancy Frequency", "Drop-down: Monthly or Annually. A change on an existing client takes effect from the current month and is kept in the history"],
     ["VAT Cycle", "Drop-down: " + Object.values(CYCLE_TEXT).join("; ")], ["Track VAT From", "A date in the month the first tracked VAT period ends, e.g. 31/03/2026 (shown as Mar-2026)"],
-    ["Team (emails)", "Microsoft login emails of employees, separated by ; — must already exist under Team"], ["Reviewer (email)", "Drop-down of employee emails"], [],
+    ["Reviewer (email)", "Drop-down of employee emails — the default reviewer for this client's VAT and Corporate Tax returns"], [],
     ["Current employees"], ...activeEmployees().map(e => [e.Email, `${e.Title} (${e.Role}${e.Location ? ", " + e.Location : ""})`])];
 }
 const isoSerial = iso => { const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(iso || ""); return m ? (Date.UTC(+m[1], +m[2] - 1, +(m[3] || 1)) - Date.UTC(1899, 11, 30)) / 86400000 : null; };
@@ -2253,7 +2255,6 @@ function bulkParse(buf, fileName){
     const put = (key, fn) => { const raw = cell(key); if(raw == null || String(raw).trim() === "") return; if(String(raw).trim() === "-"){ f[key] = ""; return; } try { f[key] = fn ? fn(raw) : txt(key); } catch(e){ row.errors.push(String(e)); } };
     put("Title"); put("Location", bParseLoc); put("CRNo"); put("CRExpiry", bParseDate); put("Status", bParseStatus); put("FYEnd", bParseFYE);
     put("ContactName"); put("ContactCode", normDial); put("ContactNo"); put("ContactEmail"); put("VATNo"); put("CTNo"); put("VATCycle", bParseCycle); put("VATFrom", bParseYM); put("Notes");
-    try { const t = bParseEmails(cell("AssignedTo")); if(t) f.AssignedTo = t.join("; "); else if(txt("AssignedTo") === "-") f.AssignedTo = ""; } catch(e){ row.errors.push(String(e)); }
     try { const rv = bParseEmails(cell("Reviewer"), true); if(rv) f.Reviewer = rv[0]; else if(txt("Reviewer") === "-") f.Reviewer = ""; } catch(e){ row.errors.push(String(e)); }
     for(const [sv, key] of [["Accounting", "AcctFreqX"], ["Consultancy", "ConsFreqX"]]){ const raw = txt(key); if(!raw) continue; const fr = /^ann|^year|^yearly/i.test(raw) ? "Annually" : /^month/i.test(raw) ? "Monthly" : null;
       if(!fr){ row.errors.push(`${sv} frequency must be Monthly or Annually`); continue; }
@@ -2269,13 +2270,11 @@ function bulkParse(buf, fileName){
     row.loc = f.Location || (c ? locOf(c) : (state.loc || DEFAULT_LOC));
     if(c){
       for(const [k2, v] of Object.entries(f)){ const cur = k2 === "Location" ? locOf(c) : k2 === "ContactCode" ? dialOf(c) : String(c[k2] || ""); if(String(v) !== cur) { row.fields[k2] = v; const col = BULK_COLS.find(x => x[1] === k2 || (k2 === "AcctFreq" && x[1] === "AcctFreqX") || (k2 === "ConsFreq" && x[1] === "ConsFreqX")); if(col) row.changes.push(col[0].replace(" *", "")); else if(k2 === "Services") row.changes.push("Services"); } }
-      if(!isMgr() && ("AssignedTo" in row.fields) && !splitEmails(row.fields.AssignedTo).includes(lc(me.email)) && lc(row.fields.Reviewer || c.Reviewer) !== lc(me.email)) row.errors.push("You can't remove yourself from this client's team");
       row.action = row.errors.length ? "Error" : Object.keys(row.fields).length ? "Update" : "No change";
     } else {
       if(!row.title) row.errors.push("Client name is required for a new client");
       if(row.title && out.some(o => !o.client && lc(o.title) === lc(row.title))) row.errors.push("Same new client appears more than once in the file");
       row.fields = Object.assign({ Status: "Active", FYEnd: "12-31", Location: row.loc }, f, { Title: row.title });
-      if(!isMgr() && !splitEmails(row.fields.AssignedTo).includes(lc(me.email))) row.fields.AssignedTo = splitEmails(row.fields.AssignedTo).concat(lc(me.email)).join("; ");
       row.action = row.errors.length ? "Error" : "New";
     }
     out.push(row);
