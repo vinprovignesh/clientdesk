@@ -552,6 +552,13 @@ table.tbl tr.net td,.fsheet tr.net td.pl{background:color-mix(in srgb,var(--vt-a
 .lockv{display:inline-block;min-width:110px;text-align:right;padding:6px 9px;font-variant-numeric:tabular-nums;font-weight:600}
 .mexp.locked .lockv{min-width:150px}
 .ms-ch .btn.sm,.card-h .right .btn.sm{margin-left:8px}
+
+/* finance charts — no grey: budget in Vinpro teal (plan), actual in Vinpro navy (achieved), matching the tool's status colours */
+:root{--vc-bud:#009e95;--vc-act:#050c42}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--vc-bud:#2fbfb4;--vc-act:#8fa2ff}}
+:root[data-theme="dark"]{--vc-bud:#2fbfb4;--vc-act:#8fa2ff}
+.fchart .b-bud{fill:var(--vc-bud)}.fchart .b-act{fill:var(--vc-act)}
+.ch-legend .lg-b{background:var(--vc-bud)}.ch-legend .lg-a{background:var(--vc-act)}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
