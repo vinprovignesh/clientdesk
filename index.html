@@ -868,7 +868,14 @@ function empName(email){ if(!email) return ""; const e = data.employees.find(x =
 function activeEmployees(){ return data.employees.filter(e => e.Active !== "No").sort((a,b) => a.Title.localeCompare(b.Title)); }
 function clientById(id){ return data.clients.find(c => c.id === id); }
 function teamOf(c){ const t = splitEmails(c.AssignedTo); return t; }
-function isMine(c){ const e = lc(me.email); return teamOf(c).includes(e) || lc(c.Reviewer) === e; }
+/* clients a person works on through any task record (preparer / reviewer / assignee), not just the client team */
+let _workIx = { key: "", ids: new Set() };
+function myWorkClients(){ const e = lc(me && me.email); if(!e || !data) return _workIx.ids;
+  const L = ["vat", "ct", "mw", "audits", "other"].map(k => (data[k] || []));
+  const key = e + "|" + L.map(a => a.length).join(",") + "|" + (window.__dataVer || 0); if(_workIx.key === key) return _workIx.ids;
+  const ids = new Set(); for(const a of L) for(const r of a){ if([r.Preparer, r.Reviewer, r.AssignedTo].some(v => lc(v) === e)) ids.add(String(r.ClientId)); }
+  _workIx = { key, ids }; return ids; }
+function isMine(c){ const e = lc(me.email); return teamOf(c).includes(e) || lc(c.Reviewer) === e || myWorkClients().has(String(c.id)); }
 function isDeact(c){ return !!c && c.Status === "Deactivated"; }
 function canSee(c){ return isMgr() || (isMine(c) && !isDeact(c)); }
 function dialOf(c){ return c.ContactCode || LOC[locOf(c)].dial; }
@@ -967,7 +974,7 @@ function avatars(emails){ return `<div class="avs">${emails.map(e => `<span clas
    PERSISTENCE WRAPPERS
    ============================================================ */
 async function withBusy(fn){ state.busy++; renderBusy(); try { return await fn(); } catch(e){ console.error(e); toast(e.message || String(e), true); throw e; } finally { state.busy--; renderBusy(); } }
-async function saveRec(kind, id, fields){
+async function saveRec(kind, id, fields){ window.__dataVer = (window.__dataVer || 0) + 1;
   return withBusy(async () => {
     if(id){ await store.update(kind, id, fields); const r = data[kind].find(x => x.id === id); if(r) Object.assign(r, cleanFields(kind, fields)); return r; }
     const r = await store.create(kind, fields); data[kind].push(r); return r;
