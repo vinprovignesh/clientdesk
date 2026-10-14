@@ -300,6 +300,14 @@ tr.click-row:hover td{background:var(--panel-2)}
 .dl.ok{background:var(--vg-done-bg)!important;color:var(--vg-done)!important}.dl.wa{background:var(--vg-due-bg)!important;color:var(--vg-due)!important;box-shadow:inset 0 0 0 1.5px var(--vg-due)!important}
 .dl.ba{background:var(--vg-over-bg)!important;color:var(--vg-over)!important;box-shadow:inset 0 0 0 1.5px var(--vg-over)!important}.dl.fu{background:var(--vg-fut)!important;color:var(--vg-fut-ink)!important}
 .chip.st-done{background:var(--vg-done-bg);color:var(--vg-done)}.chip.st-pend{background:var(--vg-due-bg);color:var(--vg-due)}
+.pdw{display:flex;flex-direction:column;gap:3px;align-items:flex-start}.pd{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pd.plan{background:#fdf0dc;color:#a65e00}.pd.plan.today{background:#a65e00;color:#fff}.pd.plan.late{background:var(--vg-over-bg);color:var(--vg-over)}.pd.done{background:var(--vg-done-bg);color:var(--vg-done)}
+:root[data-theme="dark"] .pd.plan{background:#3a2a10;color:#f3b35a}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .pd.plan{background:#3a2a10;color:#f3b35a}}
+.plan-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;padding:12px 16px}.plan-day{border-radius:12px;padding:8px 6px;text-align:center;background:var(--grey-bg);cursor:pointer;border:1.5px solid transparent;font:inherit;color:inherit}
+.plan-day.on{border-color:var(--vg-due)}.plan-day .dn{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.75}.plan-day .dd{font-size:18px;font-weight:700}.plan-day .dc{font-size:11px}
+.plan-day.today{background:#fdf0dc;color:#a65e00}.plan-day.late{background:var(--vg-over-bg);color:var(--vg-over)}
+.plan-list{list-style:none;margin:0;padding:0}.plan-list li{display:flex;gap:10px;align-items:center;padding:8px 16px;border-top:1px solid var(--line);cursor:pointer}.plan-list li:hover{background:var(--grey-bg)}
+@media (max-width:640px){.plan-strip{grid-template-columns:repeat(4,1fr)}}
 .chip.st-new{background:#eceef3;color:#5b6475}.chip.st-wait{background:#fdf0dc;color:#a65e00}.chip.st-recv{background:#e1effc;color:#1f6fb8}
 .chip.st-rev{background:#efe7fb;color:#6b3fb0}.chip.st-sign{background:#dcf2e4;color:#19733f}.chip.st-na{background:transparent;color:#7a8396;box-shadow:inset 0 0 0 1px #c9cfda}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip.st-new{background:#2a2f3a;color:#b4bccb}:root:not([data-theme="light"]) .chip.st-wait{background:#3a2a10;color:#f3b35a}:root:not([data-theme="light"]) .chip.st-recv{background:#14304d;color:#7fb8f0}:root:not([data-theme="light"]) .chip.st-rev{background:#2e2147;color:#bf9df2}:root:not([data-theme="light"]) .chip.st-sign{background:#123826;color:#6fd39a}:root:not([data-theme="light"]) .chip.st-na{color:#8e97a8;box-shadow:inset 0 0 0 1px #3b4252}}
@@ -592,11 +600,11 @@ const SCHEMA = {
   clients:   { list: "Clients", fields: { Title:"text", Location:"text", CTNo:"text", CRNo:"text", CRExpiry:"text", Status:"text", DeactivatedOn:"text", DeactivatedBy:"text", ContactName:"text", ContactCode:"text", ContactNo:"text", ContactEmail:"text",
                 VATNo:"text", VATCycle:"text", VATFrom:"text", FYEnd:"text", AuditRequired:"text", AssignedTo:"note", Reviewer:"text", Services:"note", AcctFreq:"text", ConsFreq:"text", Notes:"note" } },
   creds:     { list: "Credentials", fields: { Title:"text", ClientId:"text", Username:"text", Pwd:"text", PortalURL:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  vat:       { list: "VATReturns", fields: { Title:"text", ClientId:"text", PeriodEnd:"text", Status:"text", Preparer:"text", Reviewer:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  audits:    { list: "Audits", fields: { Title:"text", ClientId:"text", FY:"text", Auditor:"text", AssignedTo:"text", Status:"text", DueDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  mw:        { list: "MonthlyWork", fields: { Title:"text", ClientId:"text", Service:"text", Freq:"text", Month:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", CompletedDate:"text", Hours:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  ct:        { list: "CorporateTax", fields: { Title:"text", ClientId:"text", FY:"text", Status:"text", Preparer:"text", Reviewer:"text", DueDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  other:     { list: "OtherWork", fields: { Title:"text", ClientId:"text", Service:"text", Year:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", FollowUp:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  vat:       { list: "VATReturns", fields: { Title:"text", ClientId:"text", PeriodEnd:"text", Status:"text", Preparer:"text", Reviewer:"text", PlannedDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  audits:    { list: "Audits", fields: { Title:"text", ClientId:"text", FY:"text", Auditor:"text", AssignedTo:"text", Status:"text", DueDate:"text", PlannedDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  mw:        { list: "MonthlyWork", fields: { Title:"text", ClientId:"text", Service:"text", Freq:"text", Month:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", PlannedDate:"text", CompletedDate:"text", Hours:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  ct:        { list: "CorporateTax", fields: { Title:"text", ClientId:"text", FY:"text", Status:"text", Preparer:"text", Reviewer:"text", DueDate:"text", PlannedDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  other:     { list: "OtherWork", fields: { Title:"text", ClientId:"text", Service:"text", Year:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", FollowUp:"text", PlannedDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   fees:      { list: "FeeBudget", fields: { Title:"text", ClientId:"text", Service:"text", Amount:"text", Freq:"text", StartMonth:"text", EndMonth:"text", Timing:"text", VAT:"text", Terms:"text", Party:"text", Revisions:"note", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   blines:    { list: "BudgetLines", fields: { Title:"text", Kind:"text", Head:"text", Year:"text", M01:"text", M02:"text", M03:"text", M04:"text", M05:"text", M06:"text", M07:"text", M08:"text", M09:"text", M10:"text", M11:"text", M12:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   cash:      { list: "CashBook", fields: { Title:"text", Date:"text", Dir:"text", ClientId:"text", ClientName:"text", Service:"text", Head:"text", Amount:"text", VAT:"text", Mode:"text", Ref:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
@@ -754,13 +762,14 @@ class GraphStore {
         const cols = (await this.g("GET", `/sites/${this.siteId}/lists/${lid}/columns?$select=name,displayName&$top=500`)).value; const map = {};
         const find = n => (cols.find(c => c.name === n) || cols.find(c => lc(c.displayName) === lc(n)) || {}).name;
         for(const [name, t] of Object.entries(SCHEMA[k].fields)){ let real = name === "Title" ? "Title" : find(name);
-          if(!real){ const c = await this.g("POST", `/sites/${this.siteId}/lists/${lid}/columns`, { name, text: t === "note" ? { allowMultipleLines: true, linesForEditing: 6 } : {} }); real = c.name || name; cols.push(c); }
+          if(!real){ try { const c = await this.g("POST", `/sites/${this.siteId}/lists/${lid}/columns`, { name, text: t === "note" ? { allowMultipleLines: true, linesForEditing: 6 } : {} }); real = c.name || name; cols.push(c); }
+            catch(e){ console.warn("Column not yet on SharePoint (an admin sign-in adds it):", k, name); (this.noCol = this.noCol || new Set()).add(k + "." + name); continue; } }
           map[name] = real; }
         this.cols[k] = map;
       } catch(e){ console.warn("Column check failed for", k, e); } }
   }
   col(kind, name){ return (this.cols && this.cols[kind] && this.cols[kind][name]) || name; }
-  toSP(kind, f){ const o = {}; for(const k in f) o[this.col(kind, k)] = f[k]; return o; }
+  toSP(kind, f){ const o = {}; for(const k in f){ if(this.noCol && this.noCol.has(kind + "." + k)) continue; o[this.col(kind, k)] = f[k]; } return o; }
   norm(kind, it){ const r = { id: String(it.id) }; const f = it.fields || {}; for(const k of Object.keys(SCHEMA[kind].fields)){ const v = f[this.col(kind, k)]; r[k] = v == null ? "" : String(v); } return r; }
   async loadAll(){
     const out = {};
@@ -949,6 +958,11 @@ function mwStatus(cid, svc, ym, freq){ const r = mwRec(cid, svc, ym, freq); retu
 function mwDue(c, svc, ym, freq){ const r = mwRec(c.id, svc, ym, freq); return (r && r.DueDate) || mwDefaultDue(svc, ym, freq); }
 function mwLabel(c, ym, freq){ return freq === "Annually" ? fyLabelOf(c, ym) : ymLabel(ym); }
 /* one colour per stage, so statuses are easy to tell apart; completed stays navy */
+/* planned day (amber; red once it has passed and the work is still open) and completed day (navy) */
+function pcCell(rec, doneField, done){ const pl = rec && rec.PlannedDate, cd = rec && rec[doneField]; const t = todayISO();
+  const p = pl && !(done && cd) ? `<span class="pd plan ${!done && pl < t ? "late" : pl === t ? "today" : ""}" title="Planned">◷ ${pl === t ? "Today" : fmtDate(pl)}</span>` : "";
+  const c = cd ? `<span class="pd done" title="Completed">✓ ${fmtDate(cd)}</span>` : "";
+  return p || c ? `<div class="pdw">${p}${c}</div>` : `<span class="faint">—</span>`; }
 function stCls(st, done){ const k = lc(st);
   if(/not applicable/.test(k)) return "st-na";
   if(done.has(st)) return "st-done";
@@ -1222,11 +1236,11 @@ function donutCard(view, title, sub, w, doneWord){ const over = w.pending.filter
     <div class="dc-ring">${donutSvg([{ v: done, c: ST_CLR.done, l: doneWord }, { v: pend, c: ST_CLR.pend, l: "pending" }, { v: over, c: ST_CLR.over, l: "overdue" }])}<div class="dc-c"><b>${pct}%</b><span>${tot ? `${done}/${tot}` : "—"}</span></div></div>
     <div class="dc-cap ${over ? "bad" : !pend && tot ? "ok" : ""}">${cap}</div></button>`; }
 function openItemsAll(cl, w){ const L = [];
-  w.vat.pending.forEach(x => L.push({ c: x.c, svc: "VAT", label: x.label, due: x.due, over: x.over, act: `data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}"`, own: x.own }));
-  w.mw.pending.forEach(x => L.push({ c: x.c, svc: x.svc === "Consultancy" ? "Consultation" : "Accounting", label: x.label, due: x.due, over: x.over, act: `data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}"` , own: x.own }));
-  w.ct.pending.forEach(x => L.push({ c: x.c, svc: "Corporate tax", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own }));
-  w.aud.pending.forEach(x => L.push({ c: x.c, svc: "Audit", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editAudit" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own }));
-  w.oth.pending.forEach(x => L.push({ c: x.c, svc: x.name, label: x.year, due: x.due, over: x.over, act: `data-act="editOther" data-id="${x.rec.id}"`, own: [lc(x.rec.AssignedTo)].filter(Boolean) }));
+  w.vat.pending.forEach(x => L.push({ c: x.c, svc: "VAT", label: x.label, due: x.due, over: x.over, act: `data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}"`, own: x.own, plan: (vatRec(x.c.id, x.pe) || {}).PlannedDate || "" }));
+  w.mw.pending.forEach(x => L.push({ c: x.c, svc: x.svc === "Consultancy" ? "Consultation" : "Accounting", label: x.label, due: x.due, over: x.over, act: `data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}"` , own: x.own, plan: (mwRec(x.c.id, x.svc, x.ym, x.freq) || {}).PlannedDate || "" }));
+  w.ct.pending.forEach(x => L.push({ c: x.c, svc: "Corporate tax", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own, plan: (ctRec(x.c.id, x.fy) || {}).PlannedDate || "" }));
+  w.aud.pending.forEach(x => L.push({ c: x.c, svc: "Audit", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editAudit" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own, plan: (auditRec(x.c.id, x.fy) || {}).PlannedDate || "" }));
+  w.oth.pending.forEach(x => L.push({ c: x.c, svc: x.name, label: x.year, due: x.due, over: x.over, act: `data-act="editOther" data-id="${x.rec.id}"`, own: [lc(x.rec.AssignedTo)].filter(Boolean), plan: x.rec.PlannedDate || "" }));
   return L; }
 function svcMonthChart(items, Y, title, sub, view){ const cur = curYM(); const months = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
   const data = months.map(m => { const a = items.filter(x => x.ym === m); const open = a.filter(x => !x.done); const w = open.filter(x => !x.rv), r = open.filter(x => x.rv);
@@ -1266,6 +1280,34 @@ function teamChart(cl, pend){ const rows = activeEmployees().map(e => { const em
   return `<div class="card ch-card ch-wide"><div class="card-h"><h3>Team workload</h3><div class="right">${chartLegend([["Overdue", ST_CLR.over], ["Pending", ST_CLR.pend]])}</div></div><div class="card-b">
     ${rows.length ? hbars(rows) : `<div class="empty">No open items assigned.</div>`}
     <div class="ch-cap">${top ? `<b>${esc(top.name)}</b> has the most open items (${top.over + top.pend}${top.over ? `, ${top.over} overdue` : ""})` : ""}${unass ? ` · <span class="over">${unass} item${unass > 1 ? "s" : ""} not assigned to anyone</span>` : ""}</div></div></div>`; }
+/* My work plan: the signed-in person's open work by planned day, plus what they completed in the last 7 days */
+function myDone7(){ const e = lc(me.email); const from = isoAdd(todayISO(), -6); const vis = new Set(visibleClients().map(c => c.id)); const out = [];
+  const add = (r, date, svc, label, act) => { if(date && date >= from && date <= todayISO() && vis.has(r.ClientId)) out.push({ c: clientById(r.ClientId), svc, label, date, act }); };
+  for(const r of data.vat) if([r.Preparer, r.Reviewer].map(lc).includes(e)) { const c = clientById(r.ClientId); if(c) add(r, r.FiledDate, "VAT", periodLabel(c.VATCycle, r.PeriodEnd), `data-act="editVat" data-c="${r.ClientId}" data-pe="${r.PeriodEnd}"`); }
+  for(const r of data.ct) if([r.Preparer, r.Reviewer].map(lc).includes(e)) add(r, r.FiledDate, "Corporate tax", "FY" + r.FY, `data-act="editCt" data-c="${r.ClientId}" data-fy="${r.FY}"`);
+  for(const r of data.mw) if(lc(r.AssignedTo) === e) { const c = clientById(r.ClientId); if(c) add(r, r.CompletedDate, r.Service === "Consultancy" ? "Consultation" : "Accounting", mwLabel(c, r.Month, r.Freq || "Monthly"), `data-act="editMw" data-c="${r.ClientId}" data-s="${esc(r.Service)}" data-m="${r.Month}" data-f="${r.Freq || "Monthly"}"`); }
+  for(const r of data.audits) if(lc(r.AssignedTo) === e) add(r, r.CompletedDate, "Audit", "FY" + r.FY, `data-act="editAudit" data-c="${r.ClientId}" data-fy="${r.FY}"`);
+  for(const r of data.other) if(lc(r.AssignedTo) === e) add(r, r.CompletedDate, r.Service, othYear(r), `data-act="editOther" data-id="${r.id}"`);
+  return out.sort((a, b) => b.date.localeCompare(a.date)); }
+function isoAdd(iso, n){ const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function planCard(pend){ const e = lc(me.email); const mine = pend.filter(x => (x.own || []).includes(e)); const done = myDone7();
+  if(!mine.length && !done.length) return "";
+  const t = todayISO(); const days = Array.from({ length: 7 }, (_, i) => isoAdd(t, i));
+  const late = mine.filter(x => x.plan && x.plan < t), none = mine.filter(x => !x.plan), later = mine.filter(x => x.plan && x.plan > days[6]);
+  const sel = state.planDay || t;
+  const pick = sel === "late" ? late : sel === "none" ? none : sel === "later" ? later : sel === "done" ? [] : mine.filter(x => x.plan === sel);
+  const dn = d => new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
+  const box = (k, top, mid, n, cls) => `<button class="plan-day ${cls || ""} ${sel === k ? "on" : ""}" data-act="planDay" data-v="${k}"><div class="dn">${top}</div><div class="dd">${mid}</div><div class="dc">${n} job${n === 1 ? "" : "s"}</div></button>`;
+  const strip = days.map((d, i) => box(d, i === 0 ? "Today" : dn(d), +d.slice(8), mine.filter(x => x.plan === d).length, i === 0 ? "today" : ""));
+  const row = x => { const dd = daysUntil(x.due); return `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${x.due ? ` · due ${fmtDate(x.due)} <span class="${dd < 0 ? "over" : dd <= 7 ? "soon" : "faint"}">(${relDays(dd)})</span>` : ""}</div></div>${x.plan ? `<span class="pd plan ${x.plan < t ? "late" : x.plan === t ? "today" : ""}">◷ ${x.plan === t ? "Today" : fmtDate(x.plan)}</span>` : `<span class="small faint">not planned</span>`}</li>`; };
+  const list = sel === "done" ? done.map(x => `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}</div></div><span class="pd done">✓ ${fmtDate(x.date)}</span></li>`)
+    : pick.sort((a, b) => (a.plan || "9").localeCompare(b.plan || "9") || (a.due || "9").localeCompare(b.due || "9")).map(row);
+  const title = sel === "late" ? "Planned earlier, still open" : sel === "none" ? "Not planned yet — open the job and set a planned date" : sel === "later" ? "Planned after next week" : sel === "done" ? "Completed in the last 7 days" : sel === t ? "Planned for today" : "Planned for " + fmtDate(sel);
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>My work plan</h3><div class="right small muted">${mine.length} open job${mine.length === 1 ? "" : "s"} assigned to you · <span class="pd plan">◷ planned</span> <span class="pd done">✓ completed</span></div></div>
+    <div class="plan-strip">${strip.join("")}</div>
+    <div class="plan-strip" style="padding-top:0">${box("late", "Missed plan", "!", late.length, late.length ? "late" : "")}${box("none", "Not planned", "—", none.length)}${box("later", "Later", "›", later.length)}${box("done", "Done 7 days", "✓", done.length)}</div>
+    <div class="card-b small muted" style="padding-bottom:4px"><b>${title}</b></div>
+    ${list.length ? `<ul class="plan-list">${list.slice(0, 40).join("")}</ul>` : `<div class="card-b small faint">Nothing here.</div>`}</div>`; }
 function attentionCard(pend){ const a = pend.filter(x => x.over).sort((p, q) => (p.due || "").localeCompare(q.due || "")); const show = a.slice(0, 6);
   return `<div class="card ch-card"><div class="card-h"><h3>Needs attention</h3><div class="right small ${a.length ? "over" : "muted"}">${a.length} overdue</div></div>
     ${show.length ? `<ul class="att">${show.map(x => { const d = daysUntil(x.due); return `<li ${x.act}><span class="att-d">${d != null ? -d + "d" : "!"}</span><div><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${x.due ? " · due " + fmtDate(x.due) : ""}</div></div></li>`; }).join("")}</ul>${a.length > 6 ? `<div class="card-b small muted">+ ${a.length - 6} more — open the trackers</div>` : ""}` : `<div class="empty">Nothing overdue — well done.</div>`}</div>`; }
@@ -1290,6 +1332,7 @@ VIEWS.dashboard = () => {
   <div class="hero"><div class="hi"><h2 class="serif">${greet}, ${esc(me.name.split(" ")[0])}</h2><div class="d">${fmtDate(todayISO())} · ${state.loc ? esc(state.loc === "UAE" ? "UAE (Dubai)" : "Bahrain") : "Bahrain & UAE"} · ${active.length} active clients</div>
     <div class="facts"><div class="${overN ? "red" : ""}"><b>${overN}</b>overdue</div><div><b>${dueN}</b>open, due in ${ymLabel(cur)}</div><div><b>${n30}</b>due in next 30 days</div><div><b>${cr.length}</b>CR / licence ≤30d</div></div></div>
     <div class="ring">${heroRing(health)}<div class="rv">${health}%</div><div class="rt"><b>On-time health</b><br>deadlines met so far in ${new Date().getFullYear()}</div></div></div>
+  ${planCard(openItemsAll(cl, { vat, mw, ct, aud, oth: othWork(cl) }))}
   ${unsetCycle ? `<div class="banner">${unsetCycle} active VAT client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
   ${(() => { const oth = othWork(cl); const svcs = [["vat", "VAT", `due ${ymLabel(cur)}`, vat, "filed"], ["mw", "Accounting / Consultation", `due ${ymLabel(cur)}`, mw, "done"], ["ct", "Corporate tax", "latest year", ct, "filed"], ["audit", "Audit", "FY" + fy, aud, "done"], ...(oth.total ? [["other", "Other services", curYear(), oth, "done"]] : [])];
     const pend = openItemsAll(cl, { vat, mw, ct, aud, oth });
@@ -1433,13 +1476,13 @@ function vatMonthView(base){
   return `<div class="card"><div class="card-b">
     <div class="progress-row"><div><b>${state.vf.cycle ? `${esc(CYCLES[state.vf.cycle].short)} · ${periodLabel(state.vf.cycle, pe)}` : `Returns for periods ending ${ymLabel(pe)}`}</b><div class="small muted">Due: ${dueLine}</div></div>
     <div class="bar" title="${pct}% complete"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} filed (${pct}%)</span></div></div></div>
-    <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Net VAT</th><th>Last update</th><th></th></tr></thead><tbody>
+    <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Status</th><th>Preparer</th><th>Planned / Completed</th><th>Ack / Ref</th><th class="num">Net VAT</th><th>Last update</th><th></th></tr></thead><tbody>
     ${rows.map(r => { const late = !VAT_DONE.has(r.st) && daysUntil(dueOf(pe, r.c)) < 0; return `<tr>
       <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
       <td class="nowrap small">${periodLabel(r.c.VATCycle, pe)}</td>
       <td>${vatChip(r.st)}${late ? ` ${chip("red", "Overdue")}` : ""}</td>
       <td class="small">${esc(empName(r.pp.prep))}${r.pp.rev ? `<div class="faint">rev. ${esc(empName(r.pp.rev).split(" ")[0])}</div>` : ""}</td>
-      <td class="small nowrap">${fmtDate(r.rec && r.rec.FiledDate)}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td><td class="num">${r.rec && r.rec.Amount ? esc(r.rec.Amount) + ` <span class="faint small">${curOf(r.c)}</span>` : ""}</td>
+      <td class="small nowrap">${pcCell(r.rec, "FiledDate", VAT_DONE.has(r.st))}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td><td class="num">${r.rec && r.rec.Amount ? esc(r.rec.Amount) + ` <span class="faint small">${curOf(r.c)}</span>` : ""}</td>
       <td class="small faint nowrap">${updCell(r.rec)}</td>
       <td><button class="btn sm" data-act="editVat" data-c="${r.c.id}" data-pe="${pe}">Update</button></td></tr>`; }).join("")}
     </tbody></table>${rows.length ? "" : `<div class="empty">No VAT returns fall due in ${ymLabel(f.month)} for these clients.</div>`}</div></div>`;
@@ -1476,14 +1519,14 @@ VIEWS.audit = () => {
     <select class="in" data-bind="af.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>
   </div>
   <div class="card"><div class="card-b"><div class="progress-row"><div><b>FY${esc(f.fy)} audits</b><div class="small muted">Clients with the <b>Audit</b> service ticked${carried.length ? ` · <span class="over">+ ${carried.length} pending from earlier years shown first</span>` : ""}</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>FY end</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Progress</th><th>Due</th><th>Completed</th><th>Last update</th><th></th></tr></thead><tbody>
+  <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>FY end</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Progress</th><th>Due</th><th>Planned / Completed</th><th>Last update</th><th></th></tr></thead><tbody>
   ${rows.map(r => { const idx = auditStatuses(r.c).indexOf(r.st); const steps = auditStatuses(r.c).length - 1; const d = daysUntil(r.rec && r.rec.DueDate); return `<tr>
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a>${r.carried ? ` ${chip("red", "Carried · FY" + esc(r.fy))}` : ""}</td>
     <td class="small nowrap">${fmtDate(r.fy + "-" + (r.c.FYEnd || "12-31"))}</td><td class="small">${esc(r.rec && r.rec.Auditor)}</td>
     <td class="small">${esc(empName(audPeople(r.c, r.fy).asg))}</td><td>${auditChip(r.st)}</td>
     <td style="min-width:80px"><div class="steps" title="${esc(r.st)}">${Array.from({length:steps - 1}, (_, i) => `<i class="${/^not applicable$/i.test(r.st) || i < idx ? "on" : ""}"></i>`).join("")}</div></td>
     <td class="small nowrap">${fmtDate(r.rec && r.rec.DueDate)}${d != null && !AUDIT_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
-    <td class="small nowrap">${fmtDate(r.rec && r.rec.CompletedDate)}</td>
+    <td class="small nowrap">${pcCell(r.rec, "CompletedDate", AUDIT_DONE.has(r.st))}</td>
     <td class="small faint nowrap">${updCell(r.rec)}</td>
     <td><button class="btn sm" data-act="editAudit" data-c="${r.c.id}" data-fy="${esc(r.fy)}">Update</button></td></tr>`; }).join("")}
   </tbody></table>${rows.length ? "" : `<div class="empty">No clients to show.</div>`}</div></div>`;
@@ -1506,13 +1549,13 @@ VIEWS.mw = () => {
   return head + (f.mode === "month" ? mwMonthView(base) : f.mode === "year" ? mwYearView(base) : mwAnnualView(base));
 };
 function mwTable(rows, svc, labelCol){
-  return `<div class="tw"><table class="tbl"><thead><tr><th>Client</th>${labelCol ? "<th>Period</th>" : ""}<th>Status</th><th>Assigned</th><th>Reviewer</th><th>Due</th><th>Completed</th>${svc === "Consultancy" ? `<th class="num">Hours</th>` : ""}<th>Notes</th><th></th></tr></thead><tbody>
+  return `<div class="tw"><table class="tbl"><thead><tr><th>Client</th>${labelCol ? "<th>Period</th>" : ""}<th>Status</th><th>Assigned</th><th>Reviewer</th><th>Due</th><th>Planned / Completed</th>${svc === "Consultancy" ? `<th class="num">Hours</th>` : ""}<th>Notes</th><th></th></tr></thead><tbody>
   ${rows.map(r => { const d = daysUntil(r.due); return `<tr>
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
     ${labelCol ? `<td class="small nowrap">${esc(mwLabel(r.c, r.ym, r.freq))}</td>` : ""}
     <td>${mwChip(r.st)}</td><td class="small">${esc(empName(mwPeople(r.c, svc, r.ym).asg))}</td><td class="small">${esc(empName(mwPeople(r.c, svc, r.ym).rev || r.c.Reviewer))}</td>
     <td class="small nowrap">${fmtDate(r.due)}${!MW_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 3 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
-    <td class="small nowrap">${fmtDate(r.rec && r.rec.CompletedDate)}</td>${svc === "Consultancy" ? `<td class="num">${esc(r.rec && r.rec.Hours)}</td>` : ""}
+    <td class="small nowrap">${pcCell(r.rec, "CompletedDate", MW_DONE.has(r.st))}</td>${svc === "Consultancy" ? `<td class="num">${esc(r.rec && r.rec.Hours)}</td>` : ""}
     <td class="small muted" style="max-width:260px">${esc(wlLast(r.rec).slice(0, 90))}</td>
     <td><button class="btn sm" data-act="editMw" data-c="${r.c.id}" data-s="${esc(svc)}" data-m="${r.ym}" data-f="${r.freq}">Update</button></td></tr>`; }).join("")}
   </tbody></table>${rows.length ? "" : `<div class="empty">No clients match.</div>`}</div>`;
@@ -1575,13 +1618,13 @@ VIEWS.ct = () => {
     <select class="in" data-bind="tf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>
   </div>
   <div class="card"><div class="card-b"><div class="progress-row"><div><b>FY${esc(f.fy)} corporate tax returns</b><div class="small muted">Clients with the <b>Corporate Tax</b> service ticked · default due date can be overridden per return</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} filed (${pct}%)</span></div></div></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>CT TRN</th><th>Due</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Tax payable</th><th></th></tr></thead><tbody>
+  <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>CT TRN</th><th>Due</th><th>Status</th><th>Preparer</th><th>Planned / Completed</th><th>Ack / Ref</th><th class="num">Tax payable</th><th></th></tr></thead><tbody>
   ${rows.map(r => { const d = daysUntil(r.due); return `<tr>
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
     <td class="small">${esc(r.c.CTNo) || '<span class="faint">—</span>'}</td>
     <td class="small nowrap" title="Tax period ends ${fmtDate(f.fy + "-" + (r.c.FYEnd || "12-31"))}">${fmtDate(r.due)}${!CT_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
     <td>${ctChip(r.st)}</td><td class="small">${esc(empName(ctPeople(r.c, f.fy).prep))}</td>
-    <td class="small nowrap">${fmtDate(r.rec && r.rec.FiledDate)}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td>
+    <td class="small nowrap">${pcCell(r.rec, "FiledDate", CT_DONE.has(r.st))}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td>
     <td class="num">${r.rec && r.rec.Amount ? esc(r.rec.Amount) + ` <span class="faint small">${curOf(r.c)}</span>` : ""}</td>
     <td><button class="btn sm" data-act="editCt" data-c="${r.c.id}" data-fy="${esc(f.fy)}">Update</button></td></tr>`; }).join("")}
   </tbody></table>${rows.length ? "" : `<div class="empty">No clients with the Corporate Tax service${state.loc ? " in " + esc(state.loc) : ""}. Tick <b>Corporate Tax</b> under Services on the client.</div>`}</div></div>`;
@@ -1626,12 +1669,13 @@ VIEWS.other = () => {
     <div class="right">${isMgr() && prevAll.length ? `<button class="btn" data-act="othCarry" data-v="${Y}" title="Copy ${+Y - 1} services that aren't yet tracked in ${Y}">↻ Carry forward ${prevAll.length} from ${+Y - 1}</button>` : ""}<button class="btn pri" data-act="addOther" data-v="${Y}">${I.plus} Add other service</button></div>
   </div>
   <div class="card"><div class="card-b"><div class="progress-row"><div><b>Other services · ${Y}</b><div class="small muted">One line per client, service and year · follow up by date</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Service</th><th>Status</th><th>Assigned</th><th>Due</th><th>Next follow-up</th><th>Latest note</th><th>Last update</th><th></th></tr></thead><tbody>
+  <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Service</th><th>Status</th><th>Assigned</th><th>Due</th><th>Planned / Completed</th><th>Next follow-up</th><th>Latest note</th><th>Last update</th><th></th></tr></thead><tbody>
   ${rows.map(x => { const d = daysUntil(x.due); return `<tr>
     <td class="cname">${state.loc ? "" : locTag(x.c) + " "}<a href="#" data-act="openClient" data-id="${x.c.id}" style="color:inherit;text-decoration:none">${esc(x.c.Title)}</a></td>
     <td><b>${esc(x.name)}</b></td><td>${othChip(x.st)}</td>
     <td class="small">${x.rec.AssignedTo ? esc(empName(x.rec.AssignedTo)) : `<span class="soon">Unassigned</span>`}</td>
     <td class="small nowrap">${x.due ? fmtDate(x.due) : `<span class="faint">not set</span>`}${x.due && !x.done ? `<div class="${d < 0 ? "over" : d <= 10 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
+    <td class="small nowrap">${pcCell(x.rec, "CompletedDate", x.done)}</td>
     <td class="small nowrap">${fuCell(x)}</td>
     <td class="small muted" style="max-width:240px">${esc(wlLast(x.rec).slice(0, 90))}</td>
     <td class="small faint nowrap">${updCell(x.rec)}</td>
@@ -1844,6 +1888,7 @@ MODALS.vatForm = ({ cid, pe }) => {
     <label class="full">Status<select class="in" name="Status">${opt(VAT_STATUSES, r.Status || "Not started")}</select></label>
     <label>Preparer<select class="in" name="Preparer">${empOpts(r.Preparer || vatPeople(c, pe).prep || (isMgr() ? "" : me.email))}</select></label>
     <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || vatPeople(c, pe).rev || c.Reviewer)}</select></label>
+    <label>Planned date<input class="in" type="date" name="PlannedDate" value="${esc(r.PlannedDate)}"><span class="hint">The day you plan to work on it — shows on your dashboard</span></label>
     <label>Filed on<input class="in" type="date" name="FiledDate" value="${esc(r.FiledDate)}"></label>
     <label>${LOC[locOf(c)].auth} acknowledgement / ref no<input class="in" name="RefNo" value="${esc(r.RefNo)}"></label>
     <label>Net VAT payable / (refundable), ${curOf(c)}<input class="in" name="Amount" value="${esc(r.Amount)}" inputmode="decimal" placeholder="e.g. 1250.50 or -300"></label>
@@ -1860,6 +1905,7 @@ MODALS.mwForm = ({ cid, svc, ym, freq }) => {
     <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || mwPeople(c, svc, ym).asg || (isMgr() ? "" : me.email))}</select></label>
     <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || mwPeople(c, svc, ym).rev || c.Reviewer)}</select></label>
     <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate || mwDefaultDue(svc, ym, freq))}"><span class="hint">Default: ${freq === "Annually" ? "last day of the month after year end" : "last day of the following month"}</span></label>
+    <label>Planned date<input class="in" type="date" name="PlannedDate" value="${esc(r.PlannedDate)}"><span class="hint">The day you plan to work on it — shows on your dashboard</span></label>
     <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
     ${svc === "Consultancy" ? `<label>Hours spent<input class="in" name="Hours" value="${esc(r.Hours)}" inputmode="decimal" placeholder="e.g. 6.5"></label>` : ""}
     ${wlBlock(r, svc === "Accounting" ? "Add a note — e.g. bank rec done, awaiting sales invoices" : "Add a note — e.g. meeting held, report drafted")}
@@ -1876,6 +1922,7 @@ MODALS.ctForm = ({ cid, fy }) => {
     <label>Preparer<select class="in" name="Preparer">${empOpts(r.Preparer || ctPeople(c, fy).prep || (isMgr() ? "" : me.email))}</select></label>
     <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || ctPeople(c, fy).rev || c.Reviewer)}</select></label>
     <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate || ctDefaultDue(c, fy))}"><span class="hint">Change only if the authority set a different date</span></label>
+    <label>Planned date<input class="in" type="date" name="PlannedDate" value="${esc(r.PlannedDate)}"><span class="hint">The day you plan to work on it — shows on your dashboard</span></label>
     <label>Filed on<input class="in" type="date" name="FiledDate" value="${esc(r.FiledDate)}"></label>
     <label>${LOC[locOf(c)].auth} acknowledgement / ref no<input class="in" name="RefNo" value="${esc(r.RefNo)}"></label>
     <label>Tax payable / (refundable), ${curOf(c)}<input class="in" name="Amount" value="${esc(r.Amount)}" inputmode="decimal"></label>
@@ -1892,6 +1939,7 @@ MODALS.auditForm = ({ cid, fy }) => {
     <label>Auditor (firm)<input class="in" name="Auditor" value="${esc(r.Auditor)}"></label>
     <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || audPeople(c, fy).asg || (isMgr() ? "" : me.email))}</select></label>
     <label>Target / due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate)}"></label>
+    <label>Planned date<input class="in" type="date" name="PlannedDate" value="${esc(r.PlannedDate)}"><span class="hint">The day you plan to work on it — shows on your dashboard</span></label>
     <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
     ${wlBlock(r)}
   </div>${r.UpdatedOn ? `<p class="small faint">Last updated by ${esc(empName(r.UpdatedBy))} on ${fmtDT(r.UpdatedOn)}</p>` : ""}</div>
@@ -1926,6 +1974,7 @@ MODALS.otherForm = ({ id, cid, year, name }) => {
     <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || (c ? c.Reviewer : ""))}</select></label>
     <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate)}"></label>
     <label>Next follow-up<input class="in" type="date" name="FollowUp" value="${esc(r.FollowUp)}"></label>
+    <label>Planned date<input class="in" type="date" name="PlannedDate" value="${esc(r.PlannedDate)}"><span class="hint">The day you plan to work on it — shows on your dashboard</span></label>
     <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
     ${wlBlock(r, "Add a note — e.g. documents received, called client, next step")}
   </div>${r.UpdatedOn ? `<p class="small faint">Last updated by ${esc(empName(r.UpdatedBy))} on ${fmtDT(r.UpdatedOn)}</p>` : ""}</div>
@@ -2003,7 +2052,7 @@ function noteTag(o){ const t = String(o.NewNote || "").trim(); return t ? ` · N
 SUBMIT.vat = async (form, o) => {
   const cid = form.dataset.c, pe = form.dataset.pe; const c = clientById(cid); const r = vatRec(cid, pe); const PREVX = (r && r.Status) || "Not started";
   if(VAT_DONE.has(o.Status) && o.Status !== "Not applicable" && !o.FiledDate) o.FiledDate = todayISO();
-  const f = { Title: cid + "|" + pe, ClientId: cid, PeriodEnd: pe, Status: o.Status, Preparer: o.Preparer, Reviewer: o.Reviewer, FiledDate: o.FiledDate, RefNo: o.RefNo, Amount: o.Amount, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const f = { Title: cid + "|" + pe, ClientId: cid, PeriodEnd: pe, Status: o.Status, PlannedDate: o.PlannedDate || "", Preparer: o.Preparer, Reviewer: o.Reviewer, FiledDate: o.FiledDate, RefNo: o.RefNo, Amount: o.Amount, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
   const prev = (r && r.Status) || "Not started";
   await saveRec("vat", r ? r.id : null, f);
   await logAct("VAT status updated", c, `${periodLabel(c.VATCycle, pe)}: ${prev} → ${o.Status}${o.RefNo ? " · Ref " + o.RefNo : ""}${noteTag(o)}`);
@@ -2012,7 +2061,7 @@ SUBMIT.vat = async (form, o) => {
 SUBMIT.mw = async (form, o) => {
   const cid = form.dataset.c, svc = form.dataset.s, ym = form.dataset.m, freq = form.dataset.f || "Monthly"; const c = clientById(cid); const r = mwRec(cid, svc, ym, freq); const PREVX = (r && r.Status) || "Not started";
   if(o.Status === "Completed" && !o.CompletedDate) o.CompletedDate = todayISO();
-  const f = { Title: `${cid}|${svc}|${freq === "Annually" ? "FY" : ""}${ym}`, ClientId: cid, Service: svc, Freq: freq, Month: ym, Status: o.Status, AssignedTo: o.AssignedTo, Reviewer: o.Reviewer, DueDate: o.DueDate === mwDefaultDue(svc, ym, freq) ? "" : o.DueDate, CompletedDate: o.CompletedDate, Hours: o.Hours || "", Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const f = { Title: `${cid}|${svc}|${freq === "Annually" ? "FY" : ""}${ym}`, ClientId: cid, Service: svc, Freq: freq, Month: ym, Status: o.Status, PlannedDate: o.PlannedDate || "", AssignedTo: o.AssignedTo, Reviewer: o.Reviewer, DueDate: o.DueDate === mwDefaultDue(svc, ym, freq) ? "" : o.DueDate, CompletedDate: o.CompletedDate, Hours: o.Hours || "", Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
   const prev = (r && r.Status) || "Not started";
   await saveRec("mw", r ? r.id : null, f);
   await logAct(`${svc} status updated`, c, `${mwLabel(c, ym, freq)}: ${prev} → ${o.Status}${noteTag(o)}`);
@@ -2021,7 +2070,7 @@ SUBMIT.mw = async (form, o) => {
 SUBMIT.ct = async (form, o) => {
   const cid = form.dataset.c, fy = form.dataset.fy; const c = clientById(cid); const r = ctRec(cid, fy); const PREVX = (r && r.Status) || "Not started";
   if(CT_DONE.has(o.Status) && o.Status !== "Not applicable" && !o.FiledDate) o.FiledDate = todayISO();
-  const f = { Title: cid + "|FY" + fy, ClientId: cid, FY: fy, Status: o.Status, Preparer: o.Preparer, Reviewer: o.Reviewer, DueDate: o.DueDate === ctDefaultDue(c, fy) ? "" : o.DueDate, FiledDate: o.FiledDate, RefNo: o.RefNo, Amount: o.Amount, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const f = { Title: cid + "|FY" + fy, ClientId: cid, FY: fy, Status: o.Status, PlannedDate: o.PlannedDate || "", Preparer: o.Preparer, Reviewer: o.Reviewer, DueDate: o.DueDate === ctDefaultDue(c, fy) ? "" : o.DueDate, FiledDate: o.FiledDate, RefNo: o.RefNo, Amount: o.Amount, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
   const prev = (r && r.Status) || "Not started";
   await saveRec("ct", r ? r.id : null, f);
   await logAct("Corporate tax status updated", c, `FY${fy}: ${prev} → ${o.Status}${o.RefNo ? " · Ref " + o.RefNo : ""}${noteTag(o)}`);
@@ -2030,7 +2079,7 @@ SUBMIT.ct = async (form, o) => {
 SUBMIT.audit = async (form, o) => {
   const cid = form.dataset.c, fy = form.dataset.fy; const c = clientById(cid); const r = auditRec(cid, fy); const PREVX = auditSt(c, r);
   if(AUDIT_DONE.has(o.Status) && !/^not applicable$/i.test(o.Status) && !o.CompletedDate) o.CompletedDate = todayISO();
-  const f = { Title: cid + "|FY" + fy, ClientId: cid, FY: fy, Status: o.Status, Auditor: o.Auditor, AssignedTo: o.AssignedTo, DueDate: o.DueDate, CompletedDate: o.CompletedDate, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const f = { Title: cid + "|FY" + fy, ClientId: cid, FY: fy, Status: o.Status, PlannedDate: o.PlannedDate || "", Auditor: o.Auditor, AssignedTo: o.AssignedTo, DueDate: o.DueDate, CompletedDate: o.CompletedDate, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
   const prev = auditSt(c, r);
   await saveRec("audits", r ? r.id : null, f);
   await logAct("Audit status updated", c, `FY${fy}: ${prev} → ${o.Status}${noteTag(o)}`);
@@ -2045,7 +2094,7 @@ SUBMIT.other = async (form, o) => {
   if(!r && othFind(cid, name, Y)) return toast(`${name} is already tracked for ${c.Title} in ${Y}`, true);
   const PREVX = (r && r.Status) || "Not started";
   if(OTH_DONE.has(o.Status) && o.Status !== "Not applicable" && !o.CompletedDate) o.CompletedDate = todayISO();
-  const f = { Title: `${cid}|${Y}|${name}`, ClientId: cid, Service: name, Year: Y, Status: o.Status, AssignedTo: o.AssignedTo, Reviewer: o.Reviewer, DueDate: o.DueDate, FollowUp: OTH_DONE.has(o.Status) ? "" : o.FollowUp, CompletedDate: o.CompletedDate, Notes: wlNotes(r, o, r ? PREVX : ""), UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const f = { Title: `${cid}|${Y}|${name}`, ClientId: cid, Service: name, Year: Y, Status: o.Status, PlannedDate: o.PlannedDate || "", AssignedTo: o.AssignedTo, Reviewer: o.Reviewer, DueDate: o.DueDate, FollowUp: OTH_DONE.has(o.Status) ? "" : o.FollowUp, CompletedDate: o.CompletedDate, Notes: wlNotes(r, o, r ? PREVX : ""), UpdatedBy: me.email, UpdatedOn: nowISO() };
   await saveRec("other", r ? r.id : null, f);
   await logAct(r ? "Other service updated" : "Other service added", c, `${name} (${Y}): ${r ? PREVX + " → " : ""}${o.Status}${o.FollowUp && !OTH_DONE.has(o.Status) ? " · follow up " + fmtDate(o.FollowUp) : ""}${noteTag(o)}`);
   closeModal(); render(); renderModals(); toast(`${name} ${r ? "updated" : "added"}`);
@@ -2370,6 +2419,7 @@ const ACT = {
       await logAct("Other services carried forward", null, `${src.length} from ${+Y - 1} to ${Y}`); render(); toast(`${src.length} carried forward to ${Y}`); } }); },
   dashYear: d => { state.dashYear += +d.v; render(); },
   dgMode: d => { state.dg.mode = d.v; render(); },
+  planDay: d => { state.planDay = d.v; render(); },
   dashMore: (d, e) => { e.preventDefault(); state.dashMore = !state.dashMore; render(); },
   tsort: d => { state.tsort = state.tsort || {}; const c = +d.c, cur = state.tsort[d.k]; state.tsort[d.k] = cur && cur.c === c ? { c, d: -cur.d } : { c, d: 1 }; if(d.k.startsWith("m:")) renderModals(); else render(); },
   csort: d => { const f = state.cf; if(f.sk === d.v) f.sd = -f.sd; else { f.sk = d.v; f.sd = 1; } render(); },
