@@ -308,6 +308,10 @@ tr.click-row:hover td{background:var(--panel-2)}
 .plan-day.today{background:#fdf0dc;color:#a65e00}.plan-day.late{background:var(--vg-over-bg);color:var(--vg-over)}
 .plan-list{list-style:none;margin:0;padding:0}.plan-list li{display:flex;gap:10px;align-items:center;padding:8px 16px;border-top:1px solid var(--line);cursor:pointer}.plan-list li:hover{background:var(--grey-bg)}
 @media (max-width:640px){.plan-strip{grid-template-columns:repeat(4,1fr)}}
+.rev-card{box-shadow:inset 0 3px 0 #6b3fb0}
+tr.rev-me td{background:#f4eefd!important}tr.rev-me td:first-child{box-shadow:inset 4px 0 0 #6b3fb0}
+tr.rev-me td.cname::after{content:"Your review";display:inline-block;margin-left:8px;font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:#6b3fb0;color:#fff;vertical-align:middle}
+:root[data-theme="dark"] tr.rev-me td{background:#2a2142!important}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) tr.rev-me td{background:#2a2142!important}}
 .chip.st-new{background:#eceef3;color:#5b6475}.chip.st-wait{background:#fdf0dc;color:#a65e00}.chip.st-recv{background:#e1effc;color:#1f6fb8}
 .chip.st-rev{background:#efe7fb;color:#6b3fb0}.chip.st-sign{background:#dcf2e4;color:#19733f}.chip.st-na{background:transparent;color:#7a8396;box-shadow:inset 0 0 0 1px #c9cfda}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip.st-new{background:#2a2f3a;color:#b4bccb}:root:not([data-theme="light"]) .chip.st-wait{background:#3a2a10;color:#f3b35a}:root:not([data-theme="light"]) .chip.st-recv{background:#14304d;color:#7fb8f0}:root:not([data-theme="light"]) .chip.st-rev{background:#2e2147;color:#bf9df2}:root:not([data-theme="light"]) .chip.st-sign{background:#123826;color:#6fd39a}:root:not([data-theme="light"]) .chip.st-na{color:#8e97a8;box-shadow:inset 0 0 0 1px #3b4252}}
@@ -601,7 +605,7 @@ const SCHEMA = {
                 VATNo:"text", VATCycle:"text", VATFrom:"text", FYEnd:"text", AuditRequired:"text", AssignedTo:"note", Reviewer:"text", Services:"note", AcctFreq:"text", ConsFreq:"text", Notes:"note" } },
   creds:     { list: "Credentials", fields: { Title:"text", ClientId:"text", Username:"text", Pwd:"text", PortalURL:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   vat:       { list: "VATReturns", fields: { Title:"text", ClientId:"text", PeriodEnd:"text", Status:"text", Preparer:"text", Reviewer:"text", PlannedDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  audits:    { list: "Audits", fields: { Title:"text", ClientId:"text", FY:"text", Auditor:"text", AssignedTo:"text", Status:"text", DueDate:"text", PlannedDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  audits:    { list: "Audits", fields: { Title:"text", ClientId:"text", FY:"text", Auditor:"text", AssignedTo:"text", Reviewer:"text", Status:"text", DueDate:"text", PlannedDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   mw:        { list: "MonthlyWork", fields: { Title:"text", ClientId:"text", Service:"text", Freq:"text", Month:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", PlannedDate:"text", CompletedDate:"text", Hours:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   ct:        { list: "CorporateTax", fields: { Title:"text", ClientId:"text", FY:"text", Status:"text", Preparer:"text", Reviewer:"text", DueDate:"text", PlannedDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   other:     { list: "OtherWork", fields: { Title:"text", ClientId:"text", Service:"text", Year:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", FollowUp:"text", PlannedDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
@@ -897,10 +901,14 @@ function inherit(k, ord, fields){ const L = ownIndex()[k] || []; const out = {};
 function vatPeople(c, pe){ const x = inherit("vat|" + c.id, pe, ["Preparer", "Reviewer"]); return { prep: x.Preparer, rev: x.Reviewer }; }
 function ctPeople(c, fy){ const x = inherit("ct|" + c.id, String(fy), ["Preparer", "Reviewer"]); return { prep: x.Preparer, rev: x.Reviewer }; }
 function mwPeople(c, svc, ym){ const x = inherit("mw|" + c.id + "|" + svc, ym, ["AssignedTo", "Reviewer"]); return { asg: x.AssignedTo, rev: x.Reviewer }; }
-function audPeople(c, fy){ const x = inherit("aud|" + c.id, String(fy), ["AssignedTo"]); return { asg: x.AssignedTo }; }
-function ownersOf(kind, p){ return (kind === "vat" || kind === "ct" ? [p.prep, p.rev] : [p.asg]).filter(Boolean); }
-function workMine(kind, p, who){ const e = who || (isMgr() ? "" : lc(me.email)); return !e || ownersOf(kind, p).includes(e); }
-const fltWho = () => isMgr() ? "" : lc(me.email);
+function audPeople(c, fy){ const x = inherit("aud|" + c.id, String(fy), ["AssignedTo", "Reviewer"]); return { asg: x.AssignedTo, rev: x.Reviewer }; }
+function ownersOf(kind, p){ return [...new Set((kind === "vat" || kind === "ct" ? [p.prep, p.rev] : [p.asg, p.rev]).filter(Boolean).map(lc))]; }
+/* review stage: the preparer has handed over; the reviewer (and Admin, where no reviewer is set) gets it highlighted */
+const inReview = st => /review|draft|manager\/partner/i.test(st || "");
+function revMine(st, rev){ return inReview(st) && (lc(rev) === lc(me.email) || (isAdmin() && !rev)); }
+const revTr = (st, rev) => revMine(st, rev) ? ` class="rev-me"` : "";
+function workMine(kind, p, who){ const e = who || (isAdmin() ? "" : lc(me.email)); return !e || ownersOf(kind, p).includes(e); }
+const fltWho = () => isAdmin() ? "" : lc(me.email);
 const ownF = x => { const e = fltWho(); return !e || (x.own || []).includes(e); };
 function isMine(c){ return true; }
 function isDeact(c){ return !!c && c.Status === "Deactivated"; }
@@ -1041,7 +1049,7 @@ function renderBusy(){ let b = document.getElementById("busy"); if(state.busy &&
 
 const NAV = [
   ["dashboard", "Dashboard", "dash"], ["clients", "Clients", "clients"], ["vat", "VAT Tracker", "vat"], ["ct", "Corporate Tax", "ct"], ["mw", "Accounting/Consultation", "mw"], ["audit", "Audit Tracker", "audit"], ["other", "Other Services", "other"],
-  ["bva", "Budget vs Actual", "bva", () => canFin()], ["team", "Employees", "team", () => isMgr()], ["activity", "Activity Log", "log"], ["admin", "Admin & Import", "admin", () => isAdmin()]
+  ["bva", "Budget vs Actual", "bva", () => canFin()], ["team", "Employees", "team", () => isAdmin()], ["activity", "Activity Log", "log"], ["admin", "Admin & Import", "admin", () => isAdmin()]
 ];
 const TITLES = { dashboard:"Dashboard", clients:"Client Master", vat:"VAT Return Tracker", ct:"Corporate Tax Tracker", mw:"Accounting/Consultation", audit:"Audit Tracker", other:"Other Services Tracker", bva:"Budget vs Actual · Bahrain", team:"Employees", activity:"Activity Log", admin:"Admin, Import & Export" };
 
@@ -1051,7 +1059,7 @@ function render(){
   { const ml = myLocs(); if(ml.length === 1) state.loc = ml[0]; else if(state.loc && !ml.includes(state.loc)) state.loc = ""; }
   const ae = document.activeElement; const fid = ae && ae.id && app.contains(ae) ? ae.id : null; const pos = fid && ae.selectionStart;
   const locName = state.loc || "Bahrain & UAE";
-  const sub = { dashboard: (isMgr() ? "All clients" : "Your assigned clients") + " · " + locName, mw: `Monthly or annual per client · due on the last day of the following month (annual: month after year end)`, ct: "Corporate tax returns by financial year · UAE (FTA): 9 months after year end · Bahrain (DMTT): 15 months", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
+  const sub = { dashboard: (isAdmin() ? "All clients" : "Work assigned to you") + " · " + locName, mw: `Monthly or annual per client · due on the last day of the following month (annual: month after year end)`, ct: "Corporate tax returns by financial year · UAE (FTA): 9 months after year end · Bahrain (DMTT): 15 months", clients: `${visibleClients().length} client${visibleClients().length===1?"":"s"}${isMgr() ? "" : " assigned to you"}`,
     vat: "Due date: Bahrain (NBR) last day of the following month · UAE (FTA) 28th of the following month", audit: "Statutory audit progress by financial year", other: "Work listed under Others on each client — owner, due date, follow-ups and work log",
     bva: `Vinpro Global Services WLL · monthly cash budget vs actual from ${ymLabel(FIN.start)} · BHD ${vatTag()}`,
     team: "Employees, roles and the work assigned to each", activity: "Every change and every password view is recorded", admin: "Import the client master, export, and SharePoint setup" }[state.view];
@@ -1236,11 +1244,11 @@ function donutCard(view, title, sub, w, doneWord){ const over = w.pending.filter
     <div class="dc-ring">${donutSvg([{ v: done, c: ST_CLR.done, l: doneWord }, { v: pend, c: ST_CLR.pend, l: "pending" }, { v: over, c: ST_CLR.over, l: "overdue" }])}<div class="dc-c"><b>${pct}%</b><span>${tot ? `${done}/${tot}` : "—"}</span></div></div>
     <div class="dc-cap ${over ? "bad" : !pend && tot ? "ok" : ""}">${cap}</div></button>`; }
 function openItemsAll(cl, w){ const L = [];
-  w.vat.pending.forEach(x => L.push({ c: x.c, svc: "VAT", label: x.label, due: x.due, over: x.over, act: `data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}"`, own: x.own, plan: (vatRec(x.c.id, x.pe) || {}).PlannedDate || "" }));
-  w.mw.pending.forEach(x => L.push({ c: x.c, svc: x.svc === "Consultancy" ? "Consultation" : "Accounting", label: x.label, due: x.due, over: x.over, act: `data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}"` , own: x.own, plan: (mwRec(x.c.id, x.svc, x.ym, x.freq) || {}).PlannedDate || "" }));
-  w.ct.pending.forEach(x => L.push({ c: x.c, svc: "Corporate tax", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own, plan: (ctRec(x.c.id, x.fy) || {}).PlannedDate || "" }));
-  w.aud.pending.forEach(x => L.push({ c: x.c, svc: "Audit", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editAudit" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own, plan: (auditRec(x.c.id, x.fy) || {}).PlannedDate || "" }));
-  w.oth.pending.forEach(x => L.push({ c: x.c, svc: x.name, label: x.year, due: x.due, over: x.over, act: `data-act="editOther" data-id="${x.rec.id}"`, own: [lc(x.rec.AssignedTo)].filter(Boolean), plan: x.rec.PlannedDate || "" }));
+  w.vat.pending.forEach(x => L.push({ c: x.c, svc: "VAT", label: x.label, due: x.due, over: x.over, act: `data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}"`, own: x.own, st: x.st, rev: vatPeople(x.c, x.pe).rev, plan: (vatRec(x.c.id, x.pe) || {}).PlannedDate || "" }));
+  w.mw.pending.forEach(x => L.push({ c: x.c, svc: x.svc === "Consultancy" ? "Consultation" : "Accounting", label: x.label, due: x.due, over: x.over, act: `data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}"` , own: x.own, st: x.st, rev: mwPeople(x.c, x.svc, x.ym).rev, plan: (mwRec(x.c.id, x.svc, x.ym, x.freq) || {}).PlannedDate || "" }));
+  w.ct.pending.forEach(x => L.push({ c: x.c, svc: "Corporate tax", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own, st: x.st, rev: ctPeople(x.c, x.fy).rev, plan: (ctRec(x.c.id, x.fy) || {}).PlannedDate || "" }));
+  w.aud.pending.forEach(x => L.push({ c: x.c, svc: "Audit", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editAudit" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own, st: x.st, rev: audPeople(x.c, x.fy).rev, plan: (auditRec(x.c.id, x.fy) || {}).PlannedDate || "" }));
+  w.oth.pending.forEach(x => L.push({ c: x.c, svc: x.name, label: x.year, due: x.due, over: x.over, act: `data-act="editOther" data-id="${x.rec.id}"`, own: ownersOf("other", { asg: x.rec.AssignedTo, rev: x.rec.Reviewer }), st: x.st, rev: x.rec.Reviewer, plan: x.rec.PlannedDate || "" }));
   return L; }
 function svcMonthChart(items, Y, title, sub, view){ const cur = curYM(); const months = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
   const data = months.map(m => { const a = items.filter(x => x.ym === m); const open = a.filter(x => !x.done); const w = open.filter(x => !x.rv), r = open.filter(x => x.rv);
@@ -1290,10 +1298,14 @@ function myDone7(e){ const has = v => !e || v.map(lc).includes(e); const from = 
   for(const r of data.other) if(has([r.AssignedTo])) add(r, r.CompletedDate, r.Service, othYear(r), `data-act="editOther" data-id="${r.id}"`);
   return out.sort((a, b) => b.date.localeCompare(a.date)); }
 function isoAdd(iso, n){ const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
-function planCard(pend){ const e = isMgr() ? (state.pl.who || "") : lc(me.email);
+function reviewCard(pend){ const a = pend.filter(x => revMine(x.st, x.rev)).sort((p, q) => (p.due || "9").localeCompare(q.due || "9")); if(!a.length) return "";
+  return `<div class="card rev-card" style="margin-bottom:18px"><div class="card-h"><h3>Awaiting your review</h3><div class="right small"><b>${a.length}</b> job${a.length === 1 ? "" : "s"} handed over by the preparer</div></div>
+    <ul class="plan-list">${a.slice(0, 30).map(x => { const dd = daysUntil(x.due); const prep = (x.own || []).filter(o => o !== lc(x.rev)).map(o => empName(o).split(" ")[0]).join(" / ");
+      return `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${prep ? " · from " + esc(prep) : ""}${x.due ? ` · due ${fmtDate(x.due)} <span class="${dd < 0 ? "over" : dd <= 7 ? "soon" : "faint"}">(${relDays(dd)})</span>` : ""}</div></div>${chip("st-rev", esc(x.st), true)}</li>`; }).join("")}</ul></div>`; }
+function planCard(pend){ const e = isAdmin() ? (state.pl.who || "") : lc(me.email);
   const mine = e ? pend.filter(x => (x.own || []).includes(e)) : pend; const done = myDone7(e);
   const nm = x => !e && (x.own || []).length ? ` · <span class="faint">${esc((x.own || []).map(o => empName(o).split(" ")[0]).join(" / "))}</span>` : "";
-  const whoSel = isMgr() ? `<select class="in" data-bind="pl.who" style="width:auto;padding:4px 8px;margin-right:8px"><option value="">Everyone</option>${activeEmployees().map(x => `<option value="${esc(lc(x.Email))}" ${lc(x.Email) === e ? "selected" : ""}>${esc(x.Title)}${lc(x.Email) === lc(me.email) ? " (me)" : ""}</option>`).join("")}</select>` : "";
+  const whoSel = isAdmin() ? `<select class="in" data-bind="pl.who" style="width:auto;padding:4px 8px;margin-right:8px"><option value="">Everyone</option>${activeEmployees().map(x => `<option value="${esc(lc(x.Email))}" ${lc(x.Email) === e ? "selected" : ""}>${esc(x.Title)}${lc(x.Email) === lc(me.email) ? " (me)" : ""}</option>`).join("")}</select>` : "";
   if(!mine.length && !done.length) return "";
   const t = todayISO(); const days = Array.from({ length: 7 }, (_, i) => isoAdd(t, i));
   const late = mine.filter(x => x.plan && x.plan < t), none = mine.filter(x => !x.plan), later = mine.filter(x => x.plan && x.plan > days[6]);
@@ -1306,7 +1318,7 @@ function planCard(pend){ const e = isMgr() ? (state.pl.who || "") : lc(me.email)
   const list = sel === "done" ? done.map(x => `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${!e && x.who ? ` · <span class="faint">${esc(empName(x.who).split(" ")[0])}</span>` : ""}</div></div><span class="pd done">✓ ${fmtDate(x.date)}</span></li>`)
     : pick.sort((a, b) => (a.plan || "9").localeCompare(b.plan || "9") || (a.due || "9").localeCompare(b.due || "9")).map(row);
   const title = sel === "late" ? "Planned earlier, still open" : sel === "none" ? "Not planned yet — open the job and set a planned date" : sel === "later" ? "Planned after next week" : sel === "done" ? "Completed in the last 7 days" : sel === t ? "Planned for today" : "Planned for " + fmtDate(sel);
-  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>${isMgr() ? "Work plan" : "My work plan"}</h3><div class="right small muted">${whoSel}${mine.length} open job${mine.length === 1 ? "" : "s"}${e ? (e === lc(me.email) ? " assigned to you" : " assigned to " + esc(empName(e))) : " across the team"} · <span class="pd plan">◷ planned</span> <span class="pd done">✓ completed</span></div></div>
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>${isAdmin() ? "Work plan" : "My work plan"}</h3><div class="right small muted">${whoSel}${mine.length} open job${mine.length === 1 ? "" : "s"}${e ? (e === lc(me.email) ? " assigned to you" : " assigned to " + esc(empName(e))) : " across the team"} · <span class="pd plan">◷ planned</span> <span class="pd done">✓ completed</span></div></div>
     <div class="plan-strip">${strip.join("")}</div>
     <div class="plan-strip" style="padding-top:0">${box("late", "Missed plan", "!", late.length, late.length ? "late" : "")}${box("none", "Not planned", "—", none.length)}${box("later", "Later", "›", later.length)}${box("done", "Done 7 days", "✓", done.length)}</div>
     <div class="card-b small muted" style="padding-bottom:4px"><b>${title}</b></div>
@@ -1322,7 +1334,7 @@ VIEWS.dashboard = () => {
   const cr = active.map(c => ({ c, i: crInfo(c) })).filter(x => x.i.d != null && x.i.d <= 30).sort((a,b) => a.i.d - b.i.d);
   const unsetCycle = active.filter(c => !c.VATCycle && hasService(c, "VAT")).length;
   const hour = new Date().getHours(); const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const acts = data.activity.filter(a => isMgr() || lc(a.UserEmail) === lc(me.email)).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 8);
+  const acts = data.activity.filter(a => isAdmin() || lc(a.UserEmail) === lc(me.email)).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 8);
   const tile = (view, label, w, doneWord) => `<button class="kpi" data-act="nav" data-v="${view}"><div class="l">${label}</div><div class="v">${w.pending.length}</div><div class="s">${w.curP} of ${w.total} pending this period · ${w.doneN} ${doneWord}</div>${w.prevN ? `<div class="s ${w.over ? "over" : ""}">+ ${w.prevN} from earlier period${w.prevN > 1 ? "s" : ""}${w.over ? ` (${w.over} overdue)` : ""}</div>` : ""}</button>`;
   const who = x => `${state.loc ? "" : locTag(x.c) + " "}<b>${esc(x.c.Title)}</b>`;
   const more = (n, where) => n > 0 ? `<div class="card-b small muted">+ ${n} more in ${where}</div>` : "";
@@ -1335,17 +1347,17 @@ VIEWS.dashboard = () => {
   <div class="hero"><div class="hi"><h2 class="serif">${greet}, ${esc(me.name.split(" ")[0])}</h2><div class="d">${fmtDate(todayISO())} · ${state.loc ? esc(state.loc === "UAE" ? "UAE (Dubai)" : "Bahrain") : "Bahrain & UAE"} · ${active.length} active clients</div>
     <div class="facts"><div class="${overN ? "red" : ""}"><b>${overN}</b>overdue</div><div><b>${dueN}</b>open, due in ${ymLabel(cur)}</div><div><b>${n30}</b>due in next 30 days</div><div><b>${cr.length}</b>CR / licence ≤30d</div></div></div>
     <div class="ring">${heroRing(health)}<div class="rv">${health}%</div><div class="rt"><b>On-time health</b><br>deadlines met so far in ${new Date().getFullYear()}</div></div></div>
-  ${planCard(openItemsAll(cl, { vat, mw, ct, aud, oth: othWork(cl) }))}
+  ${(() => { const P = openItemsAll(cl, { vat, mw, ct, aud, oth: othWork(cl) }); return reviewCard(P) + planCard(P); })()}
   ${unsetCycle ? `<div class="banner">${unsetCycle} active VAT client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
   ${(() => { const oth = othWork(cl); const svcs = [["vat", "VAT", `due ${ymLabel(cur)}`, vat, "filed"], ["mw", "Accounting / Consultation", `due ${ymLabel(cur)}`, mw, "done"], ["ct", "Corporate tax", "latest year", ct, "filed"], ["audit", "Audit", "FY" + fy, aud, "done"], ...(oth.total ? [["other", "Other services", curYear(), oth, "done"]] : [])];
     const pend = openItemsAll(cl, { vat, mw, ct, aud, oth });
     return `<div class="donuts">${svcs.map(([v, t, sub, w, dw]) => donutCard(v, t, sub, w, dw)).join("")}</div>
     ${deadlineCharts(nowYi.filter(x => x.svc !== "CR"), new Date().getFullYear())}
-    <div class="chart-row3">${locChart(pend)}${isMgr() ? teamChart(cl, pend) : ""}${attentionCard(pend)}</div>`; })()}
+    <div class="chart-row3">${locChart(pend)}${isAdmin() ? teamChart(cl, pend) : ""}${attentionCard(pend)}</div>`; })()}
   <details class="dash-more" ${state.dashMore ? "open" : ""}><summary data-act="dashMore">${state.dashMore ? "▾" : "▸"} Show details — compliance calendar, client deadlines, team &amp; location tables, lists</summary>
   ${calendarCard(yi, Y)}
   ${clientGridCard(yi, Y)}
-  ${isMgr() ? `<div class="mgr-row">${!state.loc ? locationCard(allowedClients()) : ""}${teamWorkloadCard(cl)}</div>` : ""}
+  ${isAdmin() ? `<div class="mgr-row">${!state.loc ? locationCard(allowedClients()) : ""}${teamWorkloadCard(cl)}</div>` : ""}
   <div class="grid2">
     <div>
       <div class="card"><div class="card-h"><h3>VAT returns by deadline · ${ymLabel(cur)}</h3><div class="right"><button class="btn sm" data-act="nav" data-v="vat">Open tracker</button></div></div>
@@ -1461,7 +1473,7 @@ VIEWS.vat = () => {
     ${f.mode === "month" ? `<select class="in" data-bind="vf.month" title="Due">${dueOpts}</select>`
       : `<select class="in" data-bind="vf.year">${[0,1,2,3].map(i => new Date().getFullYear() + 1 - i).map(y => `<option ${+f.year === y ? "selected" : ""}>${y}</option>`).join("")}</select>`}
     <input id="vf-q" class="in search" placeholder="Search client…" value="${esc(f.q)}" data-bind="vf.q">
-    ${isMgr() ? `<select class="in" data-bind="vf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
+    ${isAdmin() ? `<select class="in" data-bind="vf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
     ${f.mode === "month" ? `<select class="in" data-bind="vf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>` : ""}
   </div>
   ${unset ? `<div class="banner">${unset} VAT client${unset>1?"s have":" has"} no VAT cycle set and ${unset>1?"are":"is"} not shown. <button class="btn sm" data-act="gotoUnset">Set VAT cycles</button></div>` : ""}`;
@@ -1480,7 +1492,7 @@ function vatMonthView(base){
     <div class="progress-row"><div><b>${state.vf.cycle ? `${esc(CYCLES[state.vf.cycle].short)} · ${periodLabel(state.vf.cycle, pe)}` : `Returns for periods ending ${ymLabel(pe)}`}</b><div class="small muted">Due: ${dueLine}</div></div>
     <div class="bar" title="${pct}% complete"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} filed (${pct}%)</span></div></div></div>
     <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Period</th><th>Status</th><th>Preparer</th><th>Planned / Completed</th><th>Ack / Ref</th><th class="num">Net VAT</th><th>Last update</th><th></th></tr></thead><tbody>
-    ${rows.map(r => { const late = !VAT_DONE.has(r.st) && daysUntil(dueOf(pe, r.c)) < 0; return `<tr>
+    ${rows.map(r => { const late = !VAT_DONE.has(r.st) && daysUntil(dueOf(pe, r.c)) < 0; return `<tr${revTr(r.st, r.pp.rev)}>
       <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
       <td class="nowrap small">${periodLabel(r.c.VATCycle, pe)}</td>
       <td>${vatChip(r.st)}${late ? ` ${chip("red", "Overdue")}` : ""}</td>
@@ -1518,12 +1530,12 @@ VIEWS.audit = () => {
   return `<div class="toolbar">
     <select class="in" data-bind="af.fy">${[0,1,2,3,4].map(i => String(y - i)).map(v => `<option value="${v}" ${f.fy === v ? "selected" : ""}>Financial year ${v}</option>`).join("")}</select>
     <input id="af-q" class="in search" placeholder="Search client…" value="${esc(f.q)}" data-bind="af.q">
-    ${isMgr() ? `<select class="in" data-bind="af.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
+    ${isAdmin() ? `<select class="in" data-bind="af.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
     <select class="in" data-bind="af.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>
   </div>
   <div class="card"><div class="card-b"><div class="progress-row"><div><b>FY${esc(f.fy)} audits</b><div class="small muted">Clients with the <b>Audit</b> service ticked${carried.length ? ` · <span class="over">+ ${carried.length} pending from earlier years shown first</span>` : ""}</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>FY end</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Progress</th><th>Due</th><th>Planned / Completed</th><th>Last update</th><th></th></tr></thead><tbody>
-  ${rows.map(r => { const idx = auditStatuses(r.c).indexOf(r.st); const steps = auditStatuses(r.c).length - 1; const d = daysUntil(r.rec && r.rec.DueDate); return `<tr>
+  ${rows.map(r => { const idx = auditStatuses(r.c).indexOf(r.st); const steps = auditStatuses(r.c).length - 1; const d = daysUntil(r.rec && r.rec.DueDate); return `<tr${revTr(r.st, audPeople(r.c, r.fy).rev)}>
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a>${r.carried ? ` ${chip("red", "Carried · FY" + esc(r.fy))}` : ""}</td>
     <td class="small nowrap">${fmtDate(r.fy + "-" + (r.c.FYEnd || "12-31"))}</td><td class="small">${esc(r.rec && r.rec.Auditor)}</td>
     <td class="small">${esc(empName(audPeople(r.c, r.fy).asg))}</td><td>${auditChip(r.st)}</td>
@@ -1545,7 +1557,7 @@ VIEWS.mw = () => {
     ${f.mode === "month" ? `<select class="in" data-bind="mf.month">${Array.from({length:16}, (_, i) => ymAdd(curYM(), 1 - i)).filter(m => m >= MW_START).map(m => `<option value="${m}" ${f.month === m ? "selected" : ""}>${ymLabel(m)}${m === curYM() ? " (this month)" : ""}</option>`).join("")}</select>`
       : `<select class="in" data-bind="mf.year">${[1,0,-1,-2].map(i => y + i).map(v => `<option value="${v}" ${+f.year === v ? "selected" : ""}>${f.mode === "annual" ? "Financial year ending " + v : v}</option>`).join("")}</select>`}
     <input id="mf-q" class="in search" placeholder="Search client…" value="${esc(f.q)}" data-bind="mf.q">
-    ${isMgr() ? `<select class="in" data-bind="mf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
+    ${isAdmin() ? `<select class="in" data-bind="mf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
     ${f.mode !== "year" ? `<select class="in" data-bind="mf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>` : ""}
   </div>`;
   if(!base.length) return head + `<div class="card"><div class="empty">No active clients with the <b>${esc(f.svc)}</b> service${state.loc ? " in " + esc(state.loc) : ""}. Tick <b>${esc(f.svc)}</b> under Services on the client (or use Bulk update → Add service).</div></div>`;
@@ -1553,7 +1565,7 @@ VIEWS.mw = () => {
 };
 function mwTable(rows, svc, labelCol){
   return `<div class="tw"><table class="tbl"><thead><tr><th>Client</th>${labelCol ? "<th>Period</th>" : ""}<th>Status</th><th>Assigned</th><th>Reviewer</th><th>Due</th><th>Planned / Completed</th>${svc === "Consultancy" ? `<th class="num">Hours</th>` : ""}<th>Notes</th><th></th></tr></thead><tbody>
-  ${rows.map(r => { const d = daysUntil(r.due); return `<tr>
+  ${rows.map(r => { const d = daysUntil(r.due); return `<tr${revTr(r.st, mwPeople(r.c, svc, r.ym).rev)}>
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
     ${labelCol ? `<td class="small nowrap">${esc(mwLabel(r.c, r.ym, r.freq))}</td>` : ""}
     <td>${mwChip(r.st)}</td><td class="small">${esc(empName(mwPeople(r.c, svc, r.ym).asg))}</td><td class="small">${esc(empName(mwPeople(r.c, svc, r.ym).rev || r.c.Reviewer))}</td>
@@ -1617,12 +1629,12 @@ VIEWS.ct = () => {
   return `<div class="toolbar">
     <select class="in" data-bind="tf.fy">${[0,1,2,3,4].map(i => String(y - i)).map(v => `<option value="${v}" ${f.fy === v ? "selected" : ""}>Financial year ${v}</option>`).join("")}</select>
     <input id="tf-q" class="in search" placeholder="Search client or CT TRN…" value="${esc(f.q)}" data-bind="tf.q">
-    ${isMgr() ? `<select class="in" data-bind="tf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
+    ${isAdmin() ? `<select class="in" data-bind="tf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
     <select class="in" data-bind="tf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>
   </div>
   <div class="card"><div class="card-b"><div class="progress-row"><div><b>FY${esc(f.fy)} corporate tax returns</b><div class="small muted">Clients with the <b>Corporate Tax</b> service ticked · default due date can be overridden per return</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} filed (${pct}%)</span></div></div></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>CT TRN</th><th>Due</th><th>Status</th><th>Preparer</th><th>Planned / Completed</th><th>Ack / Ref</th><th class="num">Tax payable</th><th></th></tr></thead><tbody>
-  ${rows.map(r => { const d = daysUntil(r.due); return `<tr>
+  ${rows.map(r => { const d = daysUntil(r.due); return `<tr${revTr(r.st, ctPeople(r.c, f.fy).rev)}>
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
     <td class="small">${esc(r.c.CTNo) || '<span class="faint">—</span>'}</td>
     <td class="small nowrap" title="Tax period ends ${fmtDate(f.fy + "-" + (r.c.FYEnd || "12-31"))}">${fmtDate(r.due)}${!CT_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
@@ -1649,7 +1661,7 @@ async function syncOthers(c, anyYear){ if(!c || isDeact(c) || !data.other) retur
     data.other.push(r); n++; }
   if(n) await logAct("Other services added", c, otherNamesText(c).join(", ") + ` · tracked for ${Y}`); return n; }
 function otherItems(clients, year){ const out = []; const t = todayISO(); const ids = new Map(clients.filter(c => !isDeact(c)).map(c => [c.id, c])); const Y = String(year || curYear());
-  const meE = fltWho(); for(const r of data.other){ const c = ids.get(r.ClientId); if(!c || othYear(r) !== Y) continue; if(meE && lc(r.AssignedTo) !== meE) continue; const st = r.Status || "Not started"; const done = OTH_DONE.has(st);
+  const meE = fltWho(); for(const r of data.other){ const c = ids.get(r.ClientId); if(!c || othYear(r) !== Y) continue; if(meE && lc(r.AssignedTo) !== meE && lc(r.Reviewer) !== meE) continue; const st = r.Status || "Not started"; const done = OTH_DONE.has(st);
     out.push({ c, name: r.Service, year: Y, rec: r, st, done, due: r.DueDate || "", fu: r.FollowUp || "", over: !done && !!r.DueDate && r.DueDate < t, fuOver: !done && !!r.FollowUp && r.FollowUp <= t }); }
   return out; }
 function othWork(clients){ const its = otherItems(clients); return { total: its.length, doneN: its.filter(x => x.done).length, curP: its.filter(x => !x.done).length, prevN: 0, over: its.filter(x => x.over).length, pending: its.filter(x => !x.done) }; }
@@ -1658,7 +1670,7 @@ VIEWS.other = () => {
   const f = state.of; const q = lc(f.q); const Y = String(f.year || curYear());
   const all = otherItems(visibleClients(), Y); const names = [...new Set(all.map(x => x.name))].sort((a, b) => a.localeCompare(b));
   const prevAll = otherItems(visibleClients(), +Y - 1).filter(x => x.st !== "Not applicable" && !othFind(x.c.id, x.name, Y));
-  let rows = all.filter(x => (!q || lc(x.c.Title).includes(q) || lc(x.name).includes(q)) && (!f.svc || x.name === f.svc) && (!f.who || lc(x.rec.AssignedTo) === f.who));
+  let rows = all.filter(x => (!q || lc(x.c.Title).includes(q) || lc(x.name).includes(q)) && (!f.svc || x.name === f.svc) && (!f.who || lc(x.rec.AssignedTo) === f.who || lc(x.rec.Reviewer) === f.who));
   const total = rows.length, done = rows.filter(x => x.done).length; const pct = total ? Math.round(done / total * 100) : 0;
   if(f.show === "pending") rows = rows.filter(x => !x.done); if(f.show === "done") rows = rows.filter(x => x.done); if(f.show === "fu") rows = rows.filter(x => x.fuOver);
   rows.sort((a, b) => (b.over - a.over) || (b.fuOver - a.fuOver) || (a.done - b.done) || (a.due || "9999").localeCompare(b.due || "9999") || a.c.Title.localeCompare(b.c.Title));
@@ -1667,13 +1679,13 @@ VIEWS.other = () => {
     <select class="in" data-bind="of.year" title="Year">${yrs.map(y => `<option value="${y}" ${Y === y ? "selected" : ""}>Year ${y}</option>`).join("")}</select>
     <input id="of-q" class="in search" placeholder="Search client or service…" value="${esc(f.q)}" data-bind="of.q">
     <select class="in" data-bind="of.svc"><option value="">All other services</option>${names.map(n => `<option ${f.svc === n ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
-    ${isMgr() ? `<select class="in" data-bind="of.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
+    ${isAdmin() ? `<select class="in" data-bind="of.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
     <select class="in" data-bind="of.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="fu" ${f.show === "fu" ? "selected" : ""}>Follow-up due</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>
     <div class="right">${isMgr() && prevAll.length ? `<button class="btn" data-act="othCarry" data-v="${Y}" title="Copy ${+Y - 1} services that aren't yet tracked in ${Y}">↻ Carry forward ${prevAll.length} from ${+Y - 1}</button>` : ""}<button class="btn pri" data-act="addOther" data-v="${Y}">${I.plus} Add other service</button></div>
   </div>
   <div class="card"><div class="card-b"><div class="progress-row"><div><b>Other services · ${Y}</b><div class="small muted">One line per client, service and year · follow up by date</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>Service</th><th>Status</th><th>Assigned</th><th>Due</th><th>Planned / Completed</th><th>Next follow-up</th><th>Latest note</th><th>Last update</th><th></th></tr></thead><tbody>
-  ${rows.map(x => { const d = daysUntil(x.due); return `<tr>
+  ${rows.map(x => { const d = daysUntil(x.due); return `<tr${revTr(x.st, x.rec.Reviewer)}>
     <td class="cname">${state.loc ? "" : locTag(x.c) + " "}<a href="#" data-act="openClient" data-id="${x.c.id}" style="color:inherit;text-decoration:none">${esc(x.c.Title)}</a></td>
     <td><b>${esc(x.name)}</b></td><td>${othChip(x.st)}</td>
     <td class="small">${x.rec.AssignedTo ? esc(empName(x.rec.AssignedTo)) : `<span class="soon">Unassigned</span>`}</td>
@@ -1704,10 +1716,10 @@ VIEWS.team = () => {
 
 VIEWS.activity = () => {
   const f = state.lf; const q = lc(f.q); const cl = visibleClients(); const ids = new Set(cl.map(c => c.id));
-  const rows = data.activity.filter(a => (isMgr() || lc(a.UserEmail) === lc(me.email)) && (!f.who || lc(a.UserEmail) === f.who) &&
+  const rows = data.activity.filter(a => (isAdmin() || lc(a.UserEmail) === lc(me.email)) && (!f.who || lc(a.UserEmail) === f.who) &&
     (!q || [a.Title, a.ClientName, a.Details, a.UserName].some(v => lc(v).includes(q)))).sort((a,b) => b.At.localeCompare(a.At)).slice(0, 500);
   return `<div class="toolbar"><input id="lf-q" class="in search" placeholder="Search action, client, details…" value="${esc(f.q)}" data-bind="lf.q">
-    ${isMgr() ? `<select class="in" data-bind="lf.who"><option value="">All users</option>${data.employees.map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}</div>
+    ${isAdmin() ? `<select class="in" data-bind="lf.who"><option value="">All users</option>${data.employees.map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}</div>
   <div class="card"><div class="tw"><table class="tbl"><thead><tr><th>When</th><th>User</th><th>Action</th><th>Client</th><th>Details</th></tr></thead><tbody>
   ${rows.map(a => `<tr><td class="small nowrap">${fmtDT(a.At)}</td><td class="small">${esc(a.UserName || a.UserEmail)}</td><td>${/password/i.test(a.Title) ? chip("amber", esc(a.Title)) : esc(a.Title)}</td><td class="cname small">${esc(a.ClientName)}</td><td class="small muted">${esc(a.Details)}</td></tr>`).join("")}
   </tbody></table>${rows.length ? "" : `<div class="empty">No activity recorded.</div>`}</div></div>`;
@@ -1941,6 +1953,7 @@ MODALS.auditForm = ({ cid, fy }) => {
     <label class="full">Status<select class="in" name="Status">${opt(auditStatuses(c), auditSt(c, r))}</select></label>
     <label>Auditor (firm)<input class="in" name="Auditor" value="${esc(r.Auditor)}"></label>
     <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || audPeople(c, fy).asg || (isMgr() ? "" : me.email))}</select></label>
+    <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || audPeople(c, fy).rev || c.Reviewer)}</select></label>
     <label>Target / due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate)}"></label>
     <label>Planned date<input class="in" type="date" name="PlannedDate" value="${esc(r.PlannedDate)}"><span class="hint">The day you plan to work on it — shows on your dashboard</span></label>
     <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
@@ -2082,7 +2095,7 @@ SUBMIT.ct = async (form, o) => {
 SUBMIT.audit = async (form, o) => {
   const cid = form.dataset.c, fy = form.dataset.fy; const c = clientById(cid); const r = auditRec(cid, fy); const PREVX = auditSt(c, r);
   if(AUDIT_DONE.has(o.Status) && !/^not applicable$/i.test(o.Status) && !o.CompletedDate) o.CompletedDate = todayISO();
-  const f = { Title: cid + "|FY" + fy, ClientId: cid, FY: fy, Status: o.Status, PlannedDate: o.PlannedDate || "", Auditor: o.Auditor, AssignedTo: o.AssignedTo, DueDate: o.DueDate, CompletedDate: o.CompletedDate, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const f = { Title: cid + "|FY" + fy, ClientId: cid, FY: fy, Status: o.Status, PlannedDate: o.PlannedDate || "", Auditor: o.Auditor, AssignedTo: o.AssignedTo, Reviewer: o.Reviewer || "", DueDate: o.DueDate, CompletedDate: o.CompletedDate, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
   const prev = auditSt(c, r);
   await saveRec("audits", r ? r.id : null, f);
   await logAct("Audit status updated", c, `FY${fy}: ${prev} → ${o.Status}${noteTag(o)}`);
