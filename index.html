@@ -863,7 +863,7 @@ const state = {
   cf: { q:"", status:"Active", who:"", cycle:"", svc:"", crMonth:"", sk:"Title", sd:1, sel: new Set() },
   vf: { mode:"month", month: curYM(), year: new Date().getFullYear(), q:"", who:"", show:"all", cycle: null },
   of: { q:"", svc:"", who:"", show:"pending", year: String(new Date().getFullYear()) },
-  dg: { mode:"attention", svc:"" }, dashYear: new Date().getFullYear(), dashMore: false,
+  dg: { mode:"attention", svc:"" }, dashYear: new Date().getFullYear(), dashMore: false, pl: { who: "" },
   af: { fy: String(new Date().getFullYear() - 1), q:"", who:"", show:"all" },
   mf: { svc:"Accounting", mode:"month", month: ymAdd(curYM(), -1) < MW_START ? MW_START : ymAdd(curYM(), -1), year: new Date().getFullYear(), q:"", who:"", show:"all" },
   tf: { fy: String(new Date().getFullYear() - 1), q:"", who:"", show:"all" },
@@ -1281,16 +1281,19 @@ function teamChart(cl, pend){ const rows = activeEmployees().map(e => { const em
     ${rows.length ? hbars(rows) : `<div class="empty">No open items assigned.</div>`}
     <div class="ch-cap">${top ? `<b>${esc(top.name)}</b> has the most open items (${top.over + top.pend}${top.over ? `, ${top.over} overdue` : ""})` : ""}${unass ? ` · <span class="over">${unass} item${unass > 1 ? "s" : ""} not assigned to anyone</span>` : ""}</div></div></div>`; }
 /* My work plan: the signed-in person's open work by planned day, plus what they completed in the last 7 days */
-function myDone7(){ const e = lc(me.email); const from = isoAdd(todayISO(), -6); const vis = new Set(visibleClients().map(c => c.id)); const out = [];
-  const add = (r, date, svc, label, act) => { if(date && date >= from && date <= todayISO() && vis.has(r.ClientId)) out.push({ c: clientById(r.ClientId), svc, label, date, act }); };
-  for(const r of data.vat) if([r.Preparer, r.Reviewer].map(lc).includes(e)) { const c = clientById(r.ClientId); if(c) add(r, r.FiledDate, "VAT", periodLabel(c.VATCycle, r.PeriodEnd), `data-act="editVat" data-c="${r.ClientId}" data-pe="${r.PeriodEnd}"`); }
-  for(const r of data.ct) if([r.Preparer, r.Reviewer].map(lc).includes(e)) add(r, r.FiledDate, "Corporate tax", "FY" + r.FY, `data-act="editCt" data-c="${r.ClientId}" data-fy="${r.FY}"`);
-  for(const r of data.mw) if(lc(r.AssignedTo) === e) { const c = clientById(r.ClientId); if(c) add(r, r.CompletedDate, r.Service === "Consultancy" ? "Consultation" : "Accounting", mwLabel(c, r.Month, r.Freq || "Monthly"), `data-act="editMw" data-c="${r.ClientId}" data-s="${esc(r.Service)}" data-m="${r.Month}" data-f="${r.Freq || "Monthly"}"`); }
-  for(const r of data.audits) if(lc(r.AssignedTo) === e) add(r, r.CompletedDate, "Audit", "FY" + r.FY, `data-act="editAudit" data-c="${r.ClientId}" data-fy="${r.FY}"`);
-  for(const r of data.other) if(lc(r.AssignedTo) === e) add(r, r.CompletedDate, r.Service, othYear(r), `data-act="editOther" data-id="${r.id}"`);
+function myDone7(e){ const has = v => !e || v.map(lc).includes(e); const from = isoAdd(todayISO(), -6); const vis = new Set(visibleClients().map(c => c.id)); const out = [];
+  const add = (r, date, svc, label, act) => { if(date && date >= from && date <= todayISO() && vis.has(r.ClientId)) out.push({ c: clientById(r.ClientId), svc, label, date, act, who: r.AssignedTo || r.Preparer }); };
+  for(const r of data.vat) if(has([r.Preparer, r.Reviewer])) { const c = clientById(r.ClientId); if(c) add(r, r.FiledDate, "VAT", periodLabel(c.VATCycle, r.PeriodEnd), `data-act="editVat" data-c="${r.ClientId}" data-pe="${r.PeriodEnd}"`); }
+  for(const r of data.ct) if(has([r.Preparer, r.Reviewer])) add(r, r.FiledDate, "Corporate tax", "FY" + r.FY, `data-act="editCt" data-c="${r.ClientId}" data-fy="${r.FY}"`);
+  for(const r of data.mw) if(has([r.AssignedTo])) { const c = clientById(r.ClientId); if(c) add(r, r.CompletedDate, r.Service === "Consultancy" ? "Consultation" : "Accounting", mwLabel(c, r.Month, r.Freq || "Monthly"), `data-act="editMw" data-c="${r.ClientId}" data-s="${esc(r.Service)}" data-m="${r.Month}" data-f="${r.Freq || "Monthly"}"`); }
+  for(const r of data.audits) if(has([r.AssignedTo])) add(r, r.CompletedDate, "Audit", "FY" + r.FY, `data-act="editAudit" data-c="${r.ClientId}" data-fy="${r.FY}"`);
+  for(const r of data.other) if(has([r.AssignedTo])) add(r, r.CompletedDate, r.Service, othYear(r), `data-act="editOther" data-id="${r.id}"`);
   return out.sort((a, b) => b.date.localeCompare(a.date)); }
 function isoAdd(iso, n){ const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
-function planCard(pend){ const e = lc(me.email); const mine = pend.filter(x => (x.own || []).includes(e)); const done = myDone7();
+function planCard(pend){ const e = isMgr() ? (state.pl.who || "") : lc(me.email);
+  const mine = e ? pend.filter(x => (x.own || []).includes(e)) : pend; const done = myDone7(e);
+  const nm = x => !e && (x.own || []).length ? ` · <span class="faint">${esc((x.own || []).map(o => empName(o).split(" ")[0]).join(" / "))}</span>` : "";
+  const whoSel = isMgr() ? `<select class="in" data-bind="pl.who" style="width:auto;padding:4px 8px;margin-right:8px"><option value="">Everyone</option>${activeEmployees().map(x => `<option value="${esc(lc(x.Email))}" ${lc(x.Email) === e ? "selected" : ""}>${esc(x.Title)}${lc(x.Email) === lc(me.email) ? " (me)" : ""}</option>`).join("")}</select>` : "";
   if(!mine.length && !done.length) return "";
   const t = todayISO(); const days = Array.from({ length: 7 }, (_, i) => isoAdd(t, i));
   const late = mine.filter(x => x.plan && x.plan < t), none = mine.filter(x => !x.plan), later = mine.filter(x => x.plan && x.plan > days[6]);
@@ -1299,11 +1302,11 @@ function planCard(pend){ const e = lc(me.email); const mine = pend.filter(x => (
   const dn = d => new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
   const box = (k, top, mid, n, cls) => `<button class="plan-day ${cls || ""} ${sel === k ? "on" : ""}" data-act="planDay" data-v="${k}"><div class="dn">${top}</div><div class="dd">${mid}</div><div class="dc">${n} job${n === 1 ? "" : "s"}</div></button>`;
   const strip = days.map((d, i) => box(d, i === 0 ? "Today" : dn(d), +d.slice(8), mine.filter(x => x.plan === d).length, i === 0 ? "today" : ""));
-  const row = x => { const dd = daysUntil(x.due); return `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${x.due ? ` · due ${fmtDate(x.due)} <span class="${dd < 0 ? "over" : dd <= 7 ? "soon" : "faint"}">(${relDays(dd)})</span>` : ""}</div></div>${x.plan ? `<span class="pd plan ${x.plan < t ? "late" : x.plan === t ? "today" : ""}">◷ ${x.plan === t ? "Today" : fmtDate(x.plan)}</span>` : `<span class="small faint">not planned</span>`}</li>`; };
-  const list = sel === "done" ? done.map(x => `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}</div></div><span class="pd done">✓ ${fmtDate(x.date)}</span></li>`)
+  const row = x => { const dd = daysUntil(x.due); return `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${nm(x)}${x.due ? ` · due ${fmtDate(x.due)} <span class="${dd < 0 ? "over" : dd <= 7 ? "soon" : "faint"}">(${relDays(dd)})</span>` : ""}</div></div>${x.plan ? `<span class="pd plan ${x.plan < t ? "late" : x.plan === t ? "today" : ""}">◷ ${x.plan === t ? "Today" : fmtDate(x.plan)}</span>` : `<span class="small faint">not planned</span>`}</li>`; };
+  const list = sel === "done" ? done.map(x => `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${!e && x.who ? ` · <span class="faint">${esc(empName(x.who).split(" ")[0])}</span>` : ""}</div></div><span class="pd done">✓ ${fmtDate(x.date)}</span></li>`)
     : pick.sort((a, b) => (a.plan || "9").localeCompare(b.plan || "9") || (a.due || "9").localeCompare(b.due || "9")).map(row);
   const title = sel === "late" ? "Planned earlier, still open" : sel === "none" ? "Not planned yet — open the job and set a planned date" : sel === "later" ? "Planned after next week" : sel === "done" ? "Completed in the last 7 days" : sel === t ? "Planned for today" : "Planned for " + fmtDate(sel);
-  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>My work plan</h3><div class="right small muted">${mine.length} open job${mine.length === 1 ? "" : "s"} assigned to you · <span class="pd plan">◷ planned</span> <span class="pd done">✓ completed</span></div></div>
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>${isMgr() ? "Work plan" : "My work plan"}</h3><div class="right small muted">${whoSel}${mine.length} open job${mine.length === 1 ? "" : "s"}${e ? (e === lc(me.email) ? " assigned to you" : " assigned to " + esc(empName(e))) : " across the team"} · <span class="pd plan">◷ planned</span> <span class="pd done">✓ completed</span></div></div>
     <div class="plan-strip">${strip.join("")}</div>
     <div class="plan-strip" style="padding-top:0">${box("late", "Missed plan", "!", late.length, late.length ? "late" : "")}${box("none", "Not planned", "—", none.length)}${box("later", "Later", "›", later.length)}${box("done", "Done 7 days", "✓", done.length)}</div>
     <div class="card-b small muted" style="padding-bottom:4px"><b>${title}</b></div>
