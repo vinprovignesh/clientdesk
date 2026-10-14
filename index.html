@@ -2353,7 +2353,7 @@ function clientStrip(){ const cl = visibleClients(); const act = cl.filter(c => 
   wrap("clients", clientStrip); })();
 
 const ACT = {
-  nav: d => { if(d.v === "clients") state.cf.crMonth = ""; state.view = d.v; render(); window.scrollTo(0, 0); },
+  nav: d => { if(d.v === "bva" && state.view !== "bva" && state.ff){ Object.assign(state.ff, { month: finDefMonth(), cbMonth: finDefMonth(), period: "month", year: String(Math.max(+FIN.start.slice(0, 4), new Date().getFullYear())) }); } if(d.v === "clients") state.cf.crMonth = ""; state.view = d.v; render(); window.scrollTo(0, 0); },
   reload: () => reload(),
   signout: () => msalApp.logoutRedirect({ account }),
   gotoUnset: () => { state.view = "clients"; Object.assign(state.cf, { cycle:"__unset", svc:"VAT", status:"Active", q:"", who:"", crMonth:"" }); render(); },
@@ -2578,8 +2578,8 @@ function varCell(b, a, dir){ const v = (a - b) * dir; if(Math.abs(r3(v)) < 0.000
 
 /* ---------- view ---------- */
 const FIN_TABS = [["summary", "Budget vs Actual"], ["clients", "Inflow by client"], ["cash", "Cash book"], ["fees", "Fee budget"], ["exp", "Expense budget"]];
-const finDefMonth = () => { const m = ymAdd(curYM(), -1); return m < FIN.start ? FIN.start : m; };
-state.ff = { tab: "summary", mode: "sheet", month: finDefMonth(), period: "ytd", cq: "", cbView: "exp", cbMonth: curYM() < FIN.start ? FIN.start : curYM(), cbDir: "", cbQ: "", cbHead: "", fq: "", fshow: "all", year: String(Math.max(+FIN.start.slice(0, 4), new Date().getFullYear())) };
+const finDefMonth = () => { const m = curYM(); return m < FIN.start ? FIN.start : m; };
+state.ff = { tab: "summary", mode: "sheet", month: finDefMonth(), period: "month", cq: "", cbView: "exp", cbMonth: finDefMonth(), cbDir: "", cbQ: "", cbHead: "", fq: "", fshow: "all", year: String(Math.max(+FIN.start.slice(0, 4), new Date().getFullYear())) };
 function finMonthOpts(sel, extra){ const last = ymAdd(curYM() < FIN.start ? FIN.start : curYM(), 3); const ms = finYms(FIN.start, last).reverse();
   return (extra || "") + ms.map(m => `<option value="${m}" ${sel === m ? "selected" : ""}>${ymLabel(m)}</option>`).join(""); }
 function finYearOpts(sel){ const ys = []; for(let y = +FIN.start.slice(0, 4); y <= new Date().getFullYear() + 1; y++) ys.push(String(y)); return ys.map(y => `<option ${String(sel) === y ? "selected" : ""}>${y}</option>`).join(""); }
