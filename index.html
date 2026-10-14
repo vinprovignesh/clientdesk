@@ -1344,10 +1344,10 @@ VIEWS.dashboard = () => {
   const overN = nowYi.filter(x => x.svc !== "CR" && x.st === "over").length, dueN = nowYi.filter(x => x.svc !== "CR" && x.st === "due").length;
   const n30 = nowYi.filter(x => x.svc !== "CR" && !x.done && daysUntil(x.due) >= 0 && daysUntil(x.due) <= 30).length;
   return `
+  ${(() => { const P = openItemsAll(cl, { vat, mw, ct, aud, oth: othWork(cl) }); return planCard(P) + reviewCard(P); })()}
   <div class="hero"><div class="hi"><h2 class="serif">${greet}, ${esc(me.name.split(" ")[0])}</h2><div class="d">${fmtDate(todayISO())} · ${state.loc ? esc(state.loc === "UAE" ? "UAE (Dubai)" : "Bahrain") : "Bahrain & UAE"} · ${active.length} active clients</div>
     <div class="facts"><div class="${overN ? "red" : ""}"><b>${overN}</b>overdue</div><div><b>${dueN}</b>open, due in ${ymLabel(cur)}</div><div><b>${n30}</b>due in next 30 days</div><div><b>${cr.length}</b>CR / licence ≤30d</div></div></div>
     <div class="ring">${heroRing(health)}<div class="rv">${health}%</div><div class="rt"><b>On-time health</b><br>deadlines met so far in ${new Date().getFullYear()}</div></div></div>
-  ${(() => { const P = openItemsAll(cl, { vat, mw, ct, aud, oth: othWork(cl) }); return reviewCard(P) + planCard(P); })()}
   ${unsetCycle ? `<div class="banner">${unsetCycle} active VAT client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
   ${(() => { const oth = othWork(cl); const svcs = [["vat", "VAT", `due ${ymLabel(cur)}`, vat, "filed"], ["mw", "Accounting / Consultation", `due ${ymLabel(cur)}`, mw, "done"], ["ct", "Corporate tax", "latest year", ct, "filed"], ["audit", "Audit", "FY" + fy, aud, "done"], ...(oth.total ? [["other", "Other services", curYear(), oth, "done"]] : [])];
     const pend = openItemsAll(cl, { vat, mw, ct, aud, oth });
