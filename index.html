@@ -313,9 +313,9 @@ tr.rev-me td{background:#f4eefd!important}tr.rev-me td:first-child{box-shadow:in
 tr.rev-me td.cname::after{content:"Your review";display:inline-block;margin-left:8px;font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:#6b3fb0;color:#fff;vertical-align:middle}
 :root[data-theme="dark"] tr.rev-me td{background:#2a2142!important}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) tr.rev-me td{background:#2a2142!important}}
 .chip.st-new{background:#eceef3;color:#5b6475}.chip.st-wait{background:#fdf0dc;color:#a65e00}.chip.st-recv{background:#e1effc;color:#1f6fb8}
-.chip.st-rev{background:#efe7fb;color:#6b3fb0}.chip.st-sign{background:#dcf2e4;color:#19733f}.chip.st-na{background:transparent;color:#7a8396;box-shadow:inset 0 0 0 1px #c9cfda}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip.st-new{background:#2a2f3a;color:#b4bccb}:root:not([data-theme="light"]) .chip.st-wait{background:#3a2a10;color:#f3b35a}:root:not([data-theme="light"]) .chip.st-recv{background:#14304d;color:#7fb8f0}:root:not([data-theme="light"]) .chip.st-rev{background:#2e2147;color:#bf9df2}:root:not([data-theme="light"]) .chip.st-sign{background:#123826;color:#6fd39a}:root:not([data-theme="light"]) .chip.st-na{color:#8e97a8;box-shadow:inset 0 0 0 1px #3b4252}}
-:root[data-theme="dark"] .chip.st-new{background:#2a2f3a;color:#b4bccb}:root[data-theme="dark"] .chip.st-wait{background:#3a2a10;color:#f3b35a}:root[data-theme="dark"] .chip.st-recv{background:#14304d;color:#7fb8f0}:root[data-theme="dark"] .chip.st-rev{background:#2e2147;color:#bf9df2}:root[data-theme="dark"] .chip.st-sign{background:#123826;color:#6fd39a}:root[data-theme="dark"] .chip.st-na{color:#8e97a8;box-shadow:inset 0 0 0 1px #3b4252}
+.chip.st-rev{background:#efe7fb;color:#6b3fb0}.chip.st-sign{background:#dcf0f6;color:#0b6e85}.chip.st-paid{background:#16884a;color:#fff}.chip.st-na{background:transparent;color:#7a8396;box-shadow:inset 0 0 0 1px #c9cfda}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip.st-new{background:#2a2f3a;color:#b4bccb}:root:not([data-theme="light"]) .chip.st-wait{background:#3a2a10;color:#f3b35a}:root:not([data-theme="light"]) .chip.st-recv{background:#14304d;color:#7fb8f0}:root:not([data-theme="light"]) .chip.st-rev{background:#2e2147;color:#bf9df2}:root:not([data-theme="light"]) .chip.st-sign{background:#0f3340;color:#7fd0e6}:root:not([data-theme="light"]) .chip.st-paid{background:#1f9d58;color:#fff}:root:not([data-theme="light"]) .chip.st-na{color:#8e97a8;box-shadow:inset 0 0 0 1px #3b4252}}
+:root[data-theme="dark"] .chip.st-new{background:#2a2f3a;color:#b4bccb}:root[data-theme="dark"] .chip.st-wait{background:#3a2a10;color:#f3b35a}:root[data-theme="dark"] .chip.st-recv{background:#14304d;color:#7fb8f0}:root[data-theme="dark"] .chip.st-rev{background:#2e2147;color:#bf9df2}:root[data-theme="dark"] .chip.st-sign{background:#0f3340;color:#7fd0e6}:root[data-theme="dark"] .chip.st-paid{background:#1f9d58;color:#fff}:root[data-theme="dark"] .chip.st-na{color:#8e97a8;box-shadow:inset 0 0 0 1px #3b4252}
 .steps i.on{background:var(--vg-done)!important}.bar i{background:var(--vg-done)!important}
 .segbar .ok{background:var(--vg-done)}.segbar .wa{background:var(--vg-due)}.segbar .ba{background:var(--vg-over)}
 body{background:radial-gradient(1200px 500px at 100% -10%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 60%),var(--bg)}
@@ -973,6 +973,7 @@ function pcCell(rec, doneField, done){ const pl = rec && rec.PlannedDate, cd = r
   return p || c ? `<div class="pdw">${p}${c}</div>` : `<span class="faint">—</span>`; }
 function stCls(st, done){ const k = lc(st);
   if(/not applicable/.test(k)) return "st-na";
+  if(/paid \/ closed/.test(k)) return "st-paid";
   if(done.has(st)) return "st-done";
   if(!k || /not started/.test(k)) return "st-new";
   if(/request|awaiting|pending at|on hold/.test(k)) return "st-wait";
@@ -1019,6 +1020,9 @@ function crInfo(c){
 }
 function updCell(r){ if(!r || !r.UpdatedOn) return ""; return `<span title="${esc(empName(r.UpdatedBy))} · ${fmtDT(r.UpdatedOn)}">${esc(empName(r.UpdatedBy).split(" ")[0])} · ${fmtDate(r.UpdatedOn.slice(0,10)).slice(0,6)}</span>`; }
 function chip(color, text, dot){ return `<span class="chip ${color}">${dot ? '<span class="dot"></span>' : ""}${text}</span>`; }
+/* filed but the tax isn't confirmed paid yet: follow up on payment (Paid / Closed is the final stage) */
+function payPending(st, rec){ if(st !== "Filed") return false; const a = parseFloat(String((rec && rec.Amount) || "").replace(/[^0-9.\-]/g, "")); return !(a <= 0); }
+const payChip = (st, rec) => payPending(st, rec) ? ` ${chip("st-wait", "Payment follow-up")}` : "";
 function vatChip(st){ return chip(stCls(st, VAT_DONE), esc(st), true); }
 function auditChip(st){ return chip(stCls(st, AUDIT_DONE), esc(st), true); }
 function avatars(emails){ return `<div class="avs">${emails.map(e => `<span class="av" title="${esc(e)}"><i>${esc(initials(empName(e)))}</i>${esc(empName(e).split(" ")[0])}</span>`).join("")}</div>`; }
@@ -1495,7 +1499,7 @@ function vatMonthView(base){
     ${rows.map(r => { const late = !VAT_DONE.has(r.st) && daysUntil(dueOf(pe, r.c)) < 0; return `<tr${revTr(r.st, r.pp.rev)}>
       <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
       <td class="nowrap small">${periodLabel(r.c.VATCycle, pe)}</td>
-      <td>${vatChip(r.st)}${late ? ` ${chip("red", "Overdue")}` : ""}</td>
+      <td>${vatChip(r.st)}${payChip(r.st, r.rec)}${late ? ` ${chip("red", "Overdue")}` : ""}</td>
       <td class="small">${esc(empName(r.pp.prep))}${r.pp.rev ? `<div class="faint">rev. ${esc(empName(r.pp.rev).split(" ")[0])}</div>` : ""}</td>
       <td class="small nowrap">${pcCell(r.rec, "FiledDate", VAT_DONE.has(r.st))}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td><td class="num">${r.rec && r.rec.Amount ? esc(r.rec.Amount) + ` <span class="faint small">${curOf(r.c)}</span>` : ""}</td>
       <td class="small faint nowrap">${updCell(r.rec)}</td>
@@ -1638,7 +1642,7 @@ VIEWS.ct = () => {
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
     <td class="small">${esc(r.c.CTNo) || '<span class="faint">—</span>'}</td>
     <td class="small nowrap" title="Tax period ends ${fmtDate(f.fy + "-" + (r.c.FYEnd || "12-31"))}">${fmtDate(r.due)}${!CT_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
-    <td>${ctChip(r.st)}</td><td class="small">${esc(empName(ctPeople(r.c, f.fy).prep))}</td>
+    <td>${ctChip(r.st)}${payChip(r.st, r.rec)}</td><td class="small">${esc(empName(ctPeople(r.c, f.fy).prep))}</td>
     <td class="small nowrap">${pcCell(r.rec, "FiledDate", CT_DONE.has(r.st))}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td>
     <td class="num">${r.rec && r.rec.Amount ? esc(r.rec.Amount) + ` <span class="faint small">${curOf(r.c)}</span>` : ""}</td>
     <td><button class="btn sm" data-act="editCt" data-c="${r.c.id}" data-fy="${esc(f.fy)}">Update</button></td></tr>`; }).join("")}
