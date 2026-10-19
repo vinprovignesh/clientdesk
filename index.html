@@ -563,7 +563,7 @@ table.tbl tr.net td,.fsheet tr.net td.pl{background:color-mix(in srgb,var(--vt-a
 .ms-tag{background:var(--brand-soft);color:var(--accent-ink)}
 /* pending stages in teal shades (completed = navy): in progress teal, under review dark teal */
 :root{--vg-rev:#00665f}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--vg-rev:#7fe3da}}:root[data-theme="dark"]{--vg-rev:#7fe3da}
-.ch-svg .b-wip{fill:var(--vg-due)!important}.ch-svg .b-rev{fill:var(--vg-rev)!important}.sm-cap .cw i.b-wip{background:var(--vg-due)!important}.sm-cap .cw i.b-rev{background:var(--vg-rev)!important}
+.ch-svg .b-done{fill:var(--vg-done)!important}.sm-cap .cw i.b-done{background:var(--vg-done)!important}.ch-svg .b-wip{fill:var(--vg-due)!important}.ch-svg .b-rev{fill:var(--vg-rev)!important}.sm-cap .cw i.b-wip{background:var(--vg-due)!important}.sm-cap .cw i.b-rev{background:var(--vg-rev)!important}
 .fin-exp.locked td.num{padding:10px 8px;font-variant-numeric:tabular-nums}
 .lockv{display:inline-block;min-width:110px;text-align:right;padding:6px 9px;font-variant-numeric:tabular-nums;font-weight:600}
 .mexp.locked .lockv{min-width:150px}
@@ -1262,24 +1262,24 @@ function openItemsAll(cl, w){ const L = [];
 function svcMonthChart(items, Y, title, sub, view){ const cur = curYM(); const months = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
   const data = months.map(m => { const a = items.filter(x => x.ym === m); const open = a.filter(x => !x.done); const w = open.filter(x => !x.rv), r = open.filter(x => x.rv);
     return { m, done: a.length - open.length, w: w.length, wo: w.filter(x => x.st === "over").length, r: r.length, ro: r.filter(x => x.st === "over").length, all: a.length }; });
-  const max = Math.max(1, ...data.map(d => Math.max(d.w, d.r))); const W = 360, H = 150, pl = 4, pb = 20, pt = 16, bw = (W - pl) / 12;
+  const max = Math.max(1, ...data.map(d => Math.max(d.w, d.r, d.done))); const W = 360, H = 150, pl = 4, pb = 20, pt = 16, bw = (W - pl) / 12;
   const y = v => pt + (H - pt - pb) * (1 - v / max);
   const bar = (x, w, n, over, cls, fut) => { if(!n) return ""; const top = y(n), base = y(0), split = y(over); /* overdue sits at the bottom, the rest above it */
     return `${over ? `<rect x="${x.toFixed(1)}" y="${split.toFixed(1)}" width="${w.toFixed(1)}" height="${(base - split).toFixed(1)}" fill="${ST_CLR.over}"/>` : ""}${n - over ? `<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0.5, split - top - (over ? 1 : 0)).toFixed(1)}" rx="2" class="${cls}${fut ? " fut" : ""}"/>` : ""}<text x="${(x + w / 2).toFixed(1)}" y="${(top - 3).toFixed(1)}" text-anchor="middle" class="ch-val sm">${n}</text>`; };
-  const bars = data.map((d, i) => { const x0 = pl + i * bw, w = bw * 0.36, fut = d.m > cur;
+  const bars = data.map((d, i) => { const x0 = pl + i * bw, w = bw * 0.27, fut = d.m > cur;
     return `<g class="mbar" data-act="calGo" data-v="${view}" data-m="${d.m}"><rect x="${x0}" y="${pt - 14}" width="${bw}" height="${H - pt - pb + 14}" fill="transparent"/>${d.m === cur ? `<rect x="${x0 + 1}" y="${pt - 14}" width="${bw - 2}" height="${H - pt - pb + 14}" rx="5" class="ch-cur"/>` : ""}
-      ${bar(x0 + bw * 0.12, w, d.w, d.wo, "b-wip", fut)}${bar(x0 + bw * 0.52, w, d.r, d.ro, "b-rev", fut)}
+      ${bar(x0 + bw * 0.08, w, d.done, 0, "b-done", false)}${bar(x0 + bw * 0.37, w, d.w, d.wo, "b-wip", fut)}${bar(x0 + bw * 0.66, w, d.r, d.ro, "b-rev", fut)}
       <title>${esc(title)} · ${ymLabel(d.m)}: ${d.w} in progress${d.wo ? ` (${d.wo} overdue)` : ""} · ${d.r} under review${d.ro ? ` (${d.ro} overdue)` : ""} · ${d.done} done of ${d.all}</title>
       <text x="${x0 + bw / 2}" y="${H - 5}" text-anchor="middle" class="ch-ax ${d.m === cur ? "cur" : ""}">${MONTHS[i][0]}</text></g>`; }).join("");
   const tw = data.reduce((a, d) => a + (d.m <= cur ? d.w : 0), 0), tr = data.reduce((a, d) => a + (d.m <= cur ? d.r : 0), 0), over = data.reduce((a, d) => a + d.wo + d.ro, 0);
   const all = data.reduce((a, d) => a + d.all, 0), done = data.reduce((a, d) => a + d.done, 0);
-  const cap = !all ? "No deadlines this year" : `<span class="cw"><i class="b-wip"></i><b>${tw}</b> in progress</span> <span class="cw"><i class="b-rev"></i><b>${tr}</b> in review</span>${over ? ` <b class="over">· ${over} overdue</b>` : ""}`;
+  const cap = !all ? "No deadlines this year" : `<span class="cw"><i class="b-done"></i><b>${done}</b> completed</span> <span class="cw"><i class="b-wip"></i><b>${tw}</b> in progress</span> <span class="cw"><i class="b-rev"></i><b>${tr}</b> in review</span>${over ? ` <b class="over">· ${over} overdue</b>` : ""}`;
   return `<div class="card sm-chart"><div class="sm-h"><div><b>${esc(title)}</b><span>${esc(sub)}</span></div><div class="sm-n ${over ? "over" : ""}">${all ? Math.round(done / all * 100) + "%" : "—"}<span>done</span></div></div>
-    <svg viewBox="0 0 ${W} ${H}" class="ch-svg" role="img" aria-label="${esc(title)}: work in progress and under review by month"><line x1="${pl}" x2="${W}" y1="${y(0)}" y2="${y(0)}" class="ch-grid"/>${bars}</svg><div class="sm-cap">${cap}</div></div>`; }
+    <svg viewBox="0 0 ${W} ${H}" class="ch-svg" role="img" aria-label="${esc(title)}: completed, work in progress and under review by month"><line x1="${pl}" x2="${W}" y1="${y(0)}" y2="${y(0)}" class="ch-grid"/>${bars}</svg><div class="sm-cap">${cap}</div></div>`; }
 function deadlineCharts(items, Y){ const defs = [["VAT", "returns by filing deadline", x => x.svc === "VAT", "vat"], ["Accounting", "monthly / annual close", x => x.svc === "Accounting", "mw"], ["Consultation", "monthly / annual", x => x.svc === "Consultancy", "mw"],
     ["Corporate Tax", "returns by due date", x => x.svc === "Corporate Tax", "ct"], ["Audit", "by target date", x => x.svc === "Audit", "audit"], ["Other services", "by due date", x => x.svc === "Other", "other"]];
   const shown = defs.filter(d => items.some(d[2]) || ["VAT", "Accounting", "Corporate Tax", "Audit"].includes(d[0]));
-  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Work in progress vs review · ${Y}</h3><div class="right">${chartLegend([["Work in progress", "var(--vg-due)"], ["Under review", "var(--vg-rev)"], ["Overdue", ST_CLR.over], ["Later months (faded)", "color-mix(in srgb, var(--vg-due) 38%, transparent)"]])}</div></div>
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Completed, in progress and review · ${Y}</h3><div class="right">${chartLegend([["Completed", "var(--vg-done)"], ["Work in progress", "var(--vg-due)"], ["Under review", "var(--vg-rev)"], ["Overdue", ST_CLR.over], ["Later months (faded)", "color-mix(in srgb, var(--vg-due) 38%, transparent)"]])}</div></div>
     <div class="sm-grid">${shown.map(([t, sub, f, v]) => svcMonthChart(items.filter(f), Y, t, sub, v)).join("")}</div></div>`; }
 function hbars(rows, maxV){ const max = Math.max(1, maxV || Math.max(...rows.map(r => r.over + r.pend)));
   return rows.map(r => `<div class="hb"><div class="hb-l" title="${esc(r.name)}">${esc(r.name)}</div><div class="hb-t">${r.over ? `<i style="width:${(r.over / max * 100).toFixed(1)}%;background:${ST_CLR.over}" title="${r.over} overdue"></i>` : ""}${r.pend ? `<i style="width:${(r.pend / max * 100).toFixed(1)}%;background:${ST_CLR.pend}" title="${r.pend} pending"></i>` : ""}</div><div class="hb-v">${r.over + r.pend}${r.over ? ` <span class="over">(${r.over}!)</span>` : ""}</div></div>`).join(""); }
