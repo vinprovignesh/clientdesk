@@ -301,7 +301,7 @@ tr.click-row:hover td{background:var(--panel-2)}
 .dl.ba{background:var(--vg-over-bg)!important;color:var(--vg-over)!important;box-shadow:inset 0 0 0 1.5px var(--vg-over)!important}.dl.fu{background:var(--vg-fut)!important;color:var(--vg-fut-ink)!important}
 .chip.st-done{background:var(--vg-done-bg);color:var(--vg-done)}.chip.st-pend{background:var(--vg-due-bg);color:var(--vg-due)}
 .pdw{display:flex;flex-direction:column;gap:3px;align-items:flex-start}.pd{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
-.pd.plan{background:#fdf0dc;color:#a65e00}.pd.plan.today{background:#a65e00;color:#fff}.pd.plan.late{background:var(--vg-over-bg);color:var(--vg-over)}.pd.done{background:var(--vg-done-bg);color:var(--vg-done)}
+.pd.plan{background:#fdf0dc;color:#a65e00}.pd.plan.today{background:#a65e00;color:#fff}.pd.plan.late{background:var(--vg-over-bg);color:var(--vg-over)}.pd.done{background:var(--vg-done-bg);color:var(--vg-done)}.pd.paid{background:#16884a;color:#fff}
 :root[data-theme="dark"] .pd.plan{background:#3a2a10;color:#f3b35a}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .pd.plan{background:#3a2a10;color:#f3b35a}}
 .plan-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;padding:12px 16px}.plan-day{border-radius:12px;padding:8px 6px;text-align:center;background:var(--grey-bg);cursor:pointer;border:1.5px solid transparent;font:inherit;color:inherit}
 .plan-day.on{border-color:var(--vg-due)}.plan-day .dn{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.75}.plan-day .dd{font-size:18px;font-weight:700}.plan-day .dc{font-size:11px}
@@ -604,7 +604,7 @@ const SCHEMA = {
   clients:   { list: "Clients", fields: { Title:"text", Location:"text", CTNo:"text", CRNo:"text", CRExpiry:"text", Status:"text", DeactivatedOn:"text", DeactivatedBy:"text", ContactName:"text", ContactCode:"text", ContactNo:"text", ContactEmail:"text",
                 VATNo:"text", VATCycle:"text", VATFrom:"text", FYEnd:"text", AuditRequired:"text", AssignedTo:"note", Reviewer:"text", Services:"note", AcctFreq:"text", ConsFreq:"text", Notes:"note" } },
   creds:     { list: "Credentials", fields: { Title:"text", ClientId:"text", Username:"text", Pwd:"text", PortalURL:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  vat:       { list: "VATReturns", fields: { Title:"text", ClientId:"text", PeriodEnd:"text", Status:"text", Preparer:"text", Reviewer:"text", PlannedDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  vat:       { list: "VATReturns", fields: { Title:"text", ClientId:"text", PeriodEnd:"text", Status:"text", Preparer:"text", Reviewer:"text", PlannedDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", PaidDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   audits:    { list: "Audits", fields: { Title:"text", ClientId:"text", FY:"text", Auditor:"text", AssignedTo:"text", Reviewer:"text", Status:"text", DueDate:"text", PlannedDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   mw:        { list: "MonthlyWork", fields: { Title:"text", ClientId:"text", Service:"text", Freq:"text", Month:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", PlannedDate:"text", CompletedDate:"text", Hours:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   ct:        { list: "CorporateTax", fields: { Title:"text", ClientId:"text", FY:"text", Status:"text", Preparer:"text", Reviewer:"text", DueDate:"text", PlannedDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
@@ -1021,7 +1021,12 @@ function crInfo(c){
 function updCell(r){ if(!r || !r.UpdatedOn) return ""; return `<span title="${esc(empName(r.UpdatedBy))} · ${fmtDT(r.UpdatedOn)}">${esc(empName(r.UpdatedBy).split(" ")[0])} · ${fmtDate(r.UpdatedOn.slice(0,10)).slice(0,6)}</span>`; }
 function chip(color, text, dot){ return `<span class="chip ${color}">${dot ? '<span class="dot"></span>' : ""}${text}</span>`; }
 /* filed but the tax isn't confirmed paid yet: follow up on payment (Paid / Closed is the final stage) */
-function payPending(st, rec){ if(st !== "Filed") return false; const a = parseFloat(String((rec && rec.Amount) || "").replace(/[^0-9.\-]/g, "")); return !(a <= 0); }
+/* VAT payment: a payment date is captured only when the net VAT payable is 0.500 or more (refunds and small balances need none) */
+const PAY_MIN = 0.5;
+function amtOf(rec){ const v = String((rec && rec.Amount) || "").replace(/[^0-9.\-]/g, ""); return v === "" ? null : parseFloat(v); }
+function needsPay(rec){ const a = amtOf(rec); return a != null && a >= PAY_MIN; }
+function payPending(st, rec){ if(st !== "Filed" || (rec && rec.PaidDate)) return false; const a = amtOf(rec); return a == null || a >= PAY_MIN; }
+function payCell(rec, st){ if(!needsPay(rec)) return ""; return rec.PaidDate ? `<div><span class="pd paid" title="VAT paid">Paid ${fmtDate(rec.PaidDate)}</span></div>` : VAT_DONE.has(st) ? `<div><span class="pd plan late" title="Filed — payment not yet recorded">Payment pending</span></div>` : ""; }
 const payChip = (st, rec) => payPending(st, rec) ? ` ${chip("st-wait", "Payment follow-up")}` : "";
 function vatChip(st){ return chip(stCls(st, VAT_DONE), esc(st), true); }
 function auditChip(st){ return chip(stCls(st, AUDIT_DONE), esc(st), true); }
@@ -1499,9 +1504,9 @@ function vatMonthView(base){
     ${rows.map(r => { const late = !VAT_DONE.has(r.st) && daysUntil(dueOf(pe, r.c)) < 0; return `<tr${revTr(r.st, r.pp.rev)}>
       <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a></td>
       <td class="nowrap small">${periodLabel(r.c.VATCycle, pe)}</td>
-      <td>${vatChip(r.st)}${payChip(r.st, r.rec)}${late ? ` ${chip("red", "Overdue")}` : ""}</td>
+      <td>${vatChip(r.st)}${late ? ` ${chip("red", "Overdue")}` : ""}</td>
       <td class="small">${esc(empName(r.pp.prep))}${r.pp.rev ? `<div class="faint">rev. ${esc(empName(r.pp.rev).split(" ")[0])}</div>` : ""}</td>
-      <td class="small nowrap">${pcCell(r.rec, "FiledDate", VAT_DONE.has(r.st))}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td><td class="num">${r.rec && r.rec.Amount ? esc(r.rec.Amount) + ` <span class="faint small">${curOf(r.c)}</span>` : ""}</td>
+      <td class="small nowrap">${pcCell(r.rec, "FiledDate", VAT_DONE.has(r.st))}</td><td class="small">${esc(r.rec && r.rec.RefNo)}</td><td class="num">${r.rec && r.rec.Amount ? esc(r.rec.Amount) + ` <span class="faint small">${curOf(r.c)}</span>` : ""}${payCell(r.rec, r.st)}</td>
       <td class="small faint nowrap">${updCell(r.rec)}</td>
       <td><button class="btn sm" data-act="editVat" data-c="${r.c.id}" data-pe="${pe}">Update</button></td></tr>`; }).join("")}
     </tbody></table>${rows.length ? "" : `<div class="empty">No VAT returns fall due in ${ymLabel(f.month)} for these clients.</div>`}</div></div>`;
@@ -1824,7 +1829,7 @@ MODALS.client = ({ id }) => {
     `<div class="tw"><table class="tbl"><thead><tr><th>Period</th><th>Due</th><th>Status</th><th>Preparer</th><th>Filed on</th><th>Ack / Ref</th><th class="num">Net VAT (${curOf(c)})</th><th>Notes</th><th></th></tr></thead><tbody>
     ${pes.map(pe => { const r = vatRec(id, pe); const st = (r && r.Status) || "Not started"; const d = daysUntil(dueOf(pe, c)); return `<tr><td class="nowrap">${periodLabel(c.VATCycle, pe)}</td>
       <td class="nowrap small">${fmtDate(dueOf(pe, c))}${!VAT_DONE.has(st) ? `<div class="${d < 0 ? "over" : d <= 10 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td><td>${vatChip(st)}</td>
-      <td class="small">${esc(empName(r && r.Preparer))}</td><td class="small nowrap">${fmtDate(r && r.FiledDate)}</td><td class="small">${esc(r && r.RefNo)}</td><td class="num">${esc(r && r.Amount)}</td><td class="small muted">${esc(wlLast(r).slice(0, 90))}</td>
+      <td class="small">${esc(empName(r && r.Preparer))}</td><td class="small nowrap">${fmtDate(r && r.FiledDate)}</td><td class="small">${esc(r && r.RefNo)}</td><td class="num">${esc(r && r.Amount)}${r ? payCell(r, st) : ""}</td><td class="small muted">${esc(wlLast(r).slice(0, 90))}</td>
       <td><button class="btn sm" data-act="editVat" data-c="${id}" data-pe="${pe}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
   if(tab === "mw"){ const svcs = MW_SERVICES.filter(sv => hasService(c, sv)); const cur = curYM();
     body = !svcs.length ? `<div class="empty">Neither Accounting nor Consultancy is a service for this client. Tick them under Services in Edit client to track this work.</div>` :
@@ -1910,7 +1915,8 @@ MODALS.vatForm = ({ cid, pe }) => {
     <label>Planned date<input class="in" type="date" name="PlannedDate" value="${esc(r.PlannedDate)}"><span class="hint">The day you plan to work on it — shows on your dashboard</span></label>
     <label>Filed on<input class="in" type="date" name="FiledDate" value="${esc(r.FiledDate)}"></label>
     <label>${LOC[locOf(c)].auth} acknowledgement / ref no<input class="in" name="RefNo" value="${esc(r.RefNo)}"></label>
-    <label>Net VAT payable / (refundable), ${curOf(c)}<input class="in" name="Amount" value="${esc(r.Amount)}" inputmode="decimal" placeholder="e.g. 1250.50 or -300"></label>
+    <label>Net VAT payable / (refundable), ${curOf(c)}<input class="in" name="Amount" value="${esc(r.Amount)}" inputmode="decimal" placeholder="e.g. 1250.50 or -300" data-vatamt="1"></label>
+    <label id="vatPaidWrap" style="${needsPay(r) ? "" : "display:none"}">VAT payment date<input class="in" type="date" name="PaidDate" value="${esc(r.PaidDate)}"><span class="hint">Date the VAT was paid to ${LOC[locOf(c)].auth} — saving a date marks the return Paid / Closed</span></label>
     ${wlBlock(r, "Add a note — e.g. what's done, what's pending from client")}
   </div>${r.UpdatedOn ? `<p class="small faint">Last updated by ${esc(empName(r.UpdatedBy))} on ${fmtDT(r.UpdatedOn)}</p>` : ""}</div>
   <div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
@@ -2071,8 +2077,10 @@ SUBMIT.cred = async (form, o) => {
 function noteTag(o){ const t = String(o.NewNote || "").trim(); return t ? ` · Note: ${t.length > 120 ? t.slice(0, 117) + "…" : t}` : ""; }
 SUBMIT.vat = async (form, o) => {
   const cid = form.dataset.c, pe = form.dataset.pe; const c = clientById(cid); const r = vatRec(cid, pe); const PREVX = (r && r.Status) || "Not started";
+  if(needsPay(o)){ if(o.PaidDate && ["Filed", "Under review", "In preparation", "Data received"].includes(o.Status)) o.Status = "Paid / Closed"; if(o.Status === "Paid / Closed" && !o.PaidDate) o.PaidDate = todayISO(); }
+  else o.PaidDate = "";
   if(VAT_DONE.has(o.Status) && o.Status !== "Not applicable" && !o.FiledDate) o.FiledDate = todayISO();
-  const f = { Title: cid + "|" + pe, ClientId: cid, PeriodEnd: pe, Status: o.Status, PlannedDate: o.PlannedDate || "", Preparer: o.Preparer, Reviewer: o.Reviewer, FiledDate: o.FiledDate, RefNo: o.RefNo, Amount: o.Amount, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
+  const f = { Title: cid + "|" + pe, ClientId: cid, PeriodEnd: pe, Status: o.Status, PlannedDate: o.PlannedDate || "", Preparer: o.Preparer, Reviewer: o.Reviewer, FiledDate: o.FiledDate, RefNo: o.RefNo, Amount: o.Amount, PaidDate: o.PaidDate || "", Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
   const prev = (r && r.Status) || "Not started";
   await saveRec("vat", r ? r.id : null, f);
   await logAct("VAT status updated", c, `${periodLabel(c.VATCycle, pe)}: ${prev} → ${o.Status}${o.RefNo ? " · Ref " + o.RefNo : ""}${noteTag(o)}`);
@@ -2390,7 +2398,7 @@ async function exportXlsx(){
     "VAT No / TRN": c.VATNo, "CT TRN": c.CTNo, "Accounting Frequency": freqText(c, "Accounting"), "Consultancy Frequency": freqText(c, "Consultancy"), "VAT Cycle": (CYCLES[c.VATCycle] || {}).label || c.VATCycle, "FY End": fyEndLabel(c.FYEnd), Team: teamOf(c).map(empName).join(", "), Reviewer: empName(c.Reviewer), Services: c.Services, Notes: c.Notes }))), "Clients");
   const ids = new Set(cl.map(c => c.id));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.creds.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), Portal: x.Title, Username: x.Username, Password: withPwd ? x.Pwd : (x.Pwd ? "(hidden)" : ""), URL: x.PortalURL, Notes: x.Notes }))), "Logins");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.vat.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Period: periodLabel(c.VATCycle, x.PeriodEnd), Location: locOf(c), "Due Date": dueOf(x.PeriodEnd, c), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Net VAT": x.Amount, Currency: curOf(c), "Work Log": wlText(x), "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "VAT Returns");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.vat.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Period: periodLabel(c.VATCycle, x.PeriodEnd), Location: locOf(c), "Due Date": dueOf(x.PeriodEnd, c), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Net VAT": x.Amount, Currency: curOf(c), "VAT Paid On": x.PaidDate || "", "Work Log": wlText(x), "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "VAT Returns");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.ct.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Location: locOf(c), "CT TRN": c.CTNo, FY: x.FY, "Due Date": ctDue(c, x.FY), Status: x.Status, Preparer: empName(x.Preparer), Reviewer: empName(x.Reviewer), "Filed On": x.FiledDate, "Ack/Ref": x.RefNo, "Tax Payable": x.Amount, Currency: curOf(c), "Work Log": wlText(x), "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "Corporate Tax");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mw.filter(x => ids.has(x.ClientId)).map(x => { const c = clientById(x.ClientId); return { Client: c.Title, Location: locOf(c), Service: x.Service, Frequency: x.Freq || "Monthly", Period: mwLabel(c, x.Month, x.Freq || "Monthly"), "Due Date": mwDue(c, x.Service, x.Month, x.Freq || "Monthly"), Status: x.Status, "Assigned To": empName(x.AssignedTo), Reviewer: empName(x.Reviewer), "Completed On": x.CompletedDate, Hours: x.Hours, "Work Log": wlText(x), "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }; })), "Accounting-Consultation");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.other.filter(x => ids.has(x.ClientId)).map(x => ({ Client: name(x.ClientId), Year: othYear(x), Service: x.Service, Status: x.Status || "Not started", "Assigned To": empName(x.AssignedTo), Reviewer: empName(x.Reviewer), "Due Date": x.DueDate, "Next Follow-up": x.FollowUp, "Completed On": x.CompletedDate, "Work Log": wlText(x), "Updated By": empName(x.UpdatedBy), "Updated On": x.UpdatedOn }))), "Other Services");
@@ -2497,6 +2505,7 @@ document.addEventListener("click", e => {
   if(a.tagName === "A") e.preventDefault();
   const fn = ACT[a.dataset.act]; if(fn) fn(a.dataset, e);
 });
+document.addEventListener("input", e => { if(e.target.dataset && e.target.dataset.vatamt){ const w = document.getElementById("vatPaidWrap"); if(w) w.style.display = needsPay({ Amount: e.target.value }) ? "" : "none"; } });
 document.addEventListener("input", e => { const b = e.target.dataset && e.target.dataset.bind; if(b && e.target.tagName === "INPUT"){ const [o, k] = b.split("."); state[o][k] = e.target.value; render(); } });
 document.addEventListener("change", e => {
   const t = e.target; const b = t.dataset && t.dataset.bind;
