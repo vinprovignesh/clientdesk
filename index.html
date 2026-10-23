@@ -130,6 +130,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .hero .facts{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px}
 .hero .facts div{font-size:12px;opacity:.85}.hero .facts b{display:block;font-size:22px;font-weight:700;opacity:1;font-variant-numeric:tabular-nums}
 .hero .facts .red b{color:#ffb4ab}
+.hero .facts .hf{all:unset;cursor:pointer;font-size:12px;opacity:.85;border-radius:8px;padding:2px 6px;margin:-2px -6px}.hero .facts .hf b{display:block;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;text-decoration-color:rgba(255,255,255,.45)}
+.hero .facts .hf:hover,.hero .facts .hf:focus-visible{opacity:1;background:rgba(255,255,255,.12)}.hero .facts .hf.red b{color:#ffb4ab}
 .ring{position:relative;z-index:1;display:flex;align-items:center;gap:12px}
 .ring svg{width:92px;height:92px;transform:rotate(-90deg)}
 .ring .rt{font-size:12px;opacity:.85;max-width:120px;line-height:1.35}
@@ -1194,7 +1196,7 @@ function deadlineItems(clients, year){ const Y = String(year); const out = []; c
       for(const p of mwPeriods(c, svc, ymAdd(jan, -14), `${Y}-12`)){ const st = mwStatus(c.id, svc, p.ym, p.freq); push(c, svc, mwDue(c, svc, p.ym, p.freq), MW_DONE.has(st), `${svc} ${mwLabel(c, p.ym, p.freq)} · ${st}`, `data-act="editMw" data-c="${c.id}" data-s="${svc}" data-m="${p.ym}" data-f="${p.freq}"`, st, ownersOf("mw", mwPeople(c, svc, p.ym))); } }
     if(hasService(c, "Corporate Tax")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; push(c, "Corporate Tax", ctDue(c, fy), CT_DONE.has(st), `Corporate tax FY${fy} · ${st}`, `data-act="editCt" data-c="${c.id}" data-fy="${fy}"`, st, ownersOf("ct", ctPeople(c, fy))); }
     if(hasService(c, "Audit")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = auditRec(c.id, fy); if(!r || !r.DueDate) continue; const st = auditSt(c, r); push(c, "Audit", r.DueDate, AUDIT_DONE.has(st), `Audit FY${fy} · ${st}`, `data-act="editAudit" data-c="${c.id}" data-fy="${fy}"`, st, ownersOf("audit", audPeople(c, fy))); }
-    for(const x of otherItems([c], Y)) if(x.due) push(c, "Other", x.due, x.done, `${x.name} · ${x.st}`, `data-act="editOther" data-id="${x.rec.id}"`, x.st, [lc(x.rec.AssignedTo)].filter(Boolean));
+    for(const x of otherItems([c], Y)) if(x.due) push(c, "Other", x.due, x.done, `${x.name} · ${x.st}`, `data-act="editOther" data-id="${x.rec.id}"`, x.st, ownersOf("other", { asg: x.rec.AssignedTo, rev: x.rec.Reviewer }));
     if(/^\d{4}-\d{2}-\d{2}$/.test(c.CRExpiry || "")) push(c, "CR", c.CRExpiry, false, `${locOf(c) === "UAE" ? "Trade licence" : "CR"} expiry`, `data-act="openClient" data-id="${c.id}"`);
   }
   return out; }
@@ -1354,7 +1356,7 @@ VIEWS.dashboard = () => {
   const n30 = nowYi.filter(x => x.svc !== "CR" && !x.done && daysUntil(x.due) >= 0 && daysUntil(x.due) <= 30).length;
   return `
   <div class="hero"><div class="hi"><h2 class="serif">${greet}, ${esc(me.name.split(" ")[0])}</h2><div class="d">${fmtDate(todayISO())} · ${state.loc ? esc(state.loc === "UAE" ? "UAE (Dubai)" : "Bahrain") : "Bahrain & UAE"} · ${active.length} active clients</div>
-    <div class="facts"><div class="${overN ? "red" : ""}"><b>${overN}</b>overdue</div><div><b>${dueN}</b>open, due in ${ymLabel(cur)}</div><div><b>${n30}</b>due in next 30 days</div><div><b>${cr.length}</b>CR / licence ≤30d</div></div></div>
+    <div class="facts"><button class="hf ${overN ? "red" : ""}" data-act="heroList" data-v="over" title="Show these items"><b>${overN}</b>overdue</button><button class="hf" data-act="heroList" data-v="due" title="Show these items"><b>${dueN}</b>open, due in ${ymLabel(cur)}</button><button class="hf" data-act="heroList" data-v="n30" title="Show these items"><b>${n30}</b>due in next 30 days</button><button class="hf" data-act="heroList" data-v="cr" title="Show these clients"><b>${cr.length}</b>CR / licence ≤30d</button></div></div>
     <div class="ring">${heroRing(health)}<div class="rv">${health}%</div><div class="rt"><b>On-time health</b><br>deadlines met so far in ${new Date().getFullYear()}</div></div></div>
   ${unsetCycle ? `<div class="banner">${unsetCycle} active VAT client${unsetCycle>1?"s have":" has"} no VAT cycle set, so ${unsetCycle>1?"they don't":"it doesn't"} appear in the VAT tracker. <button class="btn sm" data-act="gotoUnset">Review clients</button></div>` : ""}
   ${(() => { const oth = othWork(cl); const svcs = [["vat", "VAT", `due ${ymLabel(cur)}`, vat, "filed"], ["mw", "Accounting / Consultation", `due ${ymLabel(cur)}`, mw, "done"], ["ct", "Corporate tax", "latest year", ct, "filed"], ["audit", "Audit", "FY" + fy, aud, "done"], ...(oth.total ? [["other", "Other services", curYear(), oth, "done"]] : [])];
@@ -1803,6 +1805,20 @@ function mHead(title, extra){ return `<div class="mh"><h2>${title}</h2>${extra |
 function opt(list, val, labels){ return list.map(v => `<option value="${esc(v)}" ${String(val) === String(v) ? "selected" : ""}>${esc(labels ? labels[v] : v)}</option>`).join(""); }
 function empOpts(val, blank){ return `<option value="">${blank || "—"}</option>` + activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${lc(val) === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join(""); }
 
+/* hero numbers → the items behind them (same rules as the counts) */
+MODALS.heroList = ({ k }) => { const cl = visibleClients(); const t = todayISO(); const cur = curYM();
+  const SV = { VAT: "VAT", Accounting: "Accounting", Consultancy: "Consultation", "Corporate Tax": "Corporate tax", Audit: "Audit", Other: "Other services" };
+  let title, rows;
+  if(k === "cr"){ title = "CR / licence expiring within 30 days";
+    rows = cl.filter(c => !isDeact(c)).map(c => ({ c, i: crInfo(c) })).filter(x => x.i.d != null && x.i.d <= 30).sort((a, b) => a.i.d - b.i.d)
+      .map(x => `<li data-act="openClient" data-id="${x.c.id}"><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${locOf(x.c) === "UAE" ? "Trade licence" : "CR"} ${esc(x.c.CRNo || "")} · expires ${fmtDate(x.c.CRExpiry)}</div></div>${chip(x.i.d < 0 ? "red" : "amber", x.i.d < 0 ? "Expired" : x.i.d === 0 ? "Today" : "in " + x.i.d + "d")}</li>`); }
+  else { const it = deadlineItems(cl, new Date().getFullYear()).filter(x => x.svc !== "CR");
+    const pick = k === "over" ? it.filter(x => x.st === "over") : k === "due" ? it.filter(x => x.st === "due") : it.filter(x => !x.done && daysUntil(x.due) >= 0 && daysUntil(x.due) <= 30);
+    title = k === "over" ? "Overdue" : k === "due" ? `Open, due in ${ymLabel(cur)}` : "Due in the next 30 days";
+    rows = pick.sort((a, b) => a.due.localeCompare(b.due) || a.c.Title.localeCompare(b.c.Title)).map(x => { const d = daysUntil(x.due); const who = (x.own || []).map(o => empName(o).split(" ")[0]).join(" / ");
+      return `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b> <span class="small faint">${state.loc ? "" : locOf(x.c) === "UAE" ? "UAE" : "BH"}</span><div class="small muted">${esc(SV[x.svc] || x.svc)} · ${esc(x.label)}${who ? " · " + esc(who) : ""}</div></div><div class="small nowrap" style="text-align:right">${fmtDate(x.due)}<div class="${d < 0 ? "over" : d <= 7 ? "soon" : "faint"}">${relDays(d)}</div></div></li>`; }); }
+  return `<div class="modal">${mHead(`${esc(title)} · ${rows.length}`)}<div class="mb" style="padding:0">${rows.length ? `<ul class="plan-list">${rows.join("")}</ul>` : `<div class="empty">Nothing here.</div>`}</div>
+    <div class="mf"><span class="small muted" style="margin-right:auto">Click an item to open it</span><button type="button" class="btn" data-act="close">Close</button></div></div>`; };
 MODALS.client = ({ id }) => {
   const c = clientById(id); if(!c) return "";
   const tab = state.clientTab || "overview"; const cr = crInfo(c);
@@ -2448,6 +2464,7 @@ const ACT = {
   dashYear: d => { state.dashYear += +d.v; render(); },
   dgMode: d => { state.dg.mode = d.v; render(); },
   planDay: d => { state.planDay = d.v; render(); },
+  heroList: d => openModal("heroList", { k: d.v }),
   dashMore: (d, e) => { e.preventDefault(); state.dashMore = !state.dashMore; render(); },
   tsort: d => { state.tsort = state.tsort || {}; const c = +d.c, cur = state.tsort[d.k]; state.tsort[d.k] = cur && cur.c === c ? { c, d: -cur.d } : { c, d: 1 }; if(d.k.startsWith("m:")) renderModals(); else render(); },
   csort: d => { const f = state.cf; if(f.sk === d.v) f.sd = -f.sd; else { f.sk = d.v; f.sd = 1; } render(); },
