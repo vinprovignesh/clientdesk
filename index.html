@@ -620,7 +620,10 @@ const SCHEMA = {
 const ROLES = ["Admin", "Manager", "Staff"];
 const SERVICES = ["VAT", "Corporate Tax", "Audit", "Accounting", "Consultancy", "HRMS & Payroll", "Others"];
 const PORTALS = ["NBR", "Sijilat", "LMRA", "SIO", "EmaraTax (FTA)", "MOHRE", "Dubai Economy (DET)", "ICP / GDRFA", "Tally", "Odoo", "Zoho Books", "QuickBooks", "Bank (online banking)", "eGovernment / eKey / UAE Pass", "Other"];
-const PORTAL_URLS = { NBR:"https://www.nbr.gov.bh", Sijilat:"https://www.sijilat.bh", LMRA:"https://www.lmra.gov.bh", SIO:"https://www.sio.gov.bh", "EmaraTax (FTA)":"https://tax.gov.ae", MOHRE:"https://www.mohre.gov.ae", "Dubai Economy (DET)":"https://www.dubaidet.gov.ae", "ICP / GDRFA":"https://icp.gov.ae" };
+/* default login page per portal; Tally, online banking and Other have none */
+const PORTAL_URLS = { NBR:"https://www.nbr.gov.bh", Sijilat:"https://www.sijilat.bh", LMRA:"https://www.lmra.gov.bh", SIO:"https://www.sio.gov.bh", "EmaraTax (FTA)":"https://eservices.tax.gov.ae", MOHRE:"https://www.mohre.gov.ae", "Dubai Economy (DET)":"https://www.dubaidet.gov.ae", "ICP / GDRFA":"https://icp.gov.ae",
+  Odoo:"https://www.odoo.com/web/login", "Zoho Books":"https://books.zoho.com", QuickBooks:"https://qbo.intuit.com", "eGovernment / eKey / UAE Pass":"https://www.bahrain.bh" };
+const PORTAL_URL_SET = new Set([...Object.values(PORTAL_URLS), "https://tax.gov.ae"]);
 const PORTAL_ALIASES = [[/emara|^fta$|federal tax/i, "EmaraTax (FTA)"], [/mohre|ministry of human/i, "MOHRE"], [/^det$|dubai econ|ded/i, "Dubai Economy (DET)"], [/icp|gdrfa/i, "ICP / GDRFA"]];
 const LOCATIONS = ["Bahrain", "UAE"];
 const LOC = { Bahrain: { dial:"+973", cur:"BHD", auth:"NBR", ctMonths:15, ctNote:"Bahrain DMTT: 15 months after FY end (18 for first year)" }, UAE: { dial:"+971", cur:"AED", auth:"FTA", ctMonths:9, ctNote:"UAE CT: 9 months after end of tax period" } };
@@ -2529,7 +2532,7 @@ document.addEventListener("change", e => {
   if(b && t.tagName === "SELECT"){ const [o, k] = b.split("."); state[o][k] = t.value; render(); return; }
   if(t.dataset && t.dataset.act === "demouser"){ const emp = data.employees.find(x => lc(x.Email) === lc(t.value)); me = { email: emp.Email, name: emp.Title.replace(/\s*\(sample\)/, ""), role: null }; me.role = roleOf(me.email); state.cf.sel.clear(); state.modals = []; renderModals(); render(); toast(`Now viewing as ${me.name} (${me.role})`); }
   if(t.dataset && t.dataset.act === "locPick"){ const cc = t.form.querySelector('[name="ContactCode"]'); if(cc && (!cc.value || Object.values(LOC).some(L => L.dial === cc.value))) cc.value = LOC[t.value].dial; }
-  if(t.dataset && t.dataset.act === "portalPick"){ const url = t.form.querySelector('[name="PortalURL"]'); if(url && !url.value) url.value = PORTAL_URLS[t.value] || ""; }
+  if(t.dataset && t.dataset.act === "portalPick"){ const url = t.form.querySelector('[name="PortalURL"]'); /* swap the URL unless someone typed their own */ if(url && (!url.value.trim() || PORTAL_URL_SET.has(url.value.trim()))) url.value = PORTAL_URLS[t.value] || ""; }
 });
 document.addEventListener("submit", async e => {
   const form = e.target; const type = form.dataset.form; if(!type) return; e.preventDefault();
