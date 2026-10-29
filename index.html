@@ -1488,7 +1488,7 @@ VIEWS.vat = () => {
       : `<select class="in" data-bind="vf.year">${[0,1,2,3].map(i => new Date().getFullYear() + 1 - i).map(y => `<option ${+f.year === y ? "selected" : ""}>${y}</option>`).join("")}</select>`}
     <input id="vf-q" class="in search" placeholder="Search client…" value="${esc(f.q)}" data-bind="vf.q">
     ${isAdmin() ? `<select class="in" data-bind="vf.who"><option value="">All employees</option>${activeEmployees().map(e => `<option value="${esc(lc(e.Email))}" ${f.who === lc(e.Email) ? "selected" : ""}>${esc(e.Title)}</option>`).join("")}</select>` : ""}
-    ${f.mode === "month" ? `<select class="in" data-bind="vf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>` : ""}
+    ${f.mode === "month" ? `<select class="in" data-bind="vf.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending</option><option value="filed" ${f.show === "filed" ? "selected" : ""}>Filed (payment not closed)</option><option value="paid" ${f.show === "paid" ? "selected" : ""}>Paid / Closed</option></select>` : ""}
   </div>
   ${unset ? `<div class="banner">${unset} VAT client${unset>1?"s have":" has"} no VAT cycle set and ${unset>1?"are":"is"} not shown. <button class="btn sm" data-act="gotoUnset">Set VAT cycles</button></div>` : ""}`;
   const shown = f.cycle ? base.filter(c => c.VATCycle === f.cycle) : base;
@@ -1498,7 +1498,7 @@ function vatMonthView(base){
   const f = state.vf; const pe = ymAdd(f.month, -1);
   let rows = base.filter(c => periodsFor(c, pe, pe).length).map(c => ({ c, st: vatStatus(c.id, pe), rec: vatRec(c.id, pe), pp: vatPeople(c, pe) })).filter(r => workMine("vat", r.pp, f.who || fltWho()));
   const total = rows.length, done = rows.filter(r => VAT_DONE.has(r.st)).length;
-  if(f.show === "pending") rows = rows.filter(r => !VAT_DONE.has(r.st)); if(f.show === "done") rows = rows.filter(r => VAT_DONE.has(r.st));
+  if(f.show === "pending") rows = rows.filter(r => !VAT_DONE.has(r.st)); if(f.show === "filed") rows = rows.filter(r => r.st === "Filed" || r.st === "Nil return filed"); if(f.show === "paid") rows = rows.filter(r => r.st === "Paid / Closed"); if(f.show === "done") rows = rows.filter(r => VAT_DONE.has(r.st));
   const pct = total ? Math.round(done / total * 100) : 0;
   const locsHere = LOCATIONS.filter(L => base.some(c => locOf(c) === L));
   const dueLine = locsHere.map(L => { const du = dueOf(pe, { Location: L }); const dd = daysUntil(du); return `${L} (${LOC[L].auth}) ${fmtDate(du)} · <span class="${dd < 0 && done < total ? "over" : dd <= 10 ? "soon" : ""}">${relDays(dd)}</span>`; }).join(" &nbsp;|&nbsp; ");
