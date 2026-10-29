@@ -401,6 +401,7 @@ body{background:radial-gradient(1200px 500px at 100% -10%,color-mix(in srgb,var(
 .dc-h b{display:block;font-size:14px}.dc-h span{font-size:12px;color:var(--faint)}
 .dc-ring{position:relative;align-self:center;width:112px;height:112px;margin:4px 0}
 .dc-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}.dc-c b{font-size:22px;font-variant-numeric:tabular-nums}.dc-c span{font-size:11px;color:var(--faint)}
+.dc-key{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 10px;font-size:11px;color:var(--muted);margin-top:4px}.dc-key i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle}
 .dc-cap{font-size:12px;color:var(--muted);text-align:center;min-height:16px}.dc-cap.bad{color:var(--bad);font-weight:600}.dc-cap.ok{color:var(--ok);font-weight:600}
 .chart-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18px;margin-bottom:18px;align-items:start}.chart-row>.card{margin:0}
 .chart-row:has(> :only-child){grid-template-columns:minmax(0,1fr)}
@@ -1180,7 +1181,7 @@ function auditWork(clients, fy){ const out = []; const prev = String(+fy - 1);
     for(let k = 4; k >= 1; k--){ const pf = String(+fy - k); const rp = auditRec(c.id, pf); if(rp){ const st = auditSt(c, rp); if(!AUDIT_DONE.has(st)) out.push({ c, fy: pf, st, done: false, cur: false, prev: true, over: true, due: rp.DueDate || "", own: ownersOf("audit", audPeople(c, pf)) }); } }
     const r = auditRec(c.id, fy); const st = auditSt(c, r); const done = AUDIT_DONE.has(st); out.push({ c, fy, st, done, cur: true, prev: false, over: false, due: (r && r.DueDate) || "", own: ownersOf("audit", audPeople(c, fy)) }); }
   return out.filter(ownF).sort((a, b) => (b.prev - a.prev) || a.c.Title.localeCompare(b.c.Title)); }
-function workSum(items){ const now = items.filter(x => x.cur); return { total: now.length, doneN: now.filter(x => x.done).length, curP: now.filter(x => !x.done).length, prevN: items.filter(x => x.prev).length, over: items.filter(x => x.over).length, pending: items.filter(x => !x.done) }; }
+function workSum(items){ const now = items.filter(x => x.cur); return { total: now.length, doneN: now.filter(x => x.done).length, curP: now.filter(x => !x.done).length, prevN: items.filter(x => x.prev).length, over: items.filter(x => x.over).length, pending: items.filter(x => !x.done), doneItems: now.filter(x => x.done) }; }
 function prevChip(x, label){ return x.over ? chip("red", "Overdue · " + esc(label)) : x.prev ? chip("st-pend", "Previous period · " + esc(label)) : ""; }
 function dueTag(due){ const d = daysUntil(due); return d == null ? "" : d < 0 ? `<span class="over">past due</span>` : d === 0 ? `<span class="soon">today</span>` : d <= 7 ? `<span class="soon">in ${d} day${d === 1 ? "" : "s"}</span>` : ""; }
 
@@ -1252,11 +1253,13 @@ function donutSvg(parts, size = 112, th = 13){ const tot = parts.reduce((a, p) =
   const gap = parts.filter(p => p.v).length > 1 ? 2 : 0;
   return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="transform:rotate(-90deg)">${parts.filter(p => p.v).map(p => { const len = C * p.v / tot; const seg = `<circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${p.c}" stroke-width="${th}" stroke-dasharray="${Math.max(0, len - gap).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}"><title>${esc(p.l)}: ${p.v}</title></circle>`; off += len; return seg; }).join("")}</svg>`; }
 function donutCard(view, title, sub, w, doneWord){ const over = w.pending.filter(x => x.over).length, pend = w.pending.length - over, done = w.doneN; const tot = done + pend + over;
-  const pct = tot ? Math.round(done / tot * 100) : 0;
+  const pct = tot ? Math.round(done / tot * 100) : 0; const paidN = view === "vat" ? (w.doneItems || []).filter(x => x.st === "Paid / Closed").length : 0;
+  const key = view === "vat" && tot ? `<div class="dc-key"><span><i style="background:${PAID_CLR}"></i>${paidN} paid</span><span><i style="background:${ST_CLR.done}"></i>${done - paidN} filed</span><span><i style="background:${ST_CLR.pend}"></i>${pend} pending</span>${over ? `<span><i style="background:${ST_CLR.over}"></i>${over} overdue</span>` : ""}</div>` : "";
   const cap = !tot ? "Nothing due in this period" : over ? `${over} overdue — needs action` : pend ? `${pct}% ${doneWord} · ${pend} to go` : `All ${tot} ${doneWord} ✓`;
   return `<button class="donut-card" data-act="nav" data-v="${view}"><div class="dc-h"><b>${esc(title)}</b><span>${esc(sub)}</span></div>
-    <div class="dc-ring">${donutSvg([{ v: done, c: ST_CLR.done, l: doneWord }, { v: pend, c: ST_CLR.pend, l: "pending" }, { v: over, c: ST_CLR.over, l: "overdue" }])}<div class="dc-c"><b>${pct}%</b><span>${tot ? `${done}/${tot}` : "—"}</span></div></div>
-    <div class="dc-cap ${over ? "bad" : !pend && tot ? "ok" : ""}">${cap}</div></button>`; }
+    <div class="dc-ring">${donutSvg(view === "vat" ? [{ v: paidN, c: PAID_CLR, l: "paid" }, { v: done - paidN, c: ST_CLR.done, l: "filed" }, { v: pend, c: ST_CLR.pend, l: "pending" }, { v: over, c: ST_CLR.over, l: "overdue" }] : [{ v: done, c: ST_CLR.done, l: doneWord }, { v: pend, c: ST_CLR.pend, l: "pending" }, { v: over, c: ST_CLR.over, l: "overdue" }])}<div class="dc-c"><b>${pct}%</b><span>${tot ? `${done}/${tot}` : "—"}</span></div></div>
+    <div class="dc-cap ${over ? "bad" : !pend && tot ? "ok" : ""}">${cap}</div>${key}</button>`; }
+const PAID_CLR = "#16884a";
 function openItemsAll(cl, w){ const L = [];
   w.vat.pending.forEach(x => L.push({ c: x.c, svc: "VAT", label: x.label, due: x.due, over: x.over, act: `data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}"`, own: x.own, st: x.st, rev: vatPeople(x.c, x.pe).rev, plan: (vatRec(x.c.id, x.pe) || {}).PlannedDate || "" }));
   w.mw.pending.forEach(x => L.push({ c: x.c, svc: x.svc === "Consultancy" ? "Consultation" : "Accounting", label: x.label, due: x.due, over: x.over, act: `data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}"` , own: x.own, st: x.st, rev: mwPeople(x.c, x.svc, x.ym).rev, plan: (mwRec(x.c.id, x.svc, x.ym, x.freq) || {}).PlannedDate || "" }));
