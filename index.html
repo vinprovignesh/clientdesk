@@ -426,7 +426,7 @@ ul.att{list-style:none;margin:0;padding:6px 0}ul.att li{display:flex;gap:12px;al
 .chart-row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:18px;align-items:start}.chart-row3>.card{margin:0}
 .chart-row3 .ch-wide{grid-column:auto}
 @media (max-width:1150px){.chart-row3{grid-template-columns:minmax(0,1fr)}}
-.donut-card .dc-cap.ok{color:var(--vg-done)}.donut-card .dc-cap.bad{color:var(--vg-over)}
+.donut-card .dc-cap.ok{color:#16884a}.donut-card .dc-cap.bad{color:var(--vg-over)}
 .steps{min-width:96px}.steps i{min-width:9px}
 .tbl td.cname{min-width:190px}
 @media (max-width:760px){.side{background:linear-gradient(90deg,#050c42,#0a1a52)}.side .nav.on{box-shadow:inset 0 -3px 0 #2fbfb4}.top{position:static}}
@@ -1297,12 +1297,23 @@ function donutSvg(parts, size = 112, th = 13){ const tot = parts.reduce((a, p) =
   if(!tot) return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${th}"/></svg>`;
   const gap = parts.filter(p => p.v).length > 1 ? 2 : 0;
   return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="transform:rotate(-90deg)">${parts.filter(p => p.v).map(p => { const len = C * p.v / tot; const seg = `<circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${p.c}" stroke-width="${th}" stroke-dasharray="${Math.max(0, len - gap).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}"><title>${esc(p.l)}: ${p.v}</title></circle>`; off += len; return seg; }).join("")}</svg>`; }
+/* dashboard rings: completed green, overdue red, open work by stage (dark blue = under review) */
+const RING = { done: "#16884a", filed: "#5b8fd9", rev: "var(--vg-done)", wip: "#009e95", wait: "#d18a1f", todo: "#9aa3b2", over: "#d0453d" };
+function ringStage(st){ const k = lc(st);
+  if(/review|draft|manager\/partner/.test(k)) return "rev";
+  if(/request|awaiting|pending at|on hold/.test(k)) return "wait";
+  if(!k || /not started/.test(k)) return "todo";
+  return "wip"; }
 function donutCard(view, title, sub, w, doneWord){ const over = w.pending.filter(x => x.over).length, pend = w.pending.length - over, done = w.doneN; const tot = done + pend + over;
-  const pct = tot ? Math.round(done / tot * 100) : 0; const paidN = view === "vat" ? (w.doneItems || []).filter(x => x.st === "Paid / Closed").length : 0;
-  const key = view !== "vat" ? `<div class="dc-key"><span><i style="background:${ST_CLR.done}"></i>${done} completed</span><span><i style="background:${ST_CLR.pend}"></i>${pend} pending</span><span${over ? ' class="over"' : ""}><i style="background:${ST_CLR.over}"></i>${over} overdue</span></div>` : tot ? `<div class="dc-key"><span><i style="background:${PAID_CLR}"></i>${paidN} paid</span><span><i style="background:${ST_CLR.done}"></i>${done - paidN} filed</span><span><i style="background:${ST_CLR.pend}"></i>${pend} pending</span>${over ? `<span><i style="background:${ST_CLR.over}"></i>${over} overdue</span>` : ""}</div>` : "";
+  const pct = tot ? Math.round(done / tot * 100) : 0;
+  const filedN = view === "vat" ? (w.doneItems || []).filter(x => x.st === "Filed").length : 0; /* filed, VAT payment still to be closed */
+  const n = { done: done - filedN, filed: filedN, rev: 0, wip: 0, wait: 0, todo: 0, over };
+  for(const x of w.pending) if(!x.over) n[ringStage(x.st)]++;
+  const parts = [["done", view === "vat" ? "paid / closed" : "completed"], ["filed", "filed · payment due"], ["rev", "under review"], ["wip", "in progress"], ["wait", "waiting on client"], ["todo", "not started"], ["over", "overdue"]];
+  const key = tot ? `<div class="dc-key">${parts.filter(([k]) => n[k] || k === "done" || k === "over").map(([k, l]) => `<span${k === "over" && n.over ? ' class="over"' : ""}><i style="background:${RING[k]}"></i>${n[k]} ${l}</span>`).join("")}</div>` : "";
   const cap = !tot ? "Nothing due in this period" : over ? `${over} overdue — needs action` : pend ? `${pct}% ${doneWord} · ${pend} to go` : `All ${tot} ${doneWord} ✓`;
   return `<button class="donut-card" data-act="nav" data-v="${view}"><div class="dc-h"><b>${esc(title)}</b><span>${esc(sub)}</span></div>
-    <div class="dc-ring">${donutSvg(view === "vat" ? [{ v: paidN, c: PAID_CLR, l: "paid" }, { v: done - paidN, c: ST_CLR.done, l: "filed" }, { v: pend, c: ST_CLR.pend, l: "pending" }, { v: over, c: ST_CLR.over, l: "overdue" }] : [{ v: done, c: ST_CLR.done, l: doneWord }, { v: pend, c: ST_CLR.pend, l: "pending" }, { v: over, c: ST_CLR.over, l: "overdue" }])}<div class="dc-c"><b>${pct}%</b><span>${tot ? `${done}/${tot}` : "—"}</span></div></div>
+    <div class="dc-ring">${donutSvg(parts.map(([k, l]) => ({ v: n[k], c: RING[k], l })))}<div class="dc-c"><b>${pct}%</b><span>${tot ? `${done}/${tot}` : "—"}</span></div></div>
     <div class="dc-cap ${over ? "bad" : !pend && tot ? "ok" : ""}">${cap}</div>${key}</button>`; }
 const PAID_CLR = "#16884a";
 function openItemsAll(cl, w){ const L = [];
