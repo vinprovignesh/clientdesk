@@ -578,6 +578,48 @@ table.tbl tr.net td,.fsheet tr.net td.pl{background:color-mix(in srgb,var(--vt-a
 :root[data-theme="dark"]{--vc-bud:#2fbfb4;--vc-act:#8fa2ff}
 .fchart .b-bud{fill:var(--vc-bud)}.fchart .b-act{fill:var(--vc-act)}
 .ch-legend .lg-b{background:var(--vc-bud)}.ch-legend .lg-a{background:var(--vc-act)}
+
+/* ---------- pop-up windows: refreshed look ---------- */
+.mwrap{background:rgba(5,12,40,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:5vh 16px;animation:mwFade .18s ease-out}
+.modal{border:0;border-radius:22px;box-shadow:0 40px 100px rgba(5,12,40,.45),0 0 0 1px rgba(255,255,255,.04);animation:mwPop .24s cubic-bezier(.2,.8,.2,1)}
+@keyframes mwFade{from{opacity:0}}@keyframes mwPop{from{opacity:0;transform:translateY(14px) scale(.985)}}
+@media (prefers-reduced-motion: reduce){.mwrap,.modal{animation:none}}
+.modal .mh{background:linear-gradient(120deg,#050c42 0%,#0a1f5c 58%,#00756e 135%);color:#fcfcf9;border-bottom:0;padding:20px 24px;gap:12px}
+.modal .mh h2{color:#fff;font-size:19px;font-weight:700;letter-spacing:.01em;display:flex;align-items:center;gap:8px}
+.modal .mh .tag{box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+.modal .mh .x{color:#fff;background:rgba(255,255,255,.12);border-radius:10px;padding:6px}.modal .mh .x:hover{background:rgba(255,255,255,.24);color:#fff}
+.modal .mh .btn{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.28);box-shadow:none}.modal .mh .btn:hover{background:rgba(255,255,255,.24)}
+.modal .mh .btn svg{color:#fff}
+.modal .tabs{background:var(--panel-2);padding:10px 18px;gap:6px;border-bottom:1px solid var(--line)}
+.modal .tabs button{border-radius:999px;border:1px solid transparent;padding:7px 15px;font-size:13px;color:var(--muted)}
+.modal .tabs button:hover{background:var(--panel);border-color:var(--line)}
+.modal .tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 12px color-mix(in srgb,var(--accent) 30%,transparent)}
+.modal .mb{padding:22px 24px}
+.modal .mf{background:var(--panel-2);padding:14px 24px;border-top:1px solid var(--line)}
+.modal .form{gap:14px 16px}
+.modal .form label,.modal .form .lbl{font-size:12px;letter-spacing:.02em;color:var(--muted)}
+.modal .form .in{border-radius:11px;padding:10px 12px;background:var(--panel);border:1px solid var(--line)}
+.modal .form .in:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.modal .banner.info{border-radius:12px;border-left:4px solid var(--accent)}
+.modal .tbl{border-radius:12px;overflow:hidden}
+/* client overview */
+.cov{display:flex;flex-direction:column;gap:16px}
+.cov-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,2fr);gap:12px}
+.cov-stat{background:var(--panel-2);border:1px solid var(--line-2);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+.cov-stat span{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.cov-stat b{font-weight:600}
+.cov-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.cov-card{border:1px solid var(--line);border-radius:16px;padding:14px 18px;background:var(--panel);box-shadow:0 1px 2px rgba(5,12,40,.04)}
+.cov-card h4{margin:0 0 8px;font-size:13px;font-weight:700;color:var(--accent-ink);display:flex;align-items:center;gap:8px;letter-spacing:.02em}
+.cov-ic{width:24px;height:24px;border-radius:8px;display:inline-grid;place-items:center;background:var(--brand-soft);color:var(--accent-ink);font-size:13px}
+.cov-card dl{margin:0}
+.cov-r{display:grid;grid-template-columns:150px 1fr;gap:10px;padding:8px 0;border-top:1px dashed var(--line)}
+.cov-r:first-child{border-top:0}
+.cov-r dt{font-size:12.5px;color:var(--faint);font-weight:600}
+.cov-r dd{margin:0;font-weight:600;color:var(--ink);word-break:break-word}
+.cov-r dd a{color:var(--accent-ink);text-decoration:none}.cov-r dd a:hover{text-decoration:underline}
+.cov-notes div{white-space:pre-wrap;color:var(--ink)}
+@media (max-width:760px){.cov-strip{grid-template-columns:1fr 1fr}.cov-stat.wide{grid-column:1/-1}.cov-grid{grid-template-columns:1fr}.cov-r{grid-template-columns:120px 1fr}.modal .mb{padding:16px}}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
@@ -1035,7 +1077,7 @@ const PAY_MIN = 0.5;
 function amtOf(rec){ const v = String((rec && rec.Amount) || "").replace(/[^0-9.\-]/g, ""); return v === "" ? null : parseFloat(v); }
 function needsPay(rec){ const a = amtOf(rec); return a != null && a >= PAY_MIN; }
 function payPending(st, rec){ if(st !== "Filed" || (rec && rec.PaidDate)) return false; const a = amtOf(rec); return a == null || a >= PAY_MIN; }
-function payCell(rec, st){ if(!needsPay(rec)) return ""; return rec.PaidDate ? `<div><span class="pd paid" title="VAT paid">Paid ${fmtDate(rec.PaidDate)}</span></div>` : VAT_DONE.has(st) ? `<div><span class="pd plan late" title="Filed — payment not yet recorded">Payment pending</span></div>` : ""; }
+function payCell(rec, st){ if(!needsPay(rec)) return ""; return rec.PaidDate ? `<div><span class="pd paid" title="VAT paid">Paid ${fmtDate(rec.PaidDate)}</span></div>` : st === "Paid / Closed" ? `<div><span class="pd paid" title="Marked Paid / Closed — no payment date entered">Paid</span></div>` : VAT_DONE.has(st) ? `<div><span class="pd plan late" title="Filed — payment not yet recorded">Payment pending</span></div>` : ""; }
 const payChip = (st, rec) => payPending(st, rec) ? ` ${chip("st-wait", "Payment follow-up")}` : "";
 function vatChip(st){ return chip(stCls(st, VAT_DONE), esc(st), true); }
 function auditChip(st){ return chip(stCls(st, AUDIT_DONE), esc(st), true); }
@@ -1839,12 +1881,25 @@ MODALS.client = ({ id }) => {
   const canEdit = isDeact(c) ? isAdmin() : isMgr();
   const tabs = [["overview","Overview"],["logins",`Logins (${data.creds.filter(x => x.ClientId === id).length})`],["vat","VAT returns"],["ct","Corporate tax"],["mw","Monthly work"],["audit","Audit"],["other",`Other services (${data.other.filter(x => x.ClientId === id).length})`],["activity","Activity"]];
   let body = "";
-  if(tab === "overview") body = `<div class="kv">
-      ${[["Location", locTag(c) + " " + esc(locOf(c) === "UAE" ? "UAE (Dubai)" : "Bahrain")], [locOf(c) === "UAE" ? "Trade licence no" : "CR No", esc(c.CRNo)], ["Expiry", chip(cr.cls, cr.txt)], ["Status", esc(c.Status || "Active")], ["Contact person", esc(c.ContactName)], ["Contact no", esc(c.ContactNo)], ["Contact email", esc(c.ContactEmail)],
-        [locOf(c) === "UAE" ? "VAT TRN" : "VAT account no", esc(c.VATNo)], ["Corporate tax TRN", esc(c.CTNo)], ["VAT cycle", esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].label : (c.VATCycle || "Not set"))], ["Financial year end", esc(fyEndLabel(c.FYEnd))], ["Services", serviceTags(c) + (otherServiceText(c) ? ` <span class="small muted">Others: ${esc(otherServiceText(c))}</span>` : "")],
-        ["Reviewer / manager", esc(empName(c.Reviewer))], ...MW_SERVICES.filter(sv => hasService(c, sv)).map(sv => [sv + " frequency", esc(freqText(c, sv))])].map(([k, v]) => `<div><span>${k}</span><b>${v || '<span class="faint">—</span>'}</b></div>`).join("")}
-    </div>
-    ${c.Notes ? `<div style="margin-top:16px"><div class="small faint" style="font-weight:600;text-transform:capitalize">Notes</div><div style="white-space:pre-wrap;margin-top:4px">${esc(c.Notes)}</div></div>` : ""}`;
+  if(tab === "overview"){ const V = v => v ? v : '<span class="faint">—</span>'; const uae = locOf(c) === "UAE";
+    const row = (k, v) => `<div class="cov-r"><dt>${k}</dt><dd>${V(v)}</dd></div>`;
+    const card = (t, ic, rows) => `<section class="cov-card"><h4><span class="cov-ic">${ic}</span>${t}</h4><dl>${rows.join("")}</dl></section>`;
+    const tel = c.ContactNo ? `<a href="tel:${esc(phoneOf(c).replace(/\s/g, ""))}">${esc(phoneOf(c))}</a>` : "", mail = c.ContactEmail ? `<a href="mailto:${esc(c.ContactEmail)}">${esc(c.ContactEmail)}</a>` : "";
+    body = `<div class="cov">
+      <div class="cov-strip">
+        <div class="cov-stat"><span>Status</span><b>${chip(isDeact(c) ? "red" : c.Status === "Dormant" ? "grey" : "green", esc(c.Status || "Active"), true)}</b></div>
+        <div class="cov-stat"><span>${uae ? "Trade licence" : "CR"} expiry</span><b>${chip(cr.cls, cr.txt)}</b></div>
+        <div class="cov-stat"><span>Financial year end</span><b>${esc(fyEndLabel(c.FYEnd))}</b></div>
+        <div class="cov-stat wide"><span>Services</span><b>${serviceTags(c) || '<span class="faint">None ticked</span>'}${otherServiceText(c) ? ` <span class="small muted">· Others: ${esc(otherServiceText(c))}</span>` : ""}</b></div>
+      </div>
+      <div class="cov-grid">
+        ${card("Registration", "▣", [row("Location", locTag(c) + " " + esc(uae ? "UAE (Dubai)" : "Bahrain")), row(uae ? "Trade licence no" : "CR no", esc(c.CRNo)), row("Expiry", c.CRExpiry ? fmtDate(c.CRExpiry) : "")])}
+        ${card("Contact", "☎", [row("Contact person", esc(c.ContactName)), row("Phone", tel), row("Email", mail)])}
+        ${card("Tax", "%", [row(uae ? "VAT TRN" : "VAT account no", esc(c.VATNo)), row("VAT cycle", esc(CYCLES[c.VATCycle] ? CYCLES[c.VATCycle].label : (c.VATCycle || "Not set"))), row("Corporate tax TRN", esc(c.CTNo))])}
+        ${card("Engagement", "★", [row("Reviewer / manager", esc(empName(c.Reviewer))), ...MW_SERVICES.filter(sv => hasService(c, sv)).map(sv => row(sv === "Consultancy" ? "Consultation frequency" : sv + " frequency", esc(freqText(c, sv))))])}
+      </div>
+      ${c.Notes ? `<section class="cov-card cov-notes"><h4><span class="cov-ic">✎</span>Notes</h4><div>${esc(c.Notes)}</div></section>` : ""}
+    </div>`; }
   if(tab === "logins"){ const cs = data.creds.filter(x => x.ClientId === id).sort((a,b) => PORTALS.indexOf(a.Title) - PORTALS.indexOf(b.Title));
     body = `<div class="toolbar"><span class="small muted">Viewing or copying a password is recorded in the activity log.</span><div class="right"><button class="btn sm pri" data-act="editCred" data-c="${id}">${I.plus} Add login</button></div></div>
     <div class="tw"><table class="tbl"><thead><tr><th>Portal</th><th>Username / ID</th><th>Password</th><th>Notes</th><th>Updated</th><th></th></tr></thead><tbody>
