@@ -153,6 +153,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .cal td.rl{text-align:left;padding-left:16px;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cal td.rl small{display:block;font-weight:400;color:var(--faint);font-size:11px}
 .cal td.nil{background:repeating-linear-gradient(135deg,transparent 0 6px,var(--line-2) 6px 7px)}
+.cal td .dl-add{opacity:0;border:1px dashed var(--line);background:var(--panel);color:var(--accent-ink);border-radius:8px;width:26px;height:24px;cursor:pointer;font-weight:700}.cal td:hover .dl-add,.cal td .dl-add:focus-visible{opacity:1}
 .cal td.curc{background:color-mix(in srgb,var(--accent) 6%,transparent)}
 .cal tr:hover td.rl{color:var(--accent-ink)}
 .dl{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-width:46px;height:28px;padding:0 7px;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -314,6 +315,13 @@ tr.click-row:hover td{background:var(--panel-2)}
 tr.rev-me td{background:#f4eefd!important}tr.rev-me td:first-child{box-shadow:inset 4px 0 0 #6b3fb0}
 tr.rev-me td.cname::after{content:"Your review";display:inline-block;margin-left:8px;font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:#6b3fb0;color:#fff;vertical-align:middle}
 :root[data-theme="dark"] tr.rev-me td{background:#2a2142!important}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) tr.rev-me td{background:#2a2142!important}}
+.cpw{display:flex;flex-wrap:wrap;gap:6px}
+.cpj{border:0;cursor:pointer;font:inherit;font-size:12px;padding:4px 10px;border-radius:999px;display:inline-flex;gap:5px;align-items:baseline;max-width:100%;text-align:left}
+.cpj b{font-weight:700}.cpj .cpd{font-size:11px;opacity:.8}
+.cpj.st-new{background:#eceef3;color:#5b6475}.cpj.st-wait{background:#fdf0dc;color:#a65e00}.cpj.st-recv{background:#e1effc;color:#1f6fb8}.cpj.st-pend{background:#dff3f1;color:#00756e}.cpj.st-rev{background:#efe7fb;color:#6b3fb0}.cpj.st-sign{background:#dcf0f6;color:#0b6e85}
+.cpj.over{background:var(--vg-over-bg);color:var(--vg-over);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--vg-over) 40%,transparent)}
+.cpj:hover{filter:brightness(.96);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent)}
+:root[data-theme="dark"] .cpj:not(.over){background:#1d2650;color:#c9d2ea}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cpj:not(.over){background:#1d2650;color:#c9d2ea}}
 .chip.st-new{background:#eceef3;color:#5b6475}.chip.st-wait{background:#fdf0dc;color:#a65e00}.chip.st-recv{background:#e1effc;color:#1f6fb8}
 .chip.st-rev{background:#efe7fb;color:#6b3fb0}.chip.st-sign{background:#dcf0f6;color:#0b6e85}.chip.st-paid{background:#16884a;color:#fff}.chip.st-na{background:transparent;color:#7a8396;box-shadow:inset 0 0 0 1px #c9cfda}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip.st-new{background:#2a2f3a;color:#b4bccb}:root:not([data-theme="light"]) .chip.st-wait{background:#3a2a10;color:#f3b35a}:root:not([data-theme="light"]) .chip.st-recv{background:#14304d;color:#7fb8f0}:root:not([data-theme="light"]) .chip.st-rev{background:#2e2147;color:#bf9df2}:root:not([data-theme="light"]) .chip.st-sign{background:#0f3340;color:#7fd0e6}:root:not([data-theme="light"]) .chip.st-paid{background:#1f9d58;color:#fff}:root:not([data-theme="light"]) .chip.st-na{color:#8e97a8;box-shadow:inset 0 0 0 1px #3b4252}}
@@ -1281,9 +1289,21 @@ function clientGridCard(items, Y){
       <select class="in" data-bind="dg.svc" style="width:auto"><option value="">All services</option>${[["VAT","VAT"],["MW","Accounting/Consultation"],["Corporate Tax","Corporate Tax"],["Audit","Audit"],["Other","Other services"],["CR","CR / Licence"]].map(([v, l]) => `<option value="${v}" ${f.svc === v ? "selected" : ""}>${l}</option>`).join("")}</select></div></div>
     <div class="tw cgrid"><table class="cal"><thead><tr><th class="rl">Client <span class="faint" style="font-weight:400">(${list.length})</span></th>${months.map(m => `<th class="${m === cur ? "cur" : ""}">${MONTHS[+m.slice(5) - 1]}</th>`).join("")}</tr></thead><tbody>
     ${list.map(r => `<tr><td class="rl" title="${esc(r.c.Title)}"><a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a><small>${locOf(r.c) === "UAE" ? "UAE" : "Bahrain"}${r.over ? ` · <span class="over">${r.over} overdue</span>` : ""}</small></td>${months.map(m => { const a = r.a.filter(x => x.ym === m);
-      if(!a.length) return `<td class="nil ${m === cur ? "curc" : ""}"></td>`; const k = dlChip(a, false);
-      return `<td class="${m === cur ? "curc" : ""}"><button class="dl ${k.cls}" data-act="openClient" data-id="${r.c.id}" title="${esc(a.map(x => `${x.label} · due ${fmtDate(x.due)}`).join("\n"))}">${k.txt}</button></td>`; }).join("")}</tr>`).join("")}
+      if(!a.length) return `<td class="nil ${m === cur ? "curc" : ""}"><button class="dl-add" data-act="cellList" data-id="${r.c.id}" data-m="${m}" title="Add a task for ${esc(r.c.Title)} in ${ymLabel(m)}">+</button></td>`; const k = dlChip(a, false);
+      return `<td class="${m === cur ? "curc" : ""}"><button class="dl ${k.cls}" data-act="cellList" data-id="${r.c.id}" data-m="${m}" title="${esc(a.map(x => `${x.label} · due ${fmtDate(x.due)}`).join("\n"))}">${k.txt}</button></td>`; }).join("")}</tr>`).join("")}
     </tbody></table>${list.length ? "" : `<div class="empty">${f.mode === "attention" ? "Nothing overdue and nothing due this month or next. 🎉" : "No deadlines in " + Y + "."}</div>`}</div></div>`; }
+/* client-wise pending work (same open jobs as the dashboard rings): one row per client, each job clickable */
+function clientPendingCard(pend){ const by = new Map(); for(const x of pend){ if(!by.has(x.c.id)) by.set(x.c.id, []); by.get(x.c.id).push(x); }
+  const q = lc(state.dg.cpq || ""); let rows = [...by.values()].map(a => ({ c: a[0].c, a: a.sort((p, r) => (p.due || "9").localeCompare(r.due || "9")), over: a.filter(x => x.over).length }))
+    .filter(r => !q || lc(r.c.Title).includes(q)).sort((p, r) => (r.over - p.over) || (p.a[0].due || "9").localeCompare(r.a[0].due || "9") || p.c.Title.localeCompare(r.c.Title));
+  const all = state.cpAll; const shown = all ? rows : rows.slice(0, 12);
+  const job = x => { const d = daysUntil(x.due); return `<button class="cpj ${x.over ? "over" : stCls(x.st || "", new Set())}" ${x.act} title="${esc(x.svc + " · " + x.label + (x.st ? " · " + x.st : "") + (x.due ? " · due " + fmtDate(x.due) : ""))}"><b>${esc(x.svc)}</b> ${esc(x.label)}${x.due ? ` <span class="cpd">${x.over ? -d + "d late" : fmtDate(x.due).slice(0, 6)}</span>` : ""}</button>`; };
+  return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Client-wise pending work</h3><div class="right" style="display:flex;gap:8px;align-items:center"><span class="small muted">${pend.length} open job${pend.length === 1 ? "" : "s"} · ${by.size} client${by.size === 1 ? "" : "s"}</span><input class="in search" id="cp-q" placeholder="Search client…" value="${esc(state.dg.cpq || "")}" data-bind="dg.cpq" style="width:180px"></div></div>
+    ${rows.length ? `<div class="tw"><table class="tbl nosort cpt"><thead><tr><th>Client</th><th class="num">Open</th><th>Pending jobs (oldest first) — click one to update</th><th></th></tr></thead><tbody>
+    ${shown.map(r => `<tr><td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a>${r.over ? `<div class="small over">${r.over} overdue</div>` : ""}</td>
+      <td class="num"><b>${r.a.length}</b></td><td><div class="cpw">${r.a.map(job).join("")}</div></td>
+      <td class="nowrap">${isDeact(r.c) ? "" : `<button class="btn sm" data-act="addTask" data-c="${r.c.id}" data-m="${curYM()}" title="Add a task for this client">${I.plus} Task</button>`}</td></tr>`).join("")}
+    </tbody></table></div>${rows.length > 12 ? `<div class="card-b small"><a href="#" data-act="cpAll">${all ? "Show fewer" : `Show all ${rows.length} clients`}</a></div>` : ""}` : `<div class="empty">${q ? "No client matches." : "No pending work. 🎉"}</div>`}</div>`; }
 function heroRing(pct){ const r = 38, L = 2 * Math.PI * r; return `<svg viewBox="0 0 92 92" aria-hidden="true"><circle cx="46" cy="46" r="${r}" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="9"/><circle cx="46" cy="46" r="${r}" fill="none" stroke="#2fbfb4" stroke-width="9" stroke-linecap="round" stroke-dasharray="${(L * pct / 100).toFixed(1)} ${L.toFixed(1)}"/></svg>`; }
 function kpi2(view, label, w, doneWord){ const done = w.doneN, over = w.pending.filter(x => x.over).length, pend = w.pending.length - over; const tot = done + pend + over || 1;
   return `<button class="kpi2" data-act="nav" data-v="${view}"><div class="l">${label}</div><div class="v">${w.pending.length}<small>open</small></div>
@@ -1426,6 +1446,7 @@ VIEWS.dashboard = () => {
     return `<div class="donuts">${svcs.map(([v, t, sub, w, dw]) => donutCard(v, t, sub, w, dw)).join("")}</div>
     ${planCard(pend)}${reviewCard(pend)}
     ${deadlineCharts(nowYi.filter(x => x.svc !== "CR"), new Date().getFullYear())}
+    ${clientPendingCard(pend)}
     <div class="chart-row3">${locChart(pend)}${isAdmin() ? teamChart(cl, pend) : ""}${attentionCard(pend)}</div>`; })()}
   <details class="dash-more" ${state.dashMore ? "open" : ""}><summary data-act="dashMore">${state.dashMore ? "▾" : "▸"} Show details — compliance calendar, client deadlines, team &amp; location tables, lists</summary>
   ${calendarCard(yi, Y)}
@@ -1883,6 +1904,17 @@ MODALS.heroList = ({ k }) => { const cl = visibleClients(); const t = todayISO()
       return `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b> <span class="small faint">${state.loc ? "" : locOf(x.c) === "UAE" ? "UAE" : "BH"}</span><div class="small muted">${esc(SV[x.svc] || x.svc)} · ${esc(x.label)}${who ? " · " + esc(who) : ""}</div></div><div class="small nowrap" style="text-align:right">${fmtDate(x.due)}<div class="${d < 0 ? "over" : d <= 7 ? "soon" : "faint"}">${relDays(d)}</div></div></li>`; }); }
   return `<div class="modal">${mHead(`${esc(title)} · ${rows.length}`)}<div class="mb" style="padding:0">${rows.length ? `<ul class="plan-list">${rows.join("")}</ul>` : `<div class="empty">Nothing here.</div>`}</div>
     <div class="mf"><span class="small muted" style="margin-right:auto">Click an item to open it</span><button type="button" class="btn" data-act="close">Close</button></div></div>`; };
+/* client × month from the deadline grid: the pending work only, plus "Add task" */
+MODALS.cellList = ({ id, m }) => { const c = clientById(id); if(!c) return ""; const t = todayISO();
+  const SV = { VAT: "VAT", Accounting: "Accounting", Consultancy: "Consultation", "Corporate Tax": "Corporate tax", Audit: "Audit", Other: "Other services", CR: locOf(c) === "UAE" ? "Trade licence" : "CR" };
+  const it = deadlineItems([c], +m.slice(0, 4)).filter(x => x.ym === m && !x.done && (x.svc !== "CR" || x.due >= t));
+  const doneN = deadlineItems([c], +m.slice(0, 4)).filter(x => x.ym === m && x.done).length;
+  const rows = it.sort((a, b) => a.due.localeCompare(b.due)).map(x => { const d = daysUntil(x.due); const who = (x.own || []).map(o => empName(o).split(" ")[0]).join(" / ");
+    return `<li ${x.act}><div style="flex:1"><b>${esc(SV[x.svc] || x.svc)}</b><div class="small muted">${esc(x.label)}${who ? " · " + esc(who) : ""}</div></div><div class="small nowrap" style="text-align:right">${fmtDate(x.due)}<div class="${d < 0 ? "over" : d <= 7 ? "soon" : "faint"}">${relDays(d)}</div></div></li>`; });
+  return `<div class="modal">${mHead(`${locTag(c)} ${esc(c.Title)} · ${ymLabel(m)}`)}<div class="mb" style="padding:0">
+    <div class="small muted" style="padding:14px 24px 6px">${rows.length} pending${doneN ? ` · ${doneN} already completed this month` : ""} — click an item to update it</div>
+    ${rows.length ? `<ul class="plan-list">${rows.join("")}</ul>` : `<div class="empty">No pending work for ${esc(c.Title)} in ${ymLabel(m)}.</div>`}</div>
+    <div class="mf"><button type="button" class="btn" data-act="openClient" data-id="${c.id}" style="margin-right:auto">Open client</button>${isDeact(c) ? "" : `<button type="button" class="btn pri" data-act="addTask" data-c="${c.id}" data-m="${m}">${I.plus} Add task</button>`}<button type="button" class="btn" data-act="close">Close</button></div></div>`; };
 MODALS.client = ({ id }) => {
   const c = clientById(id); if(!c) return "";
   const tab = state.clientTab || "overview"; const cr = crInfo(c);
@@ -2078,7 +2110,7 @@ MODALS.empForm = ({ id }) => {
   </div></div><div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
 };
 
-MODALS.otherForm = ({ id, cid, year, name }) => {
+MODALS.otherForm = ({ id, cid, year, name, due }) => {
   const r = id ? (data.other.find(x => x.id === id) || {}) : {}; const c = clientById(r.ClientId || cid);
   const known = [...new Set(data.other.map(x => x.Service))].sort((a, b) => a.localeCompare(b));
   const cl = visibleClients().filter(x => !isDeact(x)).sort((a, b) => a.Title.localeCompare(b.Title));
@@ -2091,7 +2123,7 @@ MODALS.otherForm = ({ id, cid, year, name }) => {
     <label class="full">Status<select class="in" name="Status">${opt(OTH_STATUSES, r.Status || "Not started")}</select></label>
     <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || (isMgr() ? "" : me.email))}</select></label>
     <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || (c ? c.Reviewer : ""))}</select></label>
-    <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate)}"></label>
+    <label>Due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate || (id ? "" : due || ""))}"></label>
     <label>Next follow-up<input class="in" type="date" name="FollowUp" value="${esc(r.FollowUp)}"></label>
     <label>Planned date<input class="in" type="date" name="PlannedDate" value="${esc(r.PlannedDate)}"><span class="hint">The day you plan to work on it — shows on your dashboard</span></label>
     <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
@@ -2542,6 +2574,9 @@ const ACT = {
   dgMode: d => { state.dg.mode = d.v; render(); },
   planDay: d => { state.planDay = d.v; render(); },
   heroList: d => openModal("heroList", { k: d.v }),
+  cellList: d => openModal("cellList", { id: d.id, m: d.m }),
+  cpAll: (d, e) => { e && e.preventDefault(); state.cpAll = !state.cpAll; render(); },
+  addTask: d => openModal("otherForm", { cid: d.c, year: d.m.slice(0, 4), due: lastDay(d.m) }),
   dashMore: (d, e) => { e.preventDefault(); state.dashMore = !state.dashMore; render(); },
   tsort: d => { state.tsort = state.tsort || {}; const c = +d.c, cur = state.tsort[d.k]; state.tsort[d.k] = cur && cur.c === c ? { c, d: -cur.d } : { c, d: 1 }; if(d.k.startsWith("m:")) renderModals(); else render(); },
   csort: d => { const f = state.cf; if(f.sk === d.v) f.sd = -f.sd; else { f.sk = d.v; f.sd = 1; } render(); },
