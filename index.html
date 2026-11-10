@@ -658,7 +658,7 @@ const SCHEMA = {
                 VATNo:"text", VATCycle:"text", VATFrom:"text", FYEnd:"text", AuditRequired:"text", AssignedTo:"note", Reviewer:"text", Services:"note", AcctFreq:"text", ConsFreq:"text", Notes:"note" } },
   creds:     { list: "Credentials", fields: { Title:"text", ClientId:"text", Username:"text", Pwd:"text", PortalURL:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   vat:       { list: "VATReturns", fields: { Title:"text", ClientId:"text", PeriodEnd:"text", Status:"text", Preparer:"text", Reviewer:"text", PlannedDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", PaidDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
-  audits:    { list: "Audits", fields: { Title:"text", ClientId:"text", FY:"text", Auditor:"text", AssignedTo:"text", Reviewer:"text", Status:"text", DueDate:"text", PlannedDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
+  audits:    { list: "Audits", fields: { Title:"text", ClientId:"text", FY:"text", Auditor:"text", AssignedTo:"text", Reviewer:"text", Status:"text", DueDate:"text", StartDate:"text", PlannedEnd:"text", PlannedDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   mw:        { list: "MonthlyWork", fields: { Title:"text", ClientId:"text", Service:"text", Freq:"text", Month:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", PlannedDate:"text", CompletedDate:"text", Hours:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   ct:        { list: "CorporateTax", fields: { Title:"text", ClientId:"text", FY:"text", Status:"text", Preparer:"text", Reviewer:"text", DueDate:"text", PlannedDate:"text", FiledDate:"text", RefNo:"text", Amount:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
   other:     { list: "OtherWork", fields: { Title:"text", ClientId:"text", Service:"text", Year:"text", Status:"text", AssignedTo:"text", Reviewer:"text", DueDate:"text", FollowUp:"text", PlannedDate:"text", CompletedDate:"text", Notes:"note", UpdatedBy:"text", UpdatedOn:"text" } },
@@ -957,6 +957,13 @@ function inherit(k, ord, fields){ const L = ownIndex()[k] || []; const out = {};
 function vatPeople(c, pe){ const x = inherit("vat|" + c.id, pe, ["Preparer", "Reviewer"]); return { prep: x.Preparer, rev: x.Reviewer }; }
 function ctPeople(c, fy){ const x = inherit("ct|" + c.id, String(fy), ["Preparer", "Reviewer"]); return { prep: x.Preparer, rev: x.Reviewer }; }
 function mwPeople(c, svc, ym){ const x = inherit("mw|" + c.id + "|" + svc, ym, ["AssignedTo", "Reviewer"]); return { asg: x.AssignedTo, rev: x.Reviewer }; }
+/* audit runs over weeks: start date → planned end date (falls back to the old single planned date) */
+function audSpan(r){ if(!r) return null; const s = r.StartDate || r.PlannedDate || "", e = r.PlannedEnd || r.PlannedDate || r.StartDate || ""; return s ? { s, e: e < s ? s : e } : null; }
+const audDue = r => (r && (r.DueDate || r.PlannedEnd)) || "";
+function audPlanCell(r, done){ const sp = audSpan(r); const t = todayISO(); const cd = r && r.CompletedDate;
+  const p = sp && !(done && cd) ? `<span class="pd plan ${!done && sp.e < t ? "late" : sp.s <= t ? "today" : ""}" title="Start → planned end">▶ ${fmtDate(sp.s).slice(0, 6)} → ${fmtDate(sp.e).slice(0, 6)}</span>` : "";
+  const c = cd ? `<span class="pd done" title="Completed">✓ ${fmtDate(cd)}</span>` : "";
+  return p || c ? `<div class="pdw">${p}${c}</div>` : `<span class="faint">not scheduled</span>`; }
 function audPeople(c, fy){ const x = inherit("aud|" + c.id, String(fy), ["AssignedTo", "Reviewer"]); return { asg: x.AssignedTo, rev: x.Reviewer }; }
 function ownersOf(kind, p){ return [...new Set((kind === "vat" || kind === "ct" ? [p.prep, p.rev] : [p.asg, p.rev]).filter(Boolean).map(lc))]; }
 /* review stage: the preparer has handed over; the reviewer (and Admin, where no reviewer is set) gets it highlighted */
@@ -1231,8 +1238,8 @@ function ctWork(clients){ const out = []; const t = todayISO(); const y = +t.sli
 /* audit: the financial year chosen in the Audit tracker; the year before shows only if it was started and is still open */
 function auditWork(clients, fy){ const out = []; const prev = String(+fy - 1);
   for(const c of auditClients(clients)){ if(isDeact(c)) continue;
-    for(let k = 4; k >= 1; k--){ const pf = String(+fy - k); const rp = auditRec(c.id, pf); if(rp){ const st = auditSt(c, rp); if(!AUDIT_DONE.has(st)) out.push({ c, fy: pf, st, done: false, cur: false, prev: true, over: true, due: rp.DueDate || "", own: ownersOf("audit", audPeople(c, pf)) }); } }
-    const r = auditRec(c.id, fy); const st = auditSt(c, r); const done = AUDIT_DONE.has(st); out.push({ c, fy, st, done, cur: true, prev: false, over: false, due: (r && r.DueDate) || "", own: ownersOf("audit", audPeople(c, fy)) }); }
+    for(let k = 4; k >= 1; k--){ const pf = String(+fy - k); const rp = auditRec(c.id, pf); if(rp){ const st = auditSt(c, rp); if(!AUDIT_DONE.has(st)) out.push({ c, fy: pf, st, done: false, cur: false, prev: true, over: true, due: audDue(rp), own: ownersOf("audit", audPeople(c, pf)) }); } }
+    const r = auditRec(c.id, fy); const st = auditSt(c, r); const done = AUDIT_DONE.has(st); out.push({ c, fy, st, done, cur: true, prev: false, over: !done && !!audDue(r) && audDue(r) < todayISO(), due: audDue(r), own: ownersOf("audit", audPeople(c, fy)) }); }
   return out.filter(ownF).sort((a, b) => (b.prev - a.prev) || a.c.Title.localeCompare(b.c.Title)); }
 function workSum(items){ const now = items.filter(x => x.cur); return { total: now.length, doneN: now.filter(x => x.done).length, curP: now.filter(x => !x.done).length, prevN: items.filter(x => x.prev).length, over: items.filter(x => x.over).length, pending: items.filter(x => !x.done), doneItems: now.filter(x => x.done) }; }
 function prevChip(x, label){ return x.over ? chip("red", "Overdue · " + esc(label)) : x.prev ? chip("st-pend", "Previous period · " + esc(label)) : ""; }
@@ -1252,7 +1259,7 @@ function deadlineItems(clients, year){ const Y = String(year); const out = []; c
     for(const svc of MW_SERVICES){ if(!hasService(c, svc)) continue;
       for(const p of mwPeriods(c, svc, ymAdd(jan, -14), `${Y}-12`)){ const st = mwStatus(c.id, svc, p.ym, p.freq); push(c, svc, mwDue(c, svc, p.ym, p.freq), MW_DONE.has(st), `${svc} ${mwLabel(c, p.ym, p.freq)} · ${st}`, `data-act="editMw" data-c="${c.id}" data-s="${svc}" data-m="${p.ym}" data-f="${p.freq}"`, st, ownersOf("mw", mwPeople(c, svc, p.ym))); } }
     if(hasService(c, "Corporate Tax")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = ctRec(c.id, fy); const st = (r && r.Status) || "Not started"; push(c, "Corporate Tax", ctDue(c, fy), CT_DONE.has(st), `Corporate tax FY${fy} · ${st}`, `data-act="editCt" data-c="${c.id}" data-fy="${fy}"`, st, ownersOf("ct", ctPeople(c, fy))); }
-    if(hasService(c, "Audit")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = auditRec(c.id, fy); if(!r || !r.DueDate) continue; const st = auditSt(c, r); push(c, "Audit", r.DueDate, AUDIT_DONE.has(st), `Audit FY${fy} · ${st}`, `data-act="editAudit" data-c="${c.id}" data-fy="${fy}"`, st, ownersOf("audit", audPeople(c, fy))); }
+    if(hasService(c, "Audit")) for(const fy of [+Y - 2, +Y - 1, +Y].map(String)){ const r = auditRec(c.id, fy); if(!audDue(r)) continue; const st = auditSt(c, r); push(c, "Audit", audDue(r), AUDIT_DONE.has(st), `Audit FY${fy} · ${st}`, `data-act="editAudit" data-c="${c.id}" data-fy="${fy}"`, st, ownersOf("audit", audPeople(c, fy))); }
     for(const x of otherItems([c], Y)) if(x.due) push(c, "Other", x.due, x.done, `${x.name} · ${x.st}`, `data-act="editOther" data-id="${x.rec.id}"`, x.st, ownersOf("other", { asg: x.rec.AssignedTo, rev: x.rec.Reviewer }));
     if(/^\d{4}-\d{2}-\d{2}$/.test(c.CRExpiry || "")) push(c, "CR", c.CRExpiry, false, `${locOf(c) === "UAE" ? "Trade licence" : "CR"} expiry`, `data-act="openClient" data-id="${c.id}"`);
   }
@@ -1345,7 +1352,7 @@ function openItemsAll(cl, w){ const L = [];
   w.vat.pending.forEach(x => L.push({ c: x.c, svc: "VAT", label: x.label, due: x.due, over: x.over, act: `data-act="editVat" data-c="${x.c.id}" data-pe="${x.pe}"`, own: x.own, st: x.st, rev: vatPeople(x.c, x.pe).rev, plan: (vatRec(x.c.id, x.pe) || {}).PlannedDate || "" }));
   w.mw.pending.forEach(x => L.push({ c: x.c, svc: x.svc === "Consultancy" ? "Consultation" : "Accounting", label: x.label, due: x.due, over: x.over, act: `data-act="editMw" data-c="${x.c.id}" data-s="${esc(x.svc)}" data-m="${x.ym}" data-f="${x.freq}"` , own: x.own, st: x.st, rev: mwPeople(x.c, x.svc, x.ym).rev, plan: (mwRec(x.c.id, x.svc, x.ym, x.freq) || {}).PlannedDate || "" }));
   w.ct.pending.forEach(x => L.push({ c: x.c, svc: "Corporate tax", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editCt" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own, st: x.st, rev: ctPeople(x.c, x.fy).rev, plan: (ctRec(x.c.id, x.fy) || {}).PlannedDate || "" }));
-  w.aud.pending.forEach(x => L.push({ c: x.c, svc: "Audit", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editAudit" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own, st: x.st, rev: audPeople(x.c, x.fy).rev, plan: (auditRec(x.c.id, x.fy) || {}).PlannedDate || "" }));
+  w.aud.pending.forEach(x => L.push({ c: x.c, svc: "Audit", label: "FY" + x.fy, due: x.due, over: x.over, act: `data-act="editAudit" data-c="${x.c.id}" data-fy="${x.fy}"`, own: x.own, st: x.st, rev: audPeople(x.c, x.fy).rev, plan: (audSpan(auditRec(x.c.id, x.fy)) || {}).s || "", end: (audSpan(auditRec(x.c.id, x.fy)) || {}).e || "", planOwn: [inReview(x.st) ? audPeople(x.c, x.fy).rev : audPeople(x.c, x.fy).asg].filter(Boolean).map(lc) }));
   w.oth.pending.forEach(x => L.push({ c: x.c, svc: x.name, label: x.year, due: x.due, over: x.over, act: `data-act="editOther" data-id="${x.rec.id}"`, own: ownersOf("other", { asg: x.rec.AssignedTo, rev: x.rec.Reviewer }), st: x.st, rev: x.rec.Reviewer, plan: x.rec.PlannedDate || "" }));
   return L; }
 function svcMonthChart(items, Y, title, sub, view){ const cur = curYM(); const months = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
@@ -1401,18 +1408,19 @@ function reviewCard(pend){ const a = pend.filter(x => revMine(x.st, x.rev)).sort
     <ul class="plan-list">${a.slice(0, 30).map(x => { const dd = daysUntil(x.due); const prep = (x.own || []).filter(o => o !== lc(x.rev)).map(o => empName(o).split(" ")[0]).join(" / ");
       return `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${prep ? " · from " + esc(prep) : ""}${x.due ? ` · due ${fmtDate(x.due)} <span class="${dd < 0 ? "over" : dd <= 7 ? "soon" : "faint"}">(${relDays(dd)})</span>` : ""}</div></div>${chip("st-rev", esc(x.st), true)}</li>`; }).join("")}</ul></div>`; }
 function planCard(pend){ const e = isAdmin() ? (state.pl.who || "") : lc(me.email);
-  const mine = e ? pend.filter(x => (x.own || []).includes(e)) : pend; const done = myDone7(e);
+  const mine = e ? pend.filter(x => (x.planOwn || x.own || []).includes(e)) : pend; const done = myDone7(e);
+  const endOf = x => x.end || x.plan; const onDay = (x, d) => x.plan && x.plan <= d && d <= endOf(x);
   const nm = x => !e && (x.own || []).length ? ` · <span class="faint">${esc((x.own || []).map(o => empName(o).split(" ")[0]).join(" / "))}</span>` : "";
   const whoSel = isAdmin() ? `<select class="in" data-bind="pl.who" style="width:auto;padding:4px 8px;margin-right:8px"><option value="">Everyone</option>${activeEmployees().map(x => `<option value="${esc(lc(x.Email))}" ${lc(x.Email) === e ? "selected" : ""}>${esc(x.Title)}${lc(x.Email) === lc(me.email) ? " (me)" : ""}</option>`).join("")}</select>` : "";
   if(!mine.length && !done.length) return "";
   const t = todayISO(); const days = Array.from({ length: 7 }, (_, i) => isoAdd(t, i));
-  const late = mine.filter(x => x.plan && x.plan < t), none = mine.filter(x => !x.plan), later = mine.filter(x => x.plan && x.plan > days[6]);
+  const late = mine.filter(x => x.plan && endOf(x) < t), none = mine.filter(x => !x.plan), later = mine.filter(x => x.plan && x.plan > days[6]);
   const sel = state.planDay || t;
-  const pick = sel === "late" ? late : sel === "none" ? none : sel === "later" ? later : sel === "done" ? [] : mine.filter(x => x.plan === sel);
+  const pick = sel === "late" ? late : sel === "none" ? none : sel === "later" ? later : sel === "done" ? [] : mine.filter(x => onDay(x, sel));
   const dn = d => new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
   const box = (k, top, mid, n, cls) => `<button class="plan-day ${cls || ""} ${sel === k ? "on" : ""}" data-act="planDay" data-v="${k}"><div class="dn">${top}</div><div class="dd">${mid}</div><div class="dc">${n} job${n === 1 ? "" : "s"}</div></button>`;
-  const strip = days.map((d, i) => box(d, i === 0 ? "Today" : dn(d), +d.slice(8), mine.filter(x => x.plan === d).length, i === 0 ? "today" : ""));
-  const row = x => { const dd = daysUntil(x.due); return `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${nm(x)}${x.due ? ` · due ${fmtDate(x.due)} <span class="${dd < 0 ? "over" : dd <= 7 ? "soon" : "faint"}">(${relDays(dd)})</span>` : ""}</div></div>${x.plan ? `<span class="pd plan ${x.plan < t ? "late" : x.plan === t ? "today" : ""}">◷ ${x.plan === t ? "Today" : fmtDate(x.plan)}</span>` : `<span class="small faint">not planned</span>`}</li>`; };
+  const strip = days.map((d, i) => box(d, i === 0 ? "Today" : dn(d), +d.slice(8), mine.filter(x => onDay(x, d)).length, i === 0 ? "today" : ""));
+  const row = x => { const dd = daysUntil(x.due); return `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${nm(x)}${x.due ? ` · due ${fmtDate(x.due)} <span class="${dd < 0 ? "over" : dd <= 7 ? "soon" : "faint"}">(${relDays(dd)})</span>` : ""}</div></div>${x.plan ? (x.end && x.end !== x.plan ? `<span class="pd plan ${x.end < t ? "late" : x.plan <= t ? "today" : ""}" title="Start → planned end">▶ ${fmtDate(x.plan).slice(0, 6)} → ${fmtDate(x.end).slice(0, 6)}</span>` : `<span class="pd plan ${x.plan < t ? "late" : x.plan === t ? "today" : ""}">◷ ${x.plan === t ? "Today" : fmtDate(x.plan)}</span>`) : `<span class="small faint">not planned</span>`}</li>`; };
   const list = sel === "done" ? done.map(x => `<li ${x.act}><div style="flex:1"><b>${esc(x.c.Title)}</b><div class="small muted">${esc(x.svc)} · ${esc(x.label)}${!e && x.who ? ` · <span class="faint">${esc(empName(x.who).split(" ")[0])}</span>` : ""}</div></div><span class="pd done">✓ ${fmtDate(x.date)}</span></li>`)
     : pick.sort((a, b) => (a.plan || "9").localeCompare(b.plan || "9") || (a.due || "9").localeCompare(b.due || "9")).map(row);
   const title = sel === "late" ? "Planned earlier, still open" : sel === "none" ? "Not planned yet — open the job and set a planned date" : sel === "later" ? "Planned after next week" : sel === "done" ? "Completed in the last 7 days" : sel === t ? "Planned for today" : "Planned for " + fmtDate(sel);
@@ -1633,14 +1641,14 @@ VIEWS.audit = () => {
     <select class="in" data-bind="af.show"><option value="all">All statuses</option><option value="pending" ${f.show === "pending" ? "selected" : ""}>Pending only</option><option value="done" ${f.show === "done" ? "selected" : ""}>Completed only</option></select>
   </div>
   <div class="card"><div class="card-b"><div class="progress-row"><div><b>FY${esc(f.fy)} audits</b><div class="small muted">Clients with the <b>Audit</b> service ticked${carried.length ? ` · <span class="over">+ ${carried.length} pending from earlier years shown first</span>` : ""}</div></div><div class="bar"><i style="width:${pct}%"></i></div><div><b>${done}</b> <span class="muted">of ${total} complete (${pct}%)</span></div></div></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>FY end</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Progress</th><th>Due</th><th>Planned / Completed</th><th>Last update</th><th></th></tr></thead><tbody>
+  <div class="tw"><table class="tbl"><thead><tr><th>Client</th><th>FY end</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Progress</th><th>Due</th><th>Start → planned end / completed</th><th>Last update</th><th></th></tr></thead><tbody>
   ${rows.map(r => { const idx = auditStatuses(r.c).indexOf(r.st); const steps = auditStatuses(r.c).length - 1; const d = daysUntil(r.rec && r.rec.DueDate); return `<tr${revTr(r.st, audPeople(r.c, r.fy).rev)}>
     <td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a>${r.carried ? ` ${chip("red", "Carried · FY" + esc(r.fy))}` : ""}</td>
     <td class="small nowrap">${fmtDate(r.fy + "-" + (r.c.FYEnd || "12-31"))}</td><td class="small">${esc(r.rec && r.rec.Auditor)}</td>
     <td class="small">${esc(empName(audPeople(r.c, r.fy).asg))}</td><td>${auditChip(r.st)}</td>
     <td style="min-width:80px"><div class="steps" title="${esc(r.st)}">${Array.from({length:steps - 1}, (_, i) => `<i class="${/^not applicable$/i.test(r.st) || i < idx ? "on" : ""}"></i>`).join("")}</div></td>
     <td class="small nowrap">${fmtDate(r.rec && r.rec.DueDate)}${d != null && !AUDIT_DONE.has(r.st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td>
-    <td class="small nowrap">${pcCell(r.rec, "CompletedDate", AUDIT_DONE.has(r.st))}</td>
+    <td class="small nowrap">${audPlanCell(r.rec, AUDIT_DONE.has(r.st))}</td>
     <td class="small faint nowrap">${updCell(r.rec)}</td>
     <td><button class="btn sm" data-act="editAudit" data-c="${r.c.id}" data-fy="${esc(r.fy)}">Update</button></td></tr>`; }).join("")}
   </tbody></table>${rows.length ? "" : `<div class="empty">No clients to show.</div>`}</div></div>`;
@@ -1977,9 +1985,9 @@ MODALS.client = ({ id }) => {
       <td class="small nowrap">${fmtDate(du)}${!CT_DONE.has(st) ? `<div class="${d < 0 ? "over" : d <= 30 ? "soon" : "faint"}">${relDays(d)}</div>` : ""}</td><td>${ctChip(st)}</td><td class="small">${esc(empName(r && r.Preparer))}</td>
       <td class="small nowrap">${fmtDate(r && r.FiledDate)}</td><td class="small">${esc(r && r.RefNo)}</td><td class="num">${esc(r && r.Amount)}</td><td class="small muted">${esc(wlLast(r).slice(0, 90))}</td><td><button class="btn sm" data-act="editCt" data-c="${id}" data-fy="${fy}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
   if(tab === "audit"){ const y = new Date().getFullYear(); body = !hasService(c, "Audit") ? `<div class="empty">Audit is not a service for this client. Tick <b>Audit</b> under Services in Edit client to track it.</div>` :
-    `<div class="tw"><table class="tbl"><thead><tr><th>FY</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Due</th><th>Completed</th><th>Notes</th><th></th></tr></thead><tbody>
+    `<div class="tw"><table class="tbl"><thead><tr><th>FY</th><th>Auditor</th><th>Assigned</th><th>Status</th><th>Due</th><th>Start → end / completed</th><th>Notes</th><th></th></tr></thead><tbody>
     ${[0,1,2,3].map(i => String(y - i)).map(fy => { const r = auditRec(id, fy); return `<tr><td><b>FY${fy}</b></td><td class="small">${esc(r && r.Auditor)}</td><td class="small">${esc(empName(r && r.AssignedTo))}</td><td>${auditChip(auditSt(c, r))}</td>
-      <td class="small nowrap">${fmtDate(r && r.DueDate)}</td><td class="small nowrap">${fmtDate(r && r.CompletedDate)}</td><td class="small muted">${esc(wlLast(r).slice(0, 90))}</td><td><button class="btn sm" data-act="editAudit" data-c="${id}" data-fy="${fy}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
+      <td class="small nowrap">${fmtDate(r && r.DueDate)}</td><td class="small nowrap">${r ? audPlanCell(r, AUDIT_DONE.has(auditSt(c, r))) : ""}</td><td class="small muted">${esc(wlLast(r).slice(0, 90))}</td><td><button class="btn sm" data-act="editAudit" data-c="${id}" data-fy="${fy}">Update</button></td></tr>`; }).join("")}</tbody></table></div>`; }
   if(tab === "other"){ const its = data.other.filter(x => x.ClientId === c.id).sort((a, b) => othYear(b).localeCompare(othYear(a)) || a.Service.localeCompare(b.Service));
     body = `<div style="display:flex;justify-content:flex-end;margin-bottom:10px">${isDeact(c) ? "" : `<button class="btn sm pri" data-act="addOther" data-c="${c.id}">${I.plus} Add other service</button>`}</div>` + (its.length ? `<div class="tw"><table class="tbl"><thead><tr><th>Year</th><th>Service</th><th>Status</th><th>Assigned</th><th>Due</th><th>Next follow-up</th><th>Latest note</th><th></th></tr></thead><tbody>
     ${its.map(r => { const st = r.Status || "Not started"; const x = { fu: r.FollowUp, done: OTH_DONE.has(st) }; return `<tr><td><b>${esc(othYear(r))}</b></td><td><b>${esc(r.Service)}</b></td><td>${othChip(st)}</td><td class="small">${esc(empName(r.AssignedTo || teamOf(c)[0] || ""))}</td><td class="small nowrap">${fmtDate(r.DueDate)}</td><td class="small nowrap">${fuCell(x)}</td><td class="small muted">${esc(wlLast(r).slice(0, 90))}</td><td><button class="btn sm" data-act="editOther" data-id="${r.id}">Update</button></td></tr>`; }).join("")}</tbody></table></div>` : `<div class="empty">No other services tracked for this client yet.</div>`); }
@@ -2094,9 +2102,10 @@ MODALS.auditForm = ({ cid, fy }) => {
     <label>Auditor (firm)<input class="in" name="Auditor" value="${esc(r.Auditor)}"></label>
     <label>Assigned to<select class="in" name="AssignedTo">${empOpts(r.AssignedTo || audPeople(c, fy).asg || (isMgr() ? "" : me.email))}</select></label>
     <label>Reviewer<select class="in" name="Reviewer">${empOpts(r.Reviewer || audPeople(c, fy).rev || c.Reviewer)}</select></label>
-    <label>Target / due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate)}"></label>
-    <label>Planned date<input class="in" type="date" name="PlannedDate" value="${esc(r.PlannedDate)}"><span class="hint">The day you plan to work on it — shows on your dashboard</span></label>
-    <label>Completed on<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"></label>
+    <label>Target / due date<input class="in" type="date" name="DueDate" value="${esc(r.DueDate)}"><span class="hint">Statutory or agreed deadline</span></label>
+    <label>Start date<input class="in" type="date" name="StartDate" value="${esc(r.StartDate || r.PlannedDate)}"><span class="hint">When the audit work begins</span></label>
+    <label>Planned end date<input class="in" type="date" name="PlannedEnd" value="${esc(r.PlannedEnd)}"><span class="hint">Shows on the dashboard work plan for every day from start to end</span></label>
+    <label>Completion date<input class="in" type="date" name="CompletedDate" value="${esc(r.CompletedDate)}"><span class="hint">Filled automatically at the final stage</span></label>
     ${wlBlock(r)}
   </div>${r.UpdatedOn ? `<p class="small faint">Last updated by ${esc(empName(r.UpdatedBy))} on ${fmtDT(r.UpdatedOn)}</p>` : ""}</div>
   <div class="mf"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn pri">Save</button></div></form>`;
@@ -2237,7 +2246,8 @@ SUBMIT.ct = async (form, o) => {
 SUBMIT.audit = async (form, o) => {
   const cid = form.dataset.c, fy = form.dataset.fy; const c = clientById(cid); const r = auditRec(cid, fy); const PREVX = auditSt(c, r);
   if(AUDIT_DONE.has(o.Status) && !/^not applicable$/i.test(o.Status) && !o.CompletedDate) o.CompletedDate = todayISO();
-  const f = { Title: cid + "|FY" + fy, ClientId: cid, FY: fy, Status: o.Status, PlannedDate: o.PlannedDate || "", Auditor: o.Auditor, AssignedTo: o.AssignedTo, Reviewer: o.Reviewer || "", DueDate: o.DueDate, CompletedDate: o.CompletedDate, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
+  if(o.StartDate && o.PlannedEnd && o.PlannedEnd < o.StartDate) return toast("Planned end date can't be before the start date", true);
+  const f = { Title: cid + "|FY" + fy, ClientId: cid, FY: fy, Status: o.Status, StartDate: o.StartDate || "", PlannedEnd: o.PlannedEnd || "", PlannedDate: (r && r.PlannedDate && !o.StartDate) ? r.PlannedDate : "", Auditor: o.Auditor, AssignedTo: o.AssignedTo, Reviewer: o.Reviewer || "", DueDate: o.DueDate, CompletedDate: o.CompletedDate, Notes: wlNotes(r, o, PREVX), UpdatedBy: me.email, UpdatedOn: nowISO() };
   const prev = auditSt(c, r);
   await saveRec("audits", r ? r.id : null, f);
   await logAct("Audit status updated", c, `FY${fy}: ${prev} → ${o.Status}${noteTag(o)}`);
