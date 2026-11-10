@@ -1295,11 +1295,15 @@ function clientGridCard(items, Y){
 /* client-wise pending work (same open jobs as the dashboard rings): one row per client, each job clickable */
 function clientPendingCard(pend){ const by = new Map(); for(const x of pend){ if(!by.has(x.c.id)) by.set(x.c.id, []); by.get(x.c.id).push(x); }
   const q = lc(state.dg.cpq || ""); let rows = [...by.values()].map(a => ({ c: a[0].c, a: a.sort((p, r) => (p.due || "9").localeCompare(r.due || "9")), over: a.filter(x => x.over).length }))
-    .filter(r => !q || lc(r.c.Title).includes(q)).sort((p, r) => (r.over - p.over) || (p.a[0].due || "9").localeCompare(r.a[0].due || "9") || p.c.Title.localeCompare(r.c.Title));
+    .filter(r => !q || lc(r.c.Title).includes(q));
+  const so = state.dg.cps || { k: "att", d: 1 }; const byName = (p, r) => p.c.Title.localeCompare(r.c.Title), byDue = (p, r) => (p.a[0].due || "9").localeCompare(r.a[0].due || "9");
+  rows.sort(so.k === "name" ? (p, r) => so.d * byName(p, r) : so.k === "open" ? (p, r) => so.d * (r.a.length - p.a.length) || byName(p, r) : so.k === "due" ? (p, r) => so.d * byDue(p, r) || byName(p, r)
+    : (p, r) => (r.over - p.over) || byDue(p, r) || byName(p, r));
+  const sh = (k, label, cls) => `<th class="sortable ${cls || ""} ${so.k === k ? "sorted" : ""}" data-act="cpSort" data-v="${k}" title="Sort">${label}<span class="sarr">${so.k === k ? (so.d > 0 ? "▲" : "▼") : "↕"}</span></th>`;
   const all = state.cpAll; const shown = all ? rows : rows.slice(0, 12);
   const job = x => { const d = daysUntil(x.due); return `<button class="cpj ${x.over ? "over" : stCls(x.st || "", new Set())}" ${x.act} title="${esc(x.svc + " · " + x.label + (x.st ? " · " + x.st : "") + (x.due ? " · due " + fmtDate(x.due) : ""))}"><b>${esc(x.svc)}</b> ${esc(x.label)}${x.due ? ` <span class="cpd">${x.over ? -d + "d late" : fmtDate(x.due).slice(0, 6)}</span>` : ""}</button>`; };
   return `<div class="card" style="margin-bottom:18px"><div class="card-h"><h3>Client-wise pending work</h3><div class="right" style="display:flex;gap:8px;align-items:center"><span class="small muted">${pend.length} open job${pend.length === 1 ? "" : "s"} · ${by.size} client${by.size === 1 ? "" : "s"}</span><input class="in search" id="cp-q" placeholder="Search client…" value="${esc(state.dg.cpq || "")}" data-bind="dg.cpq" style="width:180px"></div></div>
-    ${rows.length ? `<div class="tw"><table class="tbl nosort cpt"><thead><tr><th>Client</th><th class="num">Open</th><th>Pending jobs (oldest first) — click one to update</th><th></th></tr></thead><tbody>
+    ${rows.length ? `<div class="tw"><table class="tbl nosort cpt"><thead><tr>${sh("name", "Client")}${sh("open", "Open", "num")}${sh("due", "Pending jobs (oldest first) — click one to update")}<th class="${so.k === "att" ? "" : ""}">${so.k !== "att" ? `<a href="#" data-act="cpSort" data-v="att" style="color:inherit;font-weight:500">Reset sort</a>` : ""}</th></tr></thead><tbody>
     ${shown.map(r => `<tr><td class="cname">${state.loc ? "" : locTag(r.c) + " "}<a href="#" data-act="openClient" data-id="${r.c.id}" style="color:inherit;text-decoration:none">${esc(r.c.Title)}</a>${r.over ? `<div class="small over">${r.over} overdue</div>` : ""}</td>
       <td class="num"><b>${r.a.length}</b></td><td><div class="cpw">${r.a.map(job).join("")}</div></td>
       <td class="nowrap">${isDeact(r.c) ? "" : `<button class="btn sm" data-act="addTask" data-c="${r.c.id}" data-m="${curYM()}" title="Add a task for this client">${I.plus} Task</button>`}</td></tr>`).join("")}
@@ -2575,6 +2579,7 @@ const ACT = {
   planDay: d => { state.planDay = d.v; render(); },
   heroList: d => openModal("heroList", { k: d.v }),
   cellList: d => openModal("cellList", { id: d.id, m: d.m }),
+  cpSort: (d, e) => { e && e.preventDefault(); const cur = state.dg.cps || { k: "att", d: 1 }; state.dg.cps = d.v === "att" ? { k: "att", d: 1 } : { k: d.v, d: cur.k === d.v ? -cur.d : 1 }; render(); },
   cpAll: (d, e) => { e && e.preventDefault(); state.cpAll = !state.cpAll; render(); },
   addTask: d => openModal("otherForm", { cid: d.c, year: d.m.slice(0, 4), due: lastDay(d.m) }),
   dashMore: (d, e) => { e.preventDefault(); state.dashMore = !state.dashMore; render(); },
