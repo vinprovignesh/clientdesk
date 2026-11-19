@@ -694,10 +694,10 @@ const VAT_DONE = new Set(["Filed","Paid / Closed","Nil return filed","Not applic
 const VAT_COLOR = {"Not started":"grey","Data requested":"amber","Data received":"blue","In preparation":"blue","Under review":"purple","Filed":"green","Paid / Closed":"green","Nil return filed":"green","Not applicable":"grey"};
 const VAT_SHORT = {"Not started":"—","Data requested":"Req","Data received":"Rcvd","In preparation":"Prep","Under review":"Review","Filed":"Filed","Paid / Closed":"Paid","Nil return filed":"Nil","Not applicable":"N/A"};
 
-const AUDIT_STATUSES = ["Not started","Engagement / Planning","Fieldwork","Draft FS issued","Management review","Signed","Filed with authority","Not applicable"];
+const AUDIT_STATUSES = ["Not started","Engagement / Planning","Fieldwork","Awaiting additional details from client","Draft FS issued","Management review","Signed","Filed with authority","Not applicable"];
 const AUDIT_DONE = new Set(["Filed with authority","Filed with MOIC (Sijilat)","Not applicable","Uploaded in Sijilat","Not Applicable"]);
 /* Bahrain clients use their own audit stages; older Bahrain records are read through this map */
-const AUDIT_STATUSES_BH = ["Not Started","Pre Audit Docs Signed","Fieldwork - Employee","Fieldwork - Manager/Partner","Pending at Auditor end","Draft FS","Management Review","Final Signed","Uploaded in Sijilat","Not Applicable"];
+const AUDIT_STATUSES_BH = ["Not Started","Pre Audit Docs Signed","Fieldwork - Employee","Fieldwork - Manager/Partner","Pending at Auditor end","Awaiting additional details from client","Draft FS","Management Review","Final Signed","Uploaded in Sijilat","Not Applicable"];
 const AUDIT_BH_MAP = {"Not started":"Not Started","Engagement / Planning":"Pre Audit Docs Signed","Fieldwork":"Fieldwork - Employee","Fieldwork - Vinpro":"Fieldwork - Employee","Draft FS issued":"Draft FS","Management review":"Management Review","Signed":"Final Signed","Filed with authority":"Uploaded in Sijilat","Filed with MOIC (Sijilat)":"Uploaded in Sijilat","Not applicable":"Not Applicable"};
 function auditStatuses(c){ return locOf(c) === "Bahrain" ? AUDIT_STATUSES_BH : AUDIT_STATUSES; }
 function auditSt(c, r){ const s = (r && r.Status) || ""; if(locOf(c) === "Bahrain") return AUDIT_BH_MAP[s] || s || "Not Started"; return s || "Not started"; }
@@ -817,7 +817,7 @@ class GraphStore {
      the list's real internal name, matched by name first and then by display name. */
   async ensureColumns(){
     this.cols = this.cols || {};
-    for(const k of Object.keys(SCHEMA)){ const lid = this.listIds[k]; if(!lid) continue;
+    await Promise.all(Object.keys(SCHEMA).map(async k => { const lid = this.listIds[k]; if(!lid) return;
       try {
         const cols = (await this.g("GET", `/sites/${this.siteId}/lists/${lid}/columns?$select=name,displayName&$top=500`)).value; const map = {};
         const find = n => (cols.find(c => c.name === n) || cols.find(c => lc(c.displayName) === lc(n)) || {}).name;
@@ -826,7 +826,7 @@ class GraphStore {
             catch(e){ console.warn("Column not yet on SharePoint (an admin sign-in adds it):", k, name); (this.noCol = this.noCol || new Set()).add(k + "." + name); continue; } }
           map[name] = real; }
         this.cols[k] = map;
-      } catch(e){ console.warn("Column check failed for", k, e); } }
+      } catch(e){ console.warn("Column check failed for", k, e); } }));
   }
   col(kind, name){ return (this.cols && this.cols[kind] && this.cols[kind][name]) || name; }
   toSP(kind, f){ const o = {}; for(const k in f){ if(this.noCol && this.noCol.has(kind + "." + k)) continue; o[this.col(kind, k)] = f[k]; } return o; }
@@ -1102,16 +1102,25 @@ function avatars(emails){ return `<div class="avs">${emails.map(e => `<span clas
    PERSISTENCE WRAPPERS
    ============================================================ */
 async function withBusy(fn){ state.busy++; renderBusy(); try { return await fn(); } catch(e){ console.error(e); toast(e.message || String(e), true); throw e; } finally { state.busy--; renderBusy(); } }
+/* Updates are applied on screen at once and sent to SharePoint in the background (in order, per record);
+   if SharePoint refuses, the change is undone and a message shown. New records still wait for SharePoint so they get their real id. */
+const SAVE_Q = {}; let SAVES_OUT = 0;
 async function saveRec(kind, id, fields){ window.__dataVer = (window.__dataVer || 0) + 1;
-  return withBusy(async () => {
-    if(id){ await store.update(kind, id, fields); const r = data[kind].find(x => x.id === id); if(r) Object.assign(r, cleanFields(kind, fields)); return r; }
-    const r = await store.create(kind, fields); data[kind].push(r); return r;
-  });
+  if(id){ const r = data[kind].find(x => x.id === id); if(!r) return withBusy(async () => { await store.update(kind, id, fields); });
+    const before = { ...r }; Object.assign(r, cleanFields(kind, fields)); const key = kind + ":" + id;
+    SAVES_OUT++; state.busy++; renderBusy();
+    SAVE_Q[key] = (SAVE_Q[key] || Promise.resolve()).then(() => store.update(kind, id, fields))
+      .catch(e => { console.error(e); for(const k of Object.keys(fields)) r[k] = before[k]; window.__dataVer++; toast("Couldn't save to SharePoint — the change was undone: " + (e.message || e), true); render(); renderModals(); })
+      .finally(() => { SAVES_OUT--; state.busy--; renderBusy(); });
+    return r; }
+  return withBusy(async () => { const r = await store.create(kind, fields); data[kind].push(r); return r; });
 }
+window.addEventListener("beforeunload", e => { if(SAVES_OUT > 0){ e.preventDefault(); e.returnValue = "Changes are still being saved"; } });
 async function removeRec(kind, id){ return withBusy(async () => { await store.remove(kind, id); data[kind] = data[kind].filter(x => x.id !== id); }); }
 async function logAct(action, client, details){
   const rec = { Title: action, ClientId: client ? client.id : "", ClientName: client ? client.Title : "", UserEmail: me.email, UserName: me.name, Details: details || "", At: nowISO() };
-  try { const r = await store.create("activity", rec); data.activity.push(r); } catch(e){ console.warn("log failed", e); }
+  const tmp = Object.assign({ id: "tmp-" + uid() }, rec); data.activity.push(tmp);
+  store.create("activity", rec).then(r => { if(r) Object.assign(tmp, r); }).catch(e => console.warn("log failed", e)); /* not awaited — saving stays one round trip */
 }
 async function reload(){ await withBusy(async () => { data = await store.loadAll(); me.role = roleOf(me.email); }); render(); renderModals(); toast("Data refreshed"); }
 
